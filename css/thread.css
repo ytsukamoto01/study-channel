@@ -7,6 +7,18 @@
     align-items: center;
 }
 
+
+.nav-btn {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
 /* コメントするボタン（青ベース・がるちゃん風） */
 .comment-nav-btn {
   background-color: #3b82f6;       /* 明るめの青 (#3b82f6 = Tailwindのblue-500) */
@@ -33,16 +45,6 @@
 }
 
 
-.nav-btn {
-    background-color: rgba(255, 255, 255, 0.2);
-    color: white;
-    border: none;
-    padding: 10px 16px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.3s ease;
-}
 
 .nav-btn:hover {
     background-color: rgba(255, 255, 255, 0.3);
