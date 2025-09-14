@@ -31,10 +31,26 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupEventListeners() {
     // コメントフォーム
     const commentForm = document.getElementById('commentForm');
+    const scrollBtn = document.getElementById('scrollToCommentBtn');
+    if (scrollBtn) scrollBtn.addEventListener('click', scrollToCommentForm);
     if (commentForm) {
         commentForm.addEventListener('submit', handleCommentSubmit);
     }
 }
+
+// 追加：上部ボタン→最下部フォームへ
+function scrollToCommentForm() {
+  const target = document.getElementById('commentFormSection');
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // 少し待ってからテキストエリアにフォーカス
+    setTimeout(() => {
+      const ta = document.getElementById('commentContent');
+      if (ta) ta.focus();
+    }, 300);
+  }
+}
+
 
 // スレッド詳細を読み込み
 async function loadThreadDetail(threadId) {
