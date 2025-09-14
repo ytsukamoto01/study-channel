@@ -4,12 +4,6 @@ let currentThreadId = null;
 let userFingerprint = null;
 let currentThread = null;
 let currentReplyParentId = null;
-let userFingerprint = null;
-document.addEventListener('DOMContentLoaded', () => {
-  try {
-    userFingerprint = generateUserFingerprint();
-  } catch (_) {}
-});
 
 function showReplyPopup(commentId) {
   // 既存ポップアップがあれば削除
@@ -65,25 +59,21 @@ async function sendReply() {
 
 // ページ読み込み時の初期化
 document.addEventListener('DOMContentLoaded', function() {
+  try {
     userFingerprint = generateUserFingerprint();
-    
-    // URLからスレッドIDを取得
-    console.log('現在のURL:', window.location.href);
-    console.log('URLパラメータ:', window.location.search);
-    
-    const urlParams = new URLSearchParams(window.location.search);
-    const threadId = urlParams.get('id');
-    
-    console.log('取得したスレッドID:', threadId);
-    
-    if (threadId) {
-        currentThreadId = threadId;
-        loadThreadDetail(threadId);
-        setupEventListeners();
-    } else {
-        console.error('スレッドIDが見つかりません');
-        showErrorPage('スレッドIDが指定されていません');
-    }
+  } catch (_) {}
+
+  // URLからスレッドIDを取得
+  const urlParams = new URLSearchParams(window.location.search);
+  const threadId = urlParams.get('id');
+  if (threadId) {
+    currentThreadId = threadId;
+    loadThreadDetail(threadId);
+    setupEventListeners();
+  } else {
+    console.error('スレッドIDが見つかりません');
+    showErrorPage('スレッドIDが指定されていません');
+  }
 });
 
 // イベントリスナーの設定
