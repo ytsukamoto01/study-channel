@@ -20,9 +20,10 @@ body {
 
 /* ヘッダー全体 */
 .header {
-  background: linear-gradient(90deg, #3b82f6, #2563eb); /* 青系グラデーション */
-  color: white;
-  padding: 16px 0;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6); /* 青〜紫 */
+  color: #fff;
+  padding: 18px 0 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
 .site-logo:hover {
