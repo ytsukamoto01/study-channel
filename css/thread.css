@@ -7,6 +7,32 @@
     align-items: center;
 }
 
+/* コメントするボタン（青ベース・がるちゃん風） */
+.comment-nav-btn {
+  background-color: #3b82f6;       /* 明るめの青 (#3b82f6 = Tailwindのblue-500) */
+  color: #fff;
+  border: none;
+  border-radius: 20px;              /* pill型 */
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.comment-nav-btn:hover {
+  background-color: #2563eb;       /* 濃いめの青 (#2563eb = blue-600) */
+  transform: translateY(-1px);
+}
+
+.comment-nav-btn i {
+  font-size: 14px;
+}
+
+
 .nav-btn {
     background-color: rgba(255, 255, 255, 0.2);
     color: white;
