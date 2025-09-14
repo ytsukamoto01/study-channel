@@ -36,7 +36,7 @@ async function sendReply() {
   const body = {
     thread_id: currentThreadId,
     content,
-    author_name: getAuthorName(false),
+    author_name: getCommentAuthorName(),
     like_count: 0,
     comment_number: 0,           // サーバ側で採番してもOK
     parent_comment_id: currentReplyParentId
