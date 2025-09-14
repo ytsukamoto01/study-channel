@@ -4,6 +4,30 @@ let userFingerprint = null;
 
 document.addEventListener('DOMContentLoaded', init);
 
+// ★ 追加：返信投稿用の表示名取得（thread.html と同じ仕様）
+function getCommentAuthorName() {
+  const selected = document.querySelector('input[name="commentAuthorType"]:checked');
+  if (!selected || selected.value === 'anonymous') return '匿名';
+  const input = document.getElementById('commentCustomAuthorName');
+  return (input?.value || '').trim() || '匿名';
+}
+
+// ★ 追加：匿名/記名のラジオに応じて入力欄をトグル
+function setupAuthorNameToggle() {
+  const grp = document.getElementById('commentCustomNameGroup');
+  const radios = document.querySelectorAll('input[name="commentAuthorType"]');
+  const apply = () => {
+    const isCustom = document.querySelector('input[name="commentAuthorType"][value="custom"]')?.checked;
+    if (grp) {
+      grp.style.display = isCustom ? 'inline-block' : 'none';
+      if (isCustom) document.getElementById('commentCustomAuthorName')?.focus();
+    }
+  };
+  radios.forEach(r => r.addEventListener('change', apply));
+  apply();
+}
+
+
 async function init() {
   try {
     userFingerprint = generateUserFingerprint();
@@ -26,8 +50,11 @@ async function init() {
     setTimeout(() => document.getElementById('replyContent')?.focus(), 250);
   });
 
-  // 返信投稿
+    // 返信投稿
   document.getElementById('replyForm')?.addEventListener('submit', handleReplySubmit);
+
+  // ★ 追加：表示名トグルの初期化
+  setupAuthorNameToggle();
 }
 
 function showPageError(msg) {
