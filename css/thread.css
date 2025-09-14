@@ -147,23 +147,26 @@ body {
 }
 
 .comment-header {
-  display: flex;
+  display: flex !important;
+  flex-direction: row;
   align-items: center;
-  gap: 10px;                 /* ← 番号と名前の間の余白 */
+  justify-content: flex-start;  /* ← 左寄せにする */
+  gap: 6px;                      /* ← 番号と名前の間の余白を最小化 */
   color: #6b7280;
   font-size: 13px;
   margin-bottom: 6px;
+  text-align: left !important;  /* ← 万一centerが残っていても強制上書き */
 }
 
 .comment-number {
   color: #9ca3af;
-  flex-shrink: 0;            /* 番号が潰れないように固定 */
+  flex-shrink: 0;                /* 幅を固定せず自動サイズ */
 }
 
 .comment-author {
   font-weight: 600;
   color: #374151;
-  margin-left: 4px;           /* 番号とくっつきすぎ防止 */
+  margin: 0;                     /* 不要な左右余白を消す */
 }
 
 .comment-content {
