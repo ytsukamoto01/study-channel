@@ -13,18 +13,13 @@ async function loadMyPosts() {
     try {
         showLoading();
         
-        const response = await fetch('tables/threads?limit=1000');
+        const response = await fetch(`tables/threads?limit=1000&user_fingerprint=${encodeURIComponent(userFingerprint)}`);
         if (!response.ok) {
             throw new Error('投稿の読み込みに失敗しました');
         }
         
         const result = await response.json();
-        const allThreads = result.data || [];
-        
-        // 投稿者名で特定するのは困難なので、ローカルストレージを使用
-        const myThreadIds = getUserPreference('myThreadIds', []);
-        const myThreads = allThreads.filter(thread => myThreadIds.includes(thread.id));
-        
+        const myThreads = result.data || [];
         displayMyPosts(myThreads);
         
     } catch (error) {
