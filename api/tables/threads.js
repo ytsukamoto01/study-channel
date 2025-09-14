@@ -8,6 +8,8 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       const { limit, sort, order } = parseListParams(req);
+      const url = new URL(req.url, `https://${req.headers.host}`);
+      const fp = url.searchParams.get('user_fingerprint');
       const { data, error } = await sb
         .from('threads')
         .select('*')
