@@ -139,27 +139,38 @@ body {
   background: #fff;
 }
 
+
 #commentsList .comment-item {
   border-top: 1px solid #e5e7eb;
-  padding: 20px 0;
+  padding: 20px 0 20px 16px;  /* ← 左に余白を追加 */
   background: #fff;
 }
 
 .comment-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 10px;                 /* ← 番号と名前の間の余白 */
   color: #6b7280;
   font-size: 13px;
   margin-bottom: 6px;
 }
-.comment-number { color: #9ca3af; }
-.comment-author { font-weight: 600; color: #374151; }
+
+.comment-number {
+  color: #9ca3af;
+  flex-shrink: 0;            /* 番号が潰れないように固定 */
+}
+
+.comment-author {
+  font-weight: 600;
+  color: #374151;
+  margin-left: 4px;           /* 番号とくっつきすぎ防止 */
+}
 
 .comment-content {
-  margin: 2px 0 10px;
+  margin: 2px 0 10px 0;
   line-height: 1.7;
   white-space: pre-wrap;
+  padding-left: 0;             /* ← 本文はヘッダーと揃える */
 }
 
 .comment-actions { display: flex; gap: 10px; }
