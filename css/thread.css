@@ -303,7 +303,33 @@ body {
   margin: 0 4px 4px 0;
   border-radius: 12px;
 }
+/* ===========================
+   通常コメント (.comment-item)
+   コメント一覧にも左寄せスタイル適用
+=========================== */
 
+.comment-item .comment-header {
+  display: flex !important;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 6px;                     /* 番号と名前の間の余白 */
+  color: #6b7280;
+  font-size: 13px;
+  margin-bottom: 6px;
+  text-align: left !important; /* 万一centerが残っていても強制上書き */
+}
+
+.comment-item .comment-number {
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.comment-item .comment-author {
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
 
 /* 成功/エラーのトースト（既存JS用） */
 .success-message, .error-message {
