@@ -519,7 +519,7 @@ async function likeThread() {
 async function checkFavoriteStatus(threadId) {
     try {
         console.log('お気に入り状態確認開始');
-        const userFingerprint = generateUserFingerprint();
+        const fp = generateUserFingerprint();
         const response = await fetch('tables/favorites');
         
         if (!response.ok) {
@@ -532,7 +532,7 @@ async function checkFavoriteStatus(threadId) {
         console.log('お気に入りデータ:', favorites.length, '件');
         
         const isFavorite = favorites.some(fav => 
-            fav.thread_id === threadId && fav.user_fingerprint === userFingerprint
+            fav.thread_id === threadId && fav.user_fingerprint === fp
         );
         
         console.log('お気に入り状態:', isFavorite);
