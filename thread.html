@@ -32,74 +32,66 @@
 
     <main class="main">
         <div class="container">
+            <!-- ヘッダー右側のアクション群 -->
             <div class="thread-header-bar">
-                <button class="back-btn" onclick="window.history.back()">
-                    <i class="fas fa-arrow-left"></i> 一覧に戻る
+              <button class="back-btn" onclick="history.back()">戻る</button>
+              <div class="thread-actions">
+                <!-- ★ 追加：上部ボタン -->
+                <button class="nav-btn" id="scrollToCommentBtn">
+                  <i class="fas fa-edit"></i> コメントする
                 </button>
-                <div class="thread-actions">
-                    <button class="favorite-btn" id="favoriteBtn" onclick="toggleFavorite()">
-                        <i class="far fa-star"></i> お気に入り
-                    </button>
-                </div>
+                <button class="favorite-btn" id="favoriteBtn" onclick="toggleFavorite()">
+                  <i class="far fa-star"></i> お気に入り
+                </button>
+              </div>
             </div>
             
-            <!-- スレッド詳細 -->
+            <!-- スレッド詳細 -->            
             <div class="thread-detail-container">
-                <div class="op-post">
-                    <div class="post-header">
-                        <span class="post-number">1.</span>
-                        <span class="post-author" id="threadAuthor"></span>
-                        <span class="post-date" id="threadDate"></span>
-                        <span class="thread-category" id="threadCategoryBadge"></span>
-                        <span class="thread-subcategory" id="threadSubcategoryBadge"></span>
-                    </div>
-                    <h1 class="thread-title" id="threadTitle"></h1>
-                    <div class="post-content" id="threadContent"></div>
-                    <div class="thread-images-display" id="threadImagesDisplay"></div>
-                    <div class="thread-hashtags-display" id="threadHashtagsDisplay"></div>
-                    <div class="post-actions">
-                        <button class="like-btn" onclick="likeThread()">
-                            <i class="fas fa-heart"></i> <span id="threadLikeCount">0</span>
-                        </button>
-                    </div>
+            
+              <!-- ① OP(主コメント)ブロック -->
+              <article class="op-post">
+                <div class="post-header">
+                  <span class="post-number">1.</span>
+                  <span id="threadCategoryBadge" class="thread-category">カテゴリ</span>
+                  <span id="threadSubcategoryBadge" style="display:none;"></span>
+                  <span id="threadAuthor"></span>
+                  <span id="threadDate" class="post-date"></span>
                 </div>
-                
-                <!-- コメント投稿フォーム -->
-                <div class="comment-form-section">
-                    <h3>コメントする</h3>
-                    <form class="comment-form" id="commentForm">
-                        <textarea id="commentContent" placeholder="コメントを入力してください..." maxlength="1000" rows="4"></textarea>
-                        <div class="image-upload-wrapper comment-images">
-                            <input type="file" id="commentImages" accept="image/*" multiple onchange="handleImageUpload(event, 'comment')">
-                            <div class="image-upload-area-small" onclick="document.getElementById('commentImages').click()">
-                                <i class="fas fa-camera"></i> 画像添付 (最大5枚)
-                            </div>
-                            <div class="image-preview-container" id="commentImagePreview"></div>
-                        </div>
-                        <div class="comment-author-selection">
-                            <label class="radio-option-small">
-                                <input type="radio" name="commentAuthorType" value="anonymous" checked onchange="toggleCommentAuthorNameInput()">
-                                <span class="radio-label-small">匿名</span>
-                            </label>
-                            <label class="radio-option-small">
-                                <input type="radio" name="commentAuthorType" value="named" onchange="toggleCommentAuthorNameInput()">
-                                <span class="radio-label-small">名前指定</span>
-                            </label>
-                            <div class="comment-custom-name" id="commentCustomNameGroup" style="display: none;">
-                                <input type="text" id="commentCustomAuthorName" placeholder="名前..." maxlength="20">
-                            </div>
-                        </div>
-                        <button type="submit">コメントする</button>
-                    </form>
+                <h1 id="threadTitle" class="thread-title"></h1>
+                <div id="threadHashtagsDisplay" class="thread-hashtags-display"></div>
+                <div id="threadImagesDisplay"></div>
+                <div id="threadContent" class="post-content"></div>
+                <div class="post-actions">
+                  <button class="like-btn" onclick="likeThread()">
+                    <i class="fas fa-heart"></i> <span id="threadLikeCount">0</span>
+                  </button>
                 </div>
-                
-                <!-- コメント一覧 -->
-                <div class="comments-section">
-                    <h3>コメント (<span id="commentCount">0</span>)</h3>
-                    <div class="comments-list" id="commentsList">
-                        <!-- コメントがここに表示されます -->
-                    </div>
-                </div>
+              </article>
+            
+              <!-- ② コメント一覧（全部つらなって表示） -->
+              <section class="comments-section">
+                <h3>コメント（<span id="commentCount">0</span>）</h3>
+                <div id="commentsList"></div>
+              </section>
+            
+              <!-- ③ コメント入力欄（最後に配置） -->
+              <section class="comment-form-section" id="commentFormSection">
+                <h3>コメントを投稿</h3>
+                <form id="commentForm" class="comment-form">
+                  <textarea id="commentContent" rows="5" placeholder="コメントを入力..."></textarea>
+            
+                  <div class="comment-author-selection">
+                    <label><input type="radio" name="commentAuthorType" value="anonymous" checked> 匿名</label>
+                    <label><input type="radio" name="commentAuthorType" value="custom"> 名前を入力</label>
+                    <span class="comment-custom-name" id="commentCustomNameGroup" style="display:none;">
+                      <input id="commentCustomAuthorName" type="text" placeholder="表示名（任意）">
+                    </span>
+                  </div>
+            
+                  <button type="submit"><i class="fas fa-paper-plane"></i> 投稿する</button>
+                </form>
+              </section>
             </div>
         </div>
     </main>
