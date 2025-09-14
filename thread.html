@@ -49,16 +49,32 @@
             <!-- スレッド詳細 -->            
             <div class="thread-detail-container">
             
-              <!-- ① OP(主コメント)ブロック -->
-              <article class="op-post">
-                <div class="post-header">
-                  <span class="post-number">1.</span>
-                  <span id="threadCategoryBadge" class="thread-category">カテゴリ</span>
-                  <span id="threadSubcategoryBadge" style="display:none;"></span>
-                  <span id="threadAuthor"></span>
-                  <span id="threadDate" class="post-date"></span>
-                </div>
-                <h1 id="threadTitle" class="thread-title"></h1>
+                <!-- ① OP(主コメント)ブロック -->
+                <article class="op-post">
+                  <div class="post-header">
+                    <span class="post-number">1.</span>
+                    <span id="threadCategoryBadge" class="thread-category">カテゴリ</span>
+                    <span id="threadSubcategoryBadge" style="display:none;"></span>
+                    <span id="threadAuthor"></span>
+                    <span id="threadDate" class="post-date"></span>
+                  </div>
+                
+                  <h1 id="threadTitle" class="thread-title"></h1>
+                
+                  <!-- ★ 追加：主コメント内にコメント数を表示 -->
+                  <div class="op-meta">
+                    <span class="op-comment-count">コメント（<span id="commentCount">0</span>）</span>
+                  </div>
+                
+                  <div id="threadHashtagsDisplay" class="thread-hashtags-display"></div>
+                  <div id="threadImagesDisplay"></div>
+                  <div id="threadContent" class="post-content"></div>
+                  <div class="post-actions">
+                    <button class="like-btn" onclick="likeThread()">
+                      <i class="fas fa-heart"></i> <span id="threadLikeCount">0</span>
+                    </button>
+                  </div>
+                </article>
                 <div id="threadHashtagsDisplay" class="thread-hashtags-display"></div>
                 <div id="threadImagesDisplay"></div>
                 <div id="threadContent" class="post-content"></div>
@@ -71,7 +87,6 @@
             
               <!-- ② コメント一覧（全部つらなって表示） -->
               <section class="comments-section">
-                <h3>コメント（<span id="commentCount">0</span>）</h3>
                 <div id="commentsList"></div>
               </section>
             
