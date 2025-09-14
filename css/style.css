@@ -18,13 +18,49 @@ body {
     padding: 0 20px;
 }
 
-/* ヘッダー */
+/* ヘッダー全体 */
 .header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 20px 0;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  background: linear-gradient(90deg, #3b82f6, #2563eb); /* 青系グラデーション */
+  color: white;
+  padding: 16px 0;
 }
+
+/* ロゴ部分（画像＋テキスト横並び） */
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.site-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;         /* 白い円にする */
+  background-color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transition: transform 0.2s ease;
+}
+
+.site-logo img {
+  width: 32px;                 /* アイコン画像をやや小さめに */
+  height: 32px;
+}
+
+.site-logo:hover {
+  transform: scale(1.05);
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
 
 .header .container {
     display: flex;
