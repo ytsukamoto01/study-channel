@@ -1416,8 +1416,8 @@ body {
 }
 
 .site-logo img {
-  width: 28px;                     /* アイコン自体は小さめに */
-  height: 28px;
+  width: 36px;                     /* アイコン自体は小さめに */
+  height: 36px;
   object-fit: contain;
 }
 
