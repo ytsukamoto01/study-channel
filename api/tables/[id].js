@@ -4,7 +4,7 @@ import { supabase } from '../_supabase.js';
 export default async function handler(req, res) {
   try {
     const sb = supabase();
-    const url = new URL(req.url);
+    const url = new URL(req.url, `https://${req.headers.host}`);
     const [, , , id] = url.pathname.split('/'); // /api/tables/{resource}/{id}
     const resource = url.pathname.split('/')[3 - 1]; // threads or comments など
     // ※Vercel Functions で動かす簡易実装のため1ファイル共用
