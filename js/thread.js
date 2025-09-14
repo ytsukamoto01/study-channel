@@ -4,15 +4,18 @@ let currentThreadId = null;
 let userFingerprint = null;
 let currentThread = null;
 let currentReplyParentId = null;
+let userFingerprint = null;
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    userFingerprint = generateUserFingerprint();
+  } catch (_) {}
+});
 
 function showReplyPopup(commentId) {
   // 既存ポップアップがあれば削除
-  const old = document.querySelector('.reply-popup');
-  if (old) old.remove();
-
+  document.querySelector('.reply-popup')?.remove();
   currentReplyParentId = commentId;
 
-  // 対象コメント要素の直後に挿入
   const target = document.querySelector(`[data-comment-id="${commentId}"]`);
   if (!target) return;
 
@@ -32,15 +35,16 @@ function showReplyPopup(commentId) {
 }
 
 async function sendReply() {
-  const content = document.getElementById('replyContent').value.trim();
-  if (!content) return;
+  const ta = document.getElementById('replyContent');
+  const content = (ta?.value || '').trim();
+  if (!content || !currentReplyParentId) return;
 
   const body = {
     thread_id: currentThreadId,
     content,
     author_name: getAuthorName(false),
     like_count: 0,
-    comment_number: 0,
+    comment_number: 0,           // サーバ側で採番してもOK
     parent_comment_id: currentReplyParentId
   };
 
@@ -54,7 +58,6 @@ async function sendReply() {
     return;
   }
 
-  // 閉じて再読み込み
   document.querySelector('.reply-popup')?.remove();
   currentReplyParentId = null;
   await loadComments(currentThreadId);
@@ -219,68 +222,132 @@ function displayThreadDetail(thread) {
 
 // コメントを読み込み
 async function loadComments(threadId) {
-  const res = await fetch(`tables/comments?sort=created_at&limit=1000`);
-  const json = await res.json();
-  const all = json.data || [];
+  try {
+    // 古い順（昇順）で取得
+    const res = await fetch(`tables/comments?sort=created_at&order=asc&limit=1000`);
+    if (!res.ok) throw new Error('コメントの読み込みに失敗しました');
+    const json = await res.json();
+    const all = (json.data || []).filter(c => c.thread_id === threadId);
 
-  const parents = all.filter(c => !c.parent_comment_id && c.thread_id === threadId);
-  const children = all.filter(c => c.parent_comment_id);
+    // 親・子に分割
+    const parents = all.filter(c => !c.parent_comment_id);
+    const children = all.filter(c => c.parent_comment_id);
 
-  parents.forEach(parent => {
-    parent.replies = children.filter(c => c.parent_comment_id === parent.id);
-  });
+    // 親ごとに紐付け
+    parents.forEach(p => {
+      p.replies = children.filter(c => c.parent_comment_id === p.id);
+    });
 
-  displayComments(parents);
+    // 合計件数を表示（親 + 返信）
+    const totalCount = all.length;
+    const countEl = document.getElementById('commentCount');
+    if (countEl) countEl.textContent = totalCount.toString();
+
+    // 表示
+    displayComments(parents);
+  } catch (e) {
+    console.error('コメントの読み込みエラー:', e);
+  }
 }
 
-function displayComments(allComments) {
+function displayComments(parents) {
   const list = document.getElementById('commentsList');
   if (!list) return;
 
-  const parents = allComments.filter(c => !c.parent_comment_id);
-  const children = allComments.filter(c => c.parent_comment_id);
+  // 親も返信も「古い順」で表示されるように明示（念のため）
+  const toAsc = (a, b) => new Date(a.created_at) - new Date(b.created_at);
+  parents.sort(toAsc);
+  parents.forEach(p => (p.replies || []).sort(toAsc));
 
-  parents.forEach(p => {
-    p.replies = children.filter(c => c.parent_comment_id === p.id);
-  });
-
-  list.innerHTML = parents.map(p => `
-    <div class="comment-item" data-comment-id="${p.id}">
-      <div class="comment-header">
-        <span class="comment-number">${p.comment_number}.</span>
-        ${formatAuthorName(p.author_name)}
-        <span class="date">${getRelativeTime(new Date(p.created_at).getTime())}</span>
-      </div>
-      <div class="comment-content">${escapeHtml(p.content)}</div>
-      <div class="comment-actions">
-        <button onclick="showReplyPopup('${p.id}')"><i class="fas fa-reply"></i> 返信</button>
-      </div>
-
-      ${p.replies?.length ? `
-        <div class="replies-toggle" onclick="toggleReplies('${p.id}')">
-          ${p.replies.length}件の返信
-        </div>
-        <div class="replies" id="replies-${p.id}" style="display:none;">
-          ${p.replies.map(r => `
-            <div class="reply-item">
-              <div class="comment-header">
-                ${formatAuthorName(r.author_name)}
-                <span class="date">${getRelativeTime(new Date(r.created_at).getTime())}</span>
-              </div>
-              <div class="comment-content">${escapeHtml(r.content)}</div>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
-    </div>
-  `).join('');
+  list.innerHTML = parents.map(p => renderCommentItem(p, false)).join('');
 }
 
+function renderCommentItem(c, isReply) {
+  const numberHtml = c.comment_number != null ? `${c.comment_number}.` : '';
+  const authorHtml = escapeHtml(c.author_name || '匿名');
+  const dateHtml = getRelativeTime(new Date(c.created_at).getTime());
+  const contentHtml = escapeHtml(c.content || '');
+  const likeCount = c.like_count || 0;
+
+  // 自身の下に返信フォームを出すトグル
+  const containerAttrs = isReply ? `class="reply-item" data-comment-id="${c.id}"` 
+                                 : `class="comment-item" data-comment-id="${c.id}"`;
+
+  // 「x件の返信」トグルと返信リスト
+  const repliesBlock = !isReply && c.replies?.length
+    ? `
+      <div class="replies-toggle" onclick="toggleReplies('${c.id}')">
+        ${c.replies.length}件の返信
+      </div>
+      <div class="replies" id="replies-${c.id}" style="display:none;">
+        ${c.replies.map(r => renderCommentItem(r, true)).join('')}
+      </div>
+    `
+    : '';
+
+  return `
+    <div ${containerAttrs}>
+      <div class="comment-header">
+        <span class="comment-number">${numberHtml}</span>
+        <span class="comment-author">${authorHtml}</span>
+        <span class="date">${dateHtml}</span>
+      </div>
+      <div class="comment-content">${contentHtml}</div>
+      <div class="comment-actions">
+        <button class="comment-reply-btn" onclick="showReplyPopup('${c.id}')">
+          <i class="fas fa-reply"></i> 返信
+        </button>
+        <button class="comment-like-btn" data-like-target="${c.id}" onclick="likeThisComment('${c.id}')">
+          <i class="fas fa-heart"></i> <span class="comment-like-count">${likeCount}</span>
+        </button>
+      </div>
+      ${repliesBlock}
+    </div>
+  `;
+}
 
 function toggleReplies(parentId) {
-  const el = document.getElementById(`replies-${parentId}`);
-  if (el) {
-    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  const box = document.getElementById(`replies-${parentId}`);
+  if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+async function likeThisComment(commentId) {
+  try {
+    if (!userFingerprint) userFingerprint = generateUserFingerprint();
+
+    // すでに自分が「いいね」したかチェック
+    const likesRes = await fetch('tables/likes');
+    const likesJson = await likesRes.json();
+    const liked = (likesJson.data || []).some(l =>
+      l.target_type === 'comment' &&
+      l.target_id === commentId &&
+      l.user_fingerprint === userFingerprint
+    );
+    if (liked) {
+      alert('このコメントには既に「いいね」しています');
+      return;
+    }
+
+    // いいね追加
+    const addRes = await fetch('tables/likes', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        target_type: 'comment',
+        target_id: commentId,
+        user_fingerprint: userFingerprint
+      })
+    });
+    if (!addRes.ok) throw new Error('いいねに失敗しました');
+
+    // 表示中の該当コメントのカウントだけ +1 で即時反映
+    const container = document.querySelector(`[data-comment-id="${commentId}"]`);
+    const countEl = container?.querySelector('.comment-like-count');
+    if (countEl) countEl.textContent = String((parseInt(countEl.textContent || '0', 10) + 1));
+
+  } catch (e) {
+    console.error('コメントいいねエラー:', e);
+    alert('いいねに失敗しました');
   }
 }
 
