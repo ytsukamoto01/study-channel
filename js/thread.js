@@ -3,6 +3,45 @@
 let currentThreadId = null;
 let userFingerprint = null;
 let currentThread = null;
+let currentReplyParentId = null;
+
+function showReplyForm(commentId) {
+  currentReplyParentId = commentId;
+  document.getElementById('replyFormSection').style.display = 'block';
+  document.getElementById('replyContent').focus();
+}
+
+document.getElementById('replyForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const content = document.getElementById('replyContent').value.trim();
+  if (!content) return;
+
+  const body = {
+    thread_id: currentThreadId,
+    content,
+    author_name: getAuthorName(false),
+    like_count: 0,
+    comment_number: 0,
+    parent_comment_id: currentReplyParentId
+  };
+
+  const res = await fetch('tables/comments', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    alert('返信の投稿に失敗しました');
+    return;
+  }
+
+  document.getElementById('replyContent').value = '';
+  document.getElementById('replyFormSection').style.display = 'none';
+  currentReplyParentId = null;
+
+  await loadComments(currentThreadId);
+});
+
 
 // ページ読み込み時の初期化
 document.addEventListener('DOMContentLoaded', function() {
@@ -163,82 +202,61 @@ function displayThreadDetail(thread) {
 
 // コメントを読み込み
 async function loadComments(threadId) {
-    try {
-        console.log('コメント読み込み開始 - threadId:', threadId);
-        const result = await apiCall('tables/comments?sort=created_at&limit=1000');
-        console.log('全コメントデータ:', result);
-        
-        const comments = (result.data || []).filter(comment => comment.thread_id === threadId);
-        console.log('フィルター後のコメント:', comments.length, '件');
-        
-        // 画像データを正規化
-        const normalizedComments = comments.map(comment => ({
-            ...comment,
-            images: Array.isArray(comment.images) ? comment.images : []
-        }));
-        
-        // コメント番号でソート
-        normalizedComments.sort((a, b) => a.comment_number - b.comment_number);
-        
-        displayComments(normalizedComments);
-        
-    } catch (error) {
-        console.error('コメントの読み込みエラー:', error);
-        // コメントエラーはスレッド表示を妨げない
-        displayComments([]);
-    }
+  const res = await fetch(`tables/comments?sort=created_at&limit=1000`);
+  const json = await res.json();
+  const all = json.data || [];
+
+  const parents = all.filter(c => !c.parent_comment_id && c.thread_id === threadId);
+  const children = all.filter(c => c.parent_comment_id);
+
+  parents.forEach(parent => {
+    parent.replies = children.filter(c => c.parent_comment_id === parent.id);
+  });
+
+  displayComments(parents);
 }
 
-// コメントを表示（掲示板風のデザイン）
-function displayComments(comments) {
-    const commentsList = document.getElementById('commentsList');
-    const commentCount = document.getElementById('commentCount');
-    
-    if (!commentsList || !commentCount) return;
-    
-    commentCount.textContent = comments.length;
-    
-    if (comments.length === 0) {
-        commentsList.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-comment"></i>
-                <p>まだコメントがありません</p>
-                <p>最初のコメントを投稿してみませんか？</p>
-            </div>
-        `;
-        return;
-    }
-    
-    commentsList.innerHTML = comments.map(comment => `
-        <div class="comment-post">
-            <div class="post-header">
-                <span class="post-number">${comment.comment_number + 1}.</span>
-                ${formatAuthorName(comment.author_name)}
-                <span class="post-date">${getRelativeTime(new Date(comment.created_at).getTime())}</span>
-            </div>
-            <div class="post-content">
-                ${escapeHtml(comment.content)}
-            </div>
-            ${Array.isArray(comment.images) && comment.images.length > 0 ? `
-            <div class="comment-images-display">
-                <div class="image-gallery">
-                    ${comment.images.map((imageUrl, index) => `
-                        <img src="${imageUrl}" alt="コメント画像${index + 1}" class="gallery-image" 
-                             onclick="openImageModal('${imageUrl}')">
-                    `).join('')}
-                </div>
-            </div>
-            ` : ''}
-            <div class="post-actions">
-                <button class="like-btn-small" onclick="likeComment('${comment.id}')">
-                    <i class="fas fa-heart"></i> ${comment.like_count || 0}
-                </button>
-                <button class="reply-btn-small" onclick="showReplyForm(${comment.comment_number + 1})">
-                    <i class="fas fa-reply"></i> 返信
-                </button>
-            </div>
+function displayComments(parents) {
+  const list = document.getElementById('commentsList');
+  if (!list) return;
+
+  list.innerHTML = parents.map(p => `
+    <div class="comment-item">
+      <div class="comment-header">
+        <span class="comment-number">${p.comment_number}.</span>
+        ${formatAuthorName(p.author_name)}
+        <span class="date">${getRelativeTime(new Date(p.created_at).getTime())}</span>
+      </div>
+      <div class="comment-content">${escapeHtml(p.content)}</div>
+      <div class="comment-actions">
+        <button onclick="showReplyForm('${p.id}')"><i class="fas fa-reply"></i> 返信</button>
+      </div>
+
+      ${p.replies?.length ? `
+        <div class="replies-toggle" onclick="toggleReplies('${p.id}')">
+          ${p.replies.length}件の返信
         </div>
-    `).join('');
+        <div class="replies" id="replies-${p.id}" style="display:none;">
+          ${p.replies.map(r => `
+            <div class="reply-item">
+              <div class="comment-header">
+                ${formatAuthorName(r.author_name)}
+                <span class="date">${getRelativeTime(new Date(r.created_at).getTime())}</span>
+              </div>
+              <div class="comment-content">${escapeHtml(r.content)}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+function toggleReplies(parentId) {
+  const el = document.getElementById(`replies-${parentId}`);
+  if (el) {
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
 }
 
 // コメント投稿の処理
