@@ -19,10 +19,8 @@
     transition: all 0.3s ease;
 }
 
-
-.comment-nav-btn:hover {
-  background-color: #2563eb;       /* 濃いめの青 (#2563eb = blue-600) */
-  transform: translateY(-1px);
+.nav-btn:hover {
+    background-color: rgba(255, 255, 255, 0.3);
 }
 
 /* コメントするボタン（青ベース・がるちゃん風） */
@@ -41,16 +39,16 @@
   transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
+.comment-nav-btn:hover {
+  background-color: #2563eb;       /* 濃いめの青 (#2563eb = blue-600) */
+  transform: translateY(-1px);
+}
 
 .comment-nav-btn i {
   font-size: 14px;
 }
 
 
-
-.nav-btn:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-}
 
 .nav-btn.active {
     background-color: rgba(255, 255, 255, 0.4);
