@@ -17,8 +17,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ data });
     }
 
-    if (req.method === 'POST') {
-      const body = req.body && typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+      if (req.method === 'POST') {
+        const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+        const { title, content, category, subcategory, hashtags, images, author_name, user_fingerprint } = body;
+        if (!title || !content || !category || !user_fingerprint) {
+          return res.status(400).json({ error: 'missing required fields' });
+      }
       // 簡易バリデーション
       if (!body.title || !body.content || !body.category) {
         return res.status(400).json({ error: 'missing fields' });
@@ -32,7 +36,7 @@ export default async function handler(req, res) {
         images: Array.isArray(body.images) ? body.images : null,
         author_name: body.author_name || '匿名',
       };
-      const { data, error } = await sb.from('threads').insert(payload).select().single();
+      const { data, error } = await sb.from('threads').insert({title, content, category, subcategory, hashtags, images, author_name, user_fingerprint}).select().single();
       if (error) throw error;
       return res.status(200).json({ data });
     }
