@@ -430,7 +430,8 @@ async function handleNewThreadSubmit(event) {
         images: uploadedImages.thread || [],
         author_name: getAuthorName(true),
         reply_count: 0,
-        like_count: 0
+        like_count: 0,
+         user_fingerprint: userFingerprint
     };
     
     // バリデーション
@@ -456,11 +457,14 @@ async function handleNewThreadSubmit(event) {
             throw new Error('スレッドの作成に失敗しました');
         }
         
-        const createdThread = await response.json();
-        
         // 投稿したスレッドIDをローカルストレージに保存
+        const created = await response.json();             // { data: {...} }
+        const createdId = (created && created.data && created.data.id) || created.id;
+        // 投稿したスレッドIDをローカルに保存（mypostsの旧ローカル方式を活かす場合）
         const myThreadIds = getUserPreference('myThreadIds', []);
-        myThreadIds.push(createdThread.id);
+        if (createdId && !myThreadIds.includes(createdId)) {
+            myThreadIds.push(createdId);
+        }
         setUserPreference('myThreadIds', myThreadIds);
         
         // 成功メッセージ
