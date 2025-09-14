@@ -264,16 +264,15 @@ function renderCommentItem(c, isReply) {
                                  : `class="comment-item" data-comment-id="${c.id}"`;
 
   // 「x件の返信」トグルと返信リスト
-  const repliesBlock = !isReply && c.replies?.length
-    ? `
-      <div class="replies-toggle" onclick="toggleReplies('${c.id}')">
-        ${c.replies.length}件の返信
-      </div>
-      <div class="replies" id="replies-${c.id}" style="display:none;">
-        ${c.replies.map(r => renderCommentItem(r, true)).join('')}
-      </div>
-    `
-    : '';
+ const repliesBlock = !isReply && c.replies?.length
+   ? `
+     <div class="replies-link">
+       <a href="replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}">
+         ${c.replies.length}件の返信
+       </a>
+     </div>
+   `
+   : '';
 
   return `
     <div ${containerAttrs}>
@@ -294,11 +293,6 @@ function renderCommentItem(c, isReply) {
       ${repliesBlock}
     </div>
   `;
-}
-
-function toggleReplies(parentId) {
-  const box = document.getElementById(`replies-${parentId}`);
-  if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
 }
 
 async function likeThisComment(commentId) {
