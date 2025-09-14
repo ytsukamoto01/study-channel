@@ -34,7 +34,7 @@ export default async function handler(req, res) {
       };
       const { data, error } = await sb.from('threads').insert(payload).select().single();
       if (error) throw error;
-      return res.status(201).json(data);
+      return res.status(200).json({ data });
     }
 
     return res.status(405).json({ error: 'method not allowed' });
