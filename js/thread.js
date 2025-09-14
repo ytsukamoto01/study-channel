@@ -267,7 +267,7 @@ function renderCommentItem(c, isReply) {
  const repliesBlock = !isReply && c.replies?.length
    ? `
      <div class="replies-link">
-       <a href="replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}">
+      <a href="replies.html?thread=${currentThreadId}&parent=${c.id}">
          ${c.replies.length}件の返信
        </a>
      </div>
