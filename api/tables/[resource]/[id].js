@@ -5,15 +5,16 @@ export default async function handler(req, res) {
   try {
     const sb = supabase();
 
-    // ベース付きでURLを作り、空要素を除いて分割
-    const url = new URL(req.url, `https://${req.headers.host}`);
-    const segs = url.pathname.split('/').filter(Boolean); 
-    // 期待: ['api','tables','threads','<id>']
-    const resource = segs[2]; // 'threads'
-    const id = segs[3];       // '<id>'
+    // 1) Vercel標準: 動的パラメータは req.query に入る
+    let { resource, id } = req.query || {};
 
-    // デバッグ（必要なら一時的に残してください）
-    console.log('PATHNAME:', url.pathname, 'SEGS:', segs, 'RESOURCE:', resource, 'ID:', id);
+    // 2) 念のためのフォールバック（rewrites後の絶対URLからも拾える）
+    if (!resource || !id) {
+      const url = new URL(req.url, `https://${req.headers.host}`);
+      const segs = url.pathname.split('/').filter(Boolean); // ex) ['api','tables','threads','<id>']
+      resource = resource || segs[2];
+      id = id || segs[3];
+    }
 
     if (!resource || !id) {
       return res.status(400).json({ error: 'missing resource or id' });
