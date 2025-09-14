@@ -331,6 +331,37 @@ body {
   margin: 0;
 }
 
+/* 親コメントの背景を白に */
+#parentCommentBox {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px 20px; /* 横方向にも余白を少し広げる */
+  margin-bottom: 20px;
+}
+
+/* 返信を投稿フォーム - 横幅に余裕を持たせる */
+#replyFormSection {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px 28px; /* ← 左右paddingを増加 */
+  margin-top: 24px;
+}
+
+/* 返信コメント内のハートボタンに右余白 */
+.reply-item .comment-actions .comment-like-btn,
+.comment-item .comment-actions .comment-like-btn {
+  margin-right: 16px; /* 右端との距離を確保 */
+}
+
+/* コメント全体の左右padding（見た目の窮屈さを軽減） */
+.comment-item,
+.reply-item {
+  padding: 12px 20px; /* ← 横方向に余裕を追加 */
+}
+
+
 /* 成功/エラーのトースト（既存JS用） */
 .success-message, .error-message {
   font-size: 14px;
