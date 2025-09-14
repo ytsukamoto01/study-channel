@@ -97,101 +97,22 @@
   margin-bottom: 6px;
 }
 
-/* 返信ポップアップ */
-.reply-popup {
-  background: #f1f5f9;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 10px;
-  margin: 8px 0 12px 40px;
-}
-.reply-popup textarea {
-  width: 100%;
-  resize: none;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  padding: 6px;
-  font-size: 14px;
-}
-.reply-popup-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 6px;
-}
-.reply-popup-actions button {
-  background-color: #3b82f6;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 10px;
-  cursor: pointer;
-  font-size: 13px;
-}
-.reply-popup-actions #cancelReplyBtn {
-  background-color: #9ca3af;
-}
-
-
-/* 返信フォームポップアップ */
-.reply-popup {
-  background: #f1f5f9;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 10px;
-  margin: 8px 0 12px 40px;
-  animation: fadeIn 0.2s ease;
-}
-
-.reply-popup textarea {
-  width: 100%;
-  resize: none;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  padding: 6px;
-  font-size: 14px;
-}
-
-.reply-popup-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.reply-popup-actions button {
-  background-color: #3b82f6;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 10px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.reply-popup-actions button#cancelReplyBtn {
-  background-color: #9ca3af;
-}
-
-.replies-toggle {
-  font-size: 13px;
-  color: #2563eb;
-  cursor: pointer;
-  margin: 6px 0;
-}
-
-.replies {
-  border-left: 2px solid #e5e7eb;
-  margin-left: 40px;
-  padding-left: 12px;
-}
-
 .reply-item {
   background: #f9fafb;
   border-radius: 6px;
   padding: 8px;
   margin-bottom: 6px;
 }
+
+.replies-link a {
+  color: #2563eb;
+  font-size: 13px;
+  text-decoration: none;
+}
+.replies-link a:hover { text-decoration: underline; }
+
+.replies-container .comment-item { margin-bottom: 12px; }
+.replies-container #parentCommentBox { background:#f9fafb; border-radius:8px; padding:12px; }
 
 
 /* スレッドヘッダーバー */
