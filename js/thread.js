@@ -5,14 +5,33 @@ let userFingerprint = null;
 let currentThread = null;
 let currentReplyParentId = null;
 
-function showReplyForm(commentId) {
+function showReplyPopup(commentId) {
+  // 既存ポップアップがあれば削除
+  const old = document.querySelector('.reply-popup');
+  if (old) old.remove();
+
   currentReplyParentId = commentId;
-  document.getElementById('replyFormSection').style.display = 'block';
-  document.getElementById('replyContent').focus();
+
+  // 対象コメント要素の直後に挿入
+  const target = document.querySelector(`[data-comment-id="${commentId}"]`);
+  if (!target) return;
+
+  const popup = document.createElement('div');
+  popup.className = 'reply-popup';
+  popup.innerHTML = `
+    <textarea id="replyContent" rows="3" placeholder="返信を入力..."></textarea>
+    <div class="reply-popup-actions">
+      <button id="cancelReplyBtn">キャンセル</button>
+      <button id="sendReplyBtn"><i class="fas fa-paper-plane"></i> 送信</button>
+    </div>
+  `;
+  target.insertAdjacentElement('afterend', popup);
+
+  document.getElementById('cancelReplyBtn').onclick = () => popup.remove();
+  document.getElementById('sendReplyBtn').onclick = sendReply;
 }
 
-document.getElementById('replyForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
+async function sendReply() {
   const content = document.getElementById('replyContent').value.trim();
   if (!content) return;
 
@@ -35,13 +54,11 @@ document.getElementById('replyForm').addEventListener('submit', async (e) => {
     return;
   }
 
-  document.getElementById('replyContent').value = '';
-  document.getElementById('replyFormSection').style.display = 'none';
+  // 閉じて再読み込み
+  document.querySelector('.reply-popup')?.remove();
   currentReplyParentId = null;
-
   await loadComments(currentThreadId);
-});
-
+}
 
 // ページ読み込み時の初期化
 document.addEventListener('DOMContentLoaded', function() {
@@ -216,12 +233,19 @@ async function loadComments(threadId) {
   displayComments(parents);
 }
 
-function displayComments(parents) {
+function displayComments(allComments) {
   const list = document.getElementById('commentsList');
   if (!list) return;
 
+  const parents = allComments.filter(c => !c.parent_comment_id);
+  const children = allComments.filter(c => c.parent_comment_id);
+
+  parents.forEach(p => {
+    p.replies = children.filter(c => c.parent_comment_id === p.id);
+  });
+
   list.innerHTML = parents.map(p => `
-    <div class="comment-item">
+    <div class="comment-item" data-comment-id="${p.id}">
       <div class="comment-header">
         <span class="comment-number">${p.comment_number}.</span>
         ${formatAuthorName(p.author_name)}
@@ -229,7 +253,7 @@ function displayComments(parents) {
       </div>
       <div class="comment-content">${escapeHtml(p.content)}</div>
       <div class="comment-actions">
-        <button onclick="showReplyForm('${p.id}')"><i class="fas fa-reply"></i> 返信</button>
+        <button onclick="showReplyPopup('${p.id}')"><i class="fas fa-reply"></i> 返信</button>
       </div>
 
       ${p.replies?.length ? `
@@ -251,6 +275,7 @@ function displayComments(parents) {
     </div>
   `).join('');
 }
+
 
 function toggleReplies(parentId) {
   const el = document.getElementById(`replies-${parentId}`);
