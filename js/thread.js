@@ -24,6 +24,24 @@ document.addEventListener('DOMContentLoaded', function () {
   currentThreadId = threadId;
   setupEventListeners();
   loadThreadDetail(threadId);
+
+(function initAuthorToggle() {
+  const radios = document.querySelectorAll('input[name="commentAuthorType"]');
+  const apply = () => {
+    const anon = document.querySelector('input[name="commentAuthorType"][value="anonymous"]');
+    const group = document.getElementById('commentCustomNameGroup');
+    if (!group) return;
+    if (anon && anon.checked) {
+      group.style.display = 'none';
+    } else {
+      group.style.display = 'inline-block';
+      document.getElementById('commentCustomAuthorName')?.focus();
+    }
+  };
+  radios.forEach(r => r.addEventListener('change', apply));
+  apply();
+})();
+  
 });
 
 // イベント
