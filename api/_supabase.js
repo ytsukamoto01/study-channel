@@ -14,7 +14,7 @@ export function supabase() {
 
 // 汎用: クエリパラメータから limit/sort を読む
 export function parseListParams(req) {
-  const url = new URL(req.url);
+  const url = new URL(req.url, `https://${req.headers.host}`);
   const limit = Number(url.searchParams.get('limit') || '100');
   const sort = url.searchParams.get('sort') || 'created_at';
   const order = url.searchParams.get('order') || 'desc';
