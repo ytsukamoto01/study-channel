@@ -1,6 +1,6 @@
 /* ===========================
    スレッド詳細ページ専用 CSS
-   GirlsChannel風（青系・連結表示）
+   GirlsChannel風（青系・連結表示・白背景統一）
    =========================== */
 
 /* 全体レイアウト */
@@ -9,6 +9,7 @@
   margin: 0 auto;
   font-family: "Noto Sans JP", sans-serif;
   color: #374151;
+  background: #fff; /* 全体のベースを白で明示 */
 }
 
 /* ---------------------------
@@ -21,27 +22,22 @@
   padding: 16px 0;
   border-bottom: 1px solid #e5e7eb;
   margin-bottom: 12px;
+  background: #fff; /* 白で統一 */
 }
 
 .back-btn {
   background-color: #6c757d;
-  color: white;
+  color: #fff;
   border: none;
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
+.back-btn:hover { background-color: #5a6268; }
 
-.back-btn:hover {
-  background-color: #5a6268;
-}
-
-.thread-actions {
-  display: flex;
-  gap: 10px;
-}
+.thread-actions { display: flex; gap: 10px; }
 
 .favorite-btn {
   background-color: #ffc107;
@@ -51,12 +47,9 @@
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
-
-.favorite-btn:hover {
-  background-color: #e0a800;
-}
+.favorite-btn:hover { background-color: #e0a800; }
 
 /* コメントするボタン（青ベース） */
 .comment-nav-btn {
@@ -73,21 +66,16 @@
   cursor: pointer;
   transition: background-color 0.2s ease, transform 0.1s ease;
 }
-.comment-nav-btn:hover {
-  background-color: #2563eb;
-  transform: translateY(-1px);
-}
-.comment-nav-btn i {
-  font-size: 14px;
-}
+.comment-nav-btn:hover { background-color: #2563eb; transform: translateY(-1px); }
+.comment-nav-btn i { font-size: 14px; }
 
 /* ---------------------------
-   スレッド（主コメント）部分
+   主コメント（OP）
 --------------------------- */
 .op-post {
   padding: 20px 0;
-  border-top: 1px solid #e5e7eb;
-  background: transparent;
+  border-top: 1px solid #e5e7eb;   /* 連結用の罫線 */
+  background: #fff;                /* 白で統一 */
 }
 
 .post-header {
@@ -98,10 +86,7 @@
   font-size: 14px;
   color: #6b7280;
 }
-
-.post-number {
-  color: #9ca3af;
-}
+.post-number { color: #9ca3af; }
 
 .thread-category {
   background-color: #dbeafe;
@@ -127,39 +112,38 @@
 .post-content {
   line-height: 1.8;
   margin-bottom: 10px;
+  white-space: pre-wrap; /* 改行保持 */
 }
 
-.post-actions {
-  margin-top: 10px;
-}
-
+.post-actions { margin-top: 10px; }
 .like-btn {
-  background: transparent;
+  background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
-  padding: 4px 12px;
+  padding: 6px 12px;
   color: #374151;
   font-size: 13px;
   cursor: pointer;
+  transition: background-color 0.15s ease;
 }
-.like-btn i {
-  margin-right: 6px;
-}
+.like-btn:hover { background-color: #f8fafc; }
+.like-btn i { margin-right: 6px; color: #ef4444; } /* ハートは赤系でポップさ維持 */
 
 /* ---------------------------
-   コメント一覧
+   コメント一覧（親コメントのみ表示）
 --------------------------- */
 .comments-section {
   margin: 0;
   padding: 0;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #e5e7eb;    /* OP直下の仕切り */
+  background: #fff;                 /* 白で統一 */
 }
 
-/* 1コメントごと（親コメント） */
+/* コメント1件 */
 #commentsList .comment-item {
-  border-top: 1px solid #e5e7eb;
-  padding: 20px 0;
-  background: transparent;
+  border-top: 1px solid #e5e7eb;    /* 各コメントを罫線で連結 */
+  padding: 16px 0 20px;
+  background: #fff;                 /* 白で統一 */
   display: block;
 }
 
@@ -169,98 +153,116 @@
   gap: 10px;
   color: #6b7280;
   font-size: 13px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
-
-.comment-number {
-  color: #9ca3af;
-}
-
-.comment-author {
-  font-weight: 500;
-  color: #374151;
-}
+.comment-number { color: #9ca3af; }
+.comment-author { font-weight: 600; color: #374151; }
 
 .comment-content {
-  margin: 4px 0 10px;
+  margin: 2px 0 10px;
   line-height: 1.7;
+  white-space: pre-wrap;
 }
 
-.comment-actions {
-  display: flex;
-  gap: 10px;
-}
+.comment-actions { display: flex; gap: 10px; }
 
 .comment-like-btn,
 .comment-reply-btn {
-  background: transparent;
+  background: #fff;
   border: 1px solid #e5e7eb;
   color: #374151;
   border-radius: 16px;
-  padding: 4px 10px;
+  padding: 6px 10px;
   font-size: 13px;
   cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
+.comment-like-btn:hover,
+.comment-reply-btn:hover { background: #f8fafc; border-color: #d1d5db; }
 .comment-like-btn i,
-.comment-reply-btn i {
-  margin-right: 6px;
+.comment-reply-btn i { margin-right: 6px; }
+.comment-like-btn i { color: #ef4444; } /* ハート赤 */
+
+/* 「x件の返信」リンク（返信があるとき） */
+.replies-link { margin-top: 6px; }
+.replies-link a {
+  color: #2563eb;
+  font-size: 13px;
+  text-decoration: none;
 }
+.replies-link a:hover { text-decoration: underline; }
 
 /* ---------------------------
-   返信ページ用の統一トーン
+   返信ページ（replies.html）側
 --------------------------- */
+.replies-container { background: #fff; } /* 安全に白統一 */
+
 .replies-container #parentCommentBox {
-  background: transparent;
+  background: #fff;
   border: none;
-  box-shadow: none;
-  padding: 20px 0;
+  padding: 16px 0;
   border-top: 1px solid #e5e7eb;
 }
 
 .replies-container .reply-item {
   border-top: 1px solid #e5e7eb;
-  padding: 20px 0;
-  background: transparent;
+  padding: 16px 0 20px;
+  background: #fff;
 }
 
+.replies-container .comment-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #6b7280;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.replies-container .comment-author { font-weight: 600; color: #374151; }
+
 /* ---------------------------
-   コメント投稿フォーム
+   コメント投稿フォーム（thread / replies 共通）
 --------------------------- */
 .comment-form-section {
   border-top: 1px solid #e5e7eb;
-  padding: 24px 0;
+  padding: 22px 0 28px;
+  background: #fff; /* 白で統一 */
 }
 
 .comment-form textarea {
   width: 100%;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 8px;
+  border-radius: 8px;
+  padding: 10px 12px;
   font-size: 14px;
   line-height: 1.6;
   resize: vertical;
+  background: #fff; /* 念のため白固定 */
 }
 
 .comment-author-selection {
   margin: 10px 0;
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
   font-size: 14px;
+}
+
+.comment-custom-name {
+  display: none; /* ラジオで表示切り替え */
 }
 
 .comment-form button {
   background-color: #3b82f6;
   color: #fff;
   border: none;
-  border-radius: 6px;
-  padding: 8px 14px;
+  border-radius: 8px;
+  padding: 10px 14px;
   cursor: pointer;
   font-size: 14px;
+  transition: background-color 0.2s ease, transform 0.08s ease;
 }
-.comment-form button:hover {
-  background-color: #2563eb;
-}
+.comment-form button:hover { background-color: #2563eb; transform: translateY(-1px); }
 
 /* ---------------------------
    画像ギャラリー
@@ -277,11 +279,11 @@
   object-fit: cover;
   border-radius: 6px;
   cursor: pointer;
+  background: #fff; /* 画像周りも白 */
 }
 
-.thread-hashtags-display {
-  margin-bottom: 8px;
-}
+/* ハッシュタグ */
+.thread-hashtags-display { margin-bottom: 8px; }
 .thread-hashtag {
   display: inline-block;
   background-color: #f3f4f6;
@@ -291,3 +293,9 @@
   margin: 0 4px 4px 0;
   border-radius: 12px;
 }
+
+/* 成功/エラーのトースト（既存JS用） */
+.success-message, .error-message {
+  font-size: 14px;
+}
+
