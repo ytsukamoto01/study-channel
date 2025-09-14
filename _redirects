@@ -1,0 +1,6 @@
+# Cloudflare Pages redirects
+/myposts /myposts.html 200
+/favorites /favorites.html 200
+/thread /thread.html 200
+/thread/* /thread.html 200
+/* /index.html 200

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>すたでぃちゃんねる - 受験・資格試験の匿名掲示板</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="logo-container" onclick="window.location.href='index.html'">
+                <h1 class="logo">すたでぃちゃんねる</h1>
+            </div>
+            <p class="tagline">受験・資格試験の匿名掲示板</p>
+            <div class="header-nav">
+                <button class="nav-btn" onclick="console.log('マイポストクリック'); window.location.href='myposts.html'">
+                    <i class="fas fa-user"></i> 投稿一覧
+                </button>
+                <button class="nav-btn" onclick="console.log('お気に入りクリック'); window.location.href='favorites.html'">
+                    <i class="fas fa-star"></i> お気に入り
+                </button>
+                <button class="new-thread-btn" onclick="showNewThreadModal()">
+                    <i class="fas fa-plus"></i> 新規スレッド作成
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="category-nav">
+        <div class="container">
+            <button class="category-btn active" onclick="filterByCategory('all')">すべて</button>
+            <button class="category-btn" onclick="filterByCategory('大学受験')">大学受験</button>
+            <button class="category-btn" onclick="filterByCategory('高校受験')">高校受験</button>
+            <button class="category-btn" onclick="filterByCategory('中学受験')">中学受験</button>
+            <button class="category-btn" onclick="filterByCategory('資格試験')">資格試験</button>
+            <button class="category-btn" onclick="filterByCategory('公務員試験')">公務員試験</button>
+            <button class="category-btn" onclick="filterByCategory('就職試験')">就職試験</button>
+            <button class="category-btn" onclick="filterByCategory('その他')">その他</button>
+        </div>
+    </nav>
+
+    <!-- 検索セクション -->
+    <section class="search-section">
+        <div class="container">
+            <div class="search-bar">
+                <div class="search-input-wrapper">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="searchInput" class="search-input" placeholder="キーワード、ハッシュタグで検索...">
+                    <button class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="search-filters">
+                    <select id="searchType" class="search-type-select">
+                        <option value="all">すべて</option>
+                        <option value="title">タイトルのみ</option>
+                        <option value="content">内容のみ</option>
+                        <option value="hashtag">ハッシュタグのみ</option>
+                    </select>
+                    <button class="advanced-search-btn" onclick="toggleAdvancedSearch()">
+                        <i class="fas fa-filter"></i> 詳細検索
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 詳細検索パネル -->
+            <div class="advanced-search-panel" id="advancedSearchPanel">
+                <div class="search-options">
+                    <div class="search-option">
+                        <label>期間:</label>
+                        <select id="dateFilter">
+                            <option value="all">すべて</option>
+                            <option value="today">今日</option>
+                            <option value="week">1週間</option>
+                            <option value="month">1ヶ月</option>
+                        </select>
+                    </div>
+                    <div class="search-option">
+                        <label>並び順:</label>
+                        <select id="sortOrder">
+                            <option value="newest">新しい順</option>
+                            <option value="oldest">古い順</option>
+                            <option value="popular">人気順</option>
+                            <option value="replies">返信数順</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- サブカテゴリナビゲーション -->
+            <div class="subcategory-section" id="subcategorySection" style="display: none;">
+                <h3><i class="fas fa-tags"></i> サブカテゴリ</h3>
+                <div class="subcategory-list" id="subcategoryList">
+                    <!-- サブカテゴリがここに表示されます -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <main class="main">
+        <div class="container">
+            <!-- 検索結果表示 -->
+            <div class="search-results-info" id="searchResultsInfo" style="display: none;">
+                <span class="results-count"></span>
+                <button class="clear-search-btn" onclick="clearSearch()">検索をクリア</button>
+            </div>
+            
+            <div class="loading" id="loading">読み込み中...</div>
+            <div class="threads-list" id="threadsList">
+                <!-- スレッド一覧がここに動的に表示されます -->
+            </div>
+        </div>
+    </main>
+
+    <!-- 新規スレッド作成モーダル -->
+    <div class="modal-overlay" id="newThreadModal">
+        <div class="modal-content">
+            <h2>新規スレッド作成</h2>
+            <form id="newThreadForm">
+                <div class="form-group">
+                    <label for="threadCategory">カテゴリ</label>
+                    <select id="threadCategory" required onchange="updateSubcategoryOptions()">
+                        <option value="">選択してください</option>
+                        <option value="大学受験">大学受験</option>
+                        <option value="高校受験">高校受験</option>
+                        <option value="中学受験">中学受験</option>
+                        <option value="資格試験">資格試験</option>
+                        <option value="公務員試験">公務員試験</option>
+                        <option value="就職試験">就職試験</option>
+                        <option value="その他">その他</option>
+                    </select>
+                </div>
+                <div class="form-group" id="subcategoryGroup" style="display: none;">
+                    <label for="threadSubcategory">サブカテゴリ</label>
+                    <select id="threadSubcategory">
+                        <option value="">選択してください（任意）</option>
+                    </select>
+                    <input type="text" id="customSubcategory" placeholder="または直接入力..." style="margin-top: 10px;">
+                </div>
+                <div class="form-group">
+                    <label for="threadTitle">スレッドタイトル</label>
+                    <input type="text" id="threadTitle" placeholder="例: 数学の勉強法について語りましょう" required maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="threadContent">内容</label>
+                    <textarea id="threadContent" placeholder="スレッドの内容を入力してください..." required maxlength="1000" rows="6"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="threadHashtags">ハッシュタグ</label>
+                    <div class="hashtag-input-wrapper">
+                        <input type="text" id="threadHashtags" placeholder="例: #数学 #勉強法 #受験 (スペース区切り、最大5個)" maxlength="100">
+                        <div class="hashtag-suggestions" id="hashtagSuggestions"></div>
+                    </div>
+                    <div class="hashtag-preview" id="hashtagPreview"></div>
+                    <small class="form-help">ハッシュタグは#を付けてスペース区切りで入力してください</small>
+                </div>
+                <div class="form-group">
+                    <label for="threadImages">画像添付</label>
+                    <div class="image-upload-wrapper">
+                        <input type="file" id="threadImages" accept="image/*" multiple onchange="handleImageUpload(event, 'thread')">
+                        <div class="image-upload-area" onclick="document.getElementById('threadImages').click()">
+                            <i class="fas fa-camera"></i>
+                            <p>画像を選択またはドラッグ&ドロップ</p>
+                            <small>最大5枚まで（JPG, PNG, GIF対応）</small>
+                        </div>
+                        <div class="image-preview-container" id="threadImagePreview"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>投稿者名</label>
+                    <div class="author-type-selection">
+                        <label class="radio-option">
+                            <input type="radio" name="authorType" value="anonymous" checked onchange="toggleAuthorNameInput()">
+                            <span class="radio-label">匿名で投稿</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="authorType" value="named" onchange="toggleAuthorNameInput()">
+                            <span class="radio-label">名前を指定して投稿</span>
+                        </label>
+                    </div>
+                    <div class="custom-name-input" id="customNameGroup" style="display: none;">
+                        <input type="text" id="customAuthorName" placeholder="表示したい名前を入力..." maxlength="20">
+                        <small class="form-help">名前は20文字以内で入力してください</small>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="hideNewThreadModal()">キャンセル</button>
+                    <button type="submit">スレッド作成</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- スレッド詳細モーダル -->
+    <div class="modal-overlay" id="threadDetailModal">
+        <div class="modal-content thread-detail">
+            <div class="thread-header">
+                <button class="close-btn" onclick="hideThreadDetailModal()">&times;</button>
+                <h2 id="threadDetailTitle"></h2>
+                <div class="thread-meta">
+                    <span class="category" id="threadDetailCategory"></span>
+                    <span class="author" id="threadDetailAuthor"></span>
+                    <span class="date" id="threadDetailDate"></span>
+                </div>
+            </div>
+            <div class="thread-content" id="threadDetailContent"></div>
+            <div class="thread-actions">
+                <button class="like-btn" onclick="likeThread()">
+                    <i class="fas fa-heart"></i> <span id="threadLikeCount">0</span>
+                </button>
+            </div>
+            
+            <div class="comments-section">
+                <h3>返信 (<span id="commentCount">0</span>)</h3>
+                
+                <!-- 新しい返信フォーム -->
+                <form class="reply-form" id="replyForm">
+                    <textarea id="replyContent" placeholder="返信を入力してください..." maxlength="1000" rows="3"></textarea>
+                    <div class="reply-author-selection">
+                        <label class="radio-option-small">
+                            <input type="radio" name="replyAuthorType" value="anonymous" checked onchange="toggleReplyAuthorNameInput()">
+                            <span class="radio-label-small">匿名</span>
+                        </label>
+                        <label class="radio-option-small">
+                            <input type="radio" name="replyAuthorType" value="named" onchange="toggleReplyAuthorNameInput()">
+                            <span class="radio-label-small">名前指定</span>
+                        </label>
+                        <div class="reply-custom-name" id="replyCustomNameGroup" style="display: none;">
+                            <input type="text" id="replyCustomAuthorName" placeholder="名前..." maxlength="20">
+                        </div>
+                    </div>
+                    <button type="submit">返信する</button>
+                </form>
+                
+                <!-- コメント一覧 -->
+                <div class="comments-list" id="commentsList">
+                    <!-- コメントがここに動的に表示されます -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/debug.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

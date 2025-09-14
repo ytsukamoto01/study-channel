@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>あなたの投稿一覧 - すたでぃちゃんねる</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="logo-container" onclick="window.location.href='index.html'">
+                <h1 class="logo">すたでぃちゃんねる</h1>
+            </div>
+            <p class="tagline">受験・資格試験の匿名掲示板</p>
+            <div class="header-nav">
+                <button class="nav-btn active">
+                    <i class="fas fa-user"></i> 投稿一覧
+                </button>
+                <button class="nav-btn" onclick="window.location.href='favorites.html'">
+                    <i class="fas fa-star"></i> お気に入り
+                </button>
+                <button class="new-thread-btn" onclick="window.location.href='index.html'">
+                    <i class="fas fa-home"></i> ホーム
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="page-header">
+                <h2><i class="fas fa-user"></i> あなたの投稿一覧</h2>
+                <p class="page-description">あなたが作成したスレッドの一覧です</p>
+            </div>
+            
+            <div class="loading" id="loading">読み込み中...</div>
+            <div class="threads-list" id="myPostsList">
+                <!-- 投稿一覧がここに表示されます -->
+            </div>
+        </div>
+    </main>
+
+    <script src="js/utils.js"></script>
+    <script src="js/debug.js"></script>
+    <script src="js/myposts.js"></script>
+</body>
+</html>
