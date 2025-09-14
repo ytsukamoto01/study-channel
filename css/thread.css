@@ -19,6 +19,12 @@
     transition: all 0.3s ease;
 }
 
+
+.comment-nav-btn:hover {
+  background-color: #2563eb;       /* 濃いめの青 (#2563eb = blue-600) */
+  transform: translateY(-1px);
+}
+
 /* コメントするボタン（青ベース・がるちゃん風） */
 .comment-nav-btn {
   background-color: #3b82f6;       /* 明るめの青 (#3b82f6 = Tailwindのblue-500) */
@@ -35,10 +41,6 @@
   transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
-.comment-nav-btn:hover {
-  background-color: #2563eb;       /* 濃いめの青 (#2563eb = blue-600) */
-  transform: translateY(-1px);
-}
 
 .comment-nav-btn i {
   font-size: 14px;
