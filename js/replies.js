@@ -4,7 +4,7 @@ let userFingerprint = null;
 
 document.addEventListener('DOMContentLoaded', init);
 
-// ★ 追加：返信投稿用の表示名取得（thread.html と同じ仕様）
+// 表示名取得（匿名/記名）
 function getCommentAuthorName() {
   const selected = document.querySelector('input[name="commentAuthorType"]:checked');
   if (!selected || selected.value === 'anonymous') return '匿名';
@@ -12,16 +12,15 @@ function getCommentAuthorName() {
   return (input?.value || '').trim() || '匿名';
 }
 
-// ★ 追加：匿名/記名のラジオに応じて入力欄をトグル
+// 匿名/記名のトグル
 function setupAuthorNameToggle() {
   const grp = document.getElementById('commentCustomNameGroup');
   const radios = document.querySelectorAll('input[name="commentAuthorType"]');
   const apply = () => {
     const isCustom = document.querySelector('input[name="commentAuthorType"][value="custom"]')?.checked;
-    if (grp) {
-      grp.style.display = isCustom ? 'inline-block' : 'none';
-      if (isCustom) document.getElementById('commentCustomAuthorName')?.focus();
-    }
+    if (!grp) return;
+    grp.style.display = isCustom ? 'inline-block' : 'none';
+    if (isCustom) document.getElementById('commentCustomAuthorName')?.focus();
   };
   radios.forEach(r => r.addEventListener('change', apply));
   apply();
