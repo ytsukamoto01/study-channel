@@ -515,67 +515,6 @@ async function likeThread() {
     }
 }
 
-// コメントにいいね
-async function likeComment(commentId) {
-    if (!userFingerprint) return;
-    
-    try {
-        // 既にいいねしているかチェック
-        const likesResult = await apiCall('tables/likes');
-        const existingLike = (likesResult.data || []).find(like => 
-            like.target_id === commentId && 
-            like.target_type === 'comment' && 
-            like.user_fingerprint === userFingerprint
-        );
-        
-        if (existingLike) {
-            showErrorMessage('既にいいねしています');
-            return;
-        }
-        
-        // いいねを作成
-        const likeData = {
-            target_id: commentId,
-            target_type: 'comment',
-            user_fingerprint: userFingerprint
-        };
-        
-        const likeResponse = await fetch('tables/likes', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(likeData)
-        });
-        
-        if (!likeResponse.ok) {
-            throw new Error('いいねに失敗しました');
-        }
-        
-        // コメントのいいね数を更新
-        const commentResponse = await fetch(`tables/comments/${commentId}`);
-        const comment = await commentResponse.json();
-        const newLikeCount = (comment.like_count || 0) + 1;
-        
-        await fetch(`tables/comments/${commentId}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                like_count: newLikeCount
-            })
-        });
-        
-        // コメント一覧を再読み込み
-        await loadComments(currentThreadId);
-        showSuccessMessage('いいねしました！');
-        
-    } catch (error) {
-        handleApiError(error, 'いいねに失敗しました');
-    }
-}
-
 // お気に入り状態をチェック
 async function checkFavoriteStatus(threadId) {
     try {
