@@ -114,23 +114,35 @@ async function handleReplySubmit(e) {
   const content = (document.getElementById('replyContent')?.value || '').trim();
   if (!content) return;
 
-  const body = {
-    thread_id: currentThreadId,
-    content,
-    author_name: getCommentAuthorName(), // utils.jsの関数（thread.htmlと同じラジオを利用）
-    like_count: 0,
-    comment_number: 0,
-    parent_comment_id: parentCommentId
-  };
+  try {
+    // 既存の返信数を取得 → comment_numberを採番
+    const all = await apiCall('tables/comments?limit=1000');
+    const replies = (all.data || []).filter(c => c.parent_comment_id === parentCommentId);
 
-  await apiCall('tables/comments', {
-    method: 'POST',
-    body: JSON.stringify(body)
-  });
+    const body = {
+      thread_id: currentThreadId,
+      content,
+      author_name: getCommentAuthorName(),
+      like_count: 0,
+      comment_number: replies.length + 1,     // ←ここで採番
+      parent_comment_id: parentCommentId
+    };
 
-  // クリア＆再読込
-  document.getElementById('replyContent').value = '';
-  await loadReplies();
+    const res = await apiCall('tables/comments', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+
+    if (!res || res.error) throw new Error(res?.error || '投稿に失敗しました');
+
+    // クリア＆再読込
+    document.getElementById('replyContent').value = '';
+    await loadReplies();
+    alert('返信を投稿しました');
+  } catch (err) {
+    console.error('返信投稿エラー', err);
+    alert('返信の投稿に失敗しました: ' + err.message);
+  }
 }
 
 // コメントにいいね（親/返信どちらも）
