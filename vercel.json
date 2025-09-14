@@ -1,5 +1,4 @@
 {
-  "rewrites": [
-    { "source": "/tables/:path*", "destination": "/api/tables/:path*" }
-  ]
+  "rewrites": [{ "source": "/tables/:path*", "destination": "/api/tables/:path*" }]
 }
+
