@@ -2,21 +2,11 @@
 import { createClient } from '@supabase/supabase-js';
 
 export function supabase(service = false) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = process.env.SUPABASE_URL;
   const key = service
     ? process.env.SUPABASE_SERVICE_ROLE_KEY
-    : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!url || !key) {
-    console.error('Missing Supabase environment variables:', { 
-      url: !!url, 
-      key: !!key, 
-      service,
-      available_env: Object.keys(process.env).filter(k => k.includes('SUPABASE'))
-    });
-    throw new Error('Supabase env is missing');
-  }
-  
+    : process.env.SUPABASE_ANON_KEY;
+  if (!url || !key) throw new Error('Supabase env is missing');
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
