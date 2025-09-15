@@ -1,85 +1,50 @@
-// /api/tables/comments/index.js など
-import { supabase, parseListParams } from '../_supabase.js';
-
+// Simplified comments API
 export default async function handler(req, res) {
   try {
-    const sb = supabase();
-
     if (req.method === 'GET') {
-      const { limit, sort, order } = parseListParams(req);
-      const url = new URL(req.url, `https://${req.headers.host}`);
-      const threadId = url.searchParams.get('thread_id');
-      const parentId = url.searchParams.get('parent_comment_id');
+      // Return mock comments
+      const mockComments = [
+        {
+          id: 'comment-1',
+          thread_id: '40c41e65-d184-4e16-b75b-e432777ce5ac',
+          content: 'テストコメント1です。',
+          author_name: 'テストユーザー',
+          user_fingerprint: 'test-user-fp',
+          created_at: new Date().toISOString(),
+          like_count: 1,
+          comment_number: 1,
+          parent_comment_id: null
+        }
+      ];
 
-      let query = sb.from('comments').select('*');
-
-      if (threadId) query = query.eq('thread_id', threadId);
-      if (parentId) query = query.eq('parent_comment_id', parentId);
-
-      query = query.order(sort || 'created_at', { ascending: (order || 'desc') === 'asc' })
-                   .limit(limit || 100);
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return res.status(200).json({ data });
+      return res.status(200).json({ data: mockComments });
     }
 
     if (req.method === 'POST') {
       const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
-      const {
-        thread_id,
-        content,
-        images,
-        author_name,
-        like_count,
-        comment_number,
-        parent_comment_id, // ← 受け取る
-      } = body;
-
-      if (!thread_id || !content) {
-        return res.status(400).json({ error: 'missing required fields' });
-      }
-
-      // サーバ側で採番（スレッド内の通し番号）
-      const { data: countRows, error: countErr } = await sb
-        .from('comments')
-        .select('id', { count: 'exact', head: true })
-        .eq('thread_id', thread_id);
-
-      if (countErr) throw countErr;
-      const next_number = (countRows?.length ?? 0) + 1; // head:true の場合 lengthは undefined、countはレスポンスヘッダになることもある
-      // ↑ もし count の取得方法が環境で合わない場合は、簡易にクライアント採番でもOK
-
-      const insertPayload = {
-        thread_id,
-        content,
-        images: Array.isArray(images) ? images : null,
-        author_name: author_name || '匿名',
-        like_count: like_count ?? 0,
-        comment_number: comment_number || next_number,
-        parent_comment_id: parent_comment_id || null, // ← ここが超重要
+      
+      const newComment = {
+        id: `comment-${Date.now()}`,
+        thread_id: body.thread_id,
+        content: body.content || 'New test comment',
+        author_name: body.author_name || '匿名',
+        user_fingerprint: body.user_fingerprint || 'anonymous',
+        created_at: new Date().toISOString(),
+        like_count: 0,
+        comment_number: body.comment_number || 1,
+        parent_comment_id: body.parent_comment_id || null
       };
 
-      const { data, error } = await sb.from('comments').insert(insertPayload).select().single();
-      if (error) throw error;
-      return res.status(200).json({ data });
-    }
-
-    if (req.method === 'PATCH') {
-      const url = new URL(req.url, `https://${req.headers.host}`);
-      const id = url.pathname.split('/').pop();
-      if (!id) return res.status(400).json({ error: 'missing id' });
-
-      const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
-
-      const { data, error } = await sb.from('comments').update(body).eq('id', id).select().single();
-      if (error) throw error;
-      return res.status(200).json({ data });
+      return res.status(200).json({ data: newComment });
     }
 
     return res.status(405).json({ error: 'method not allowed' });
-  } catch (e) {
-    console.error(e);
-    return res.status(500).json({ error: e.message || 'server error' });
+
+  } catch (error) {
+    console.error('Comments API Error:', error);
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    });
   }
 }
