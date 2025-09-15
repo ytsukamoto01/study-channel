@@ -49,7 +49,15 @@ async function loadMyPosts() {
     const myThreads = Array.isArray(json.data) ? json.data : [];
     console.log('My threads count:', myThreads.length);
 
-    displayMyPosts(myThreads);
+    try {
+      console.log('Calling displayMyPosts...');
+      displayMyPosts(myThreads);
+      console.log('displayMyPosts completed successfully');
+    } catch (displayError) {
+      console.error('Error in displayMyPosts:', displayError);
+      console.error('Error stack:', displayError.stack);
+      throw displayError;
+    }
   } catch (e) {
     console.error('Error in loadMyPosts:', e);
     handleApiError(e, '投稿の読み込みに失敗しました');
