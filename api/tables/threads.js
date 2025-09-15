@@ -1,15 +1,51 @@
-// Simplified threads API without complex dependencies
+// Threads API with Supabase integration
+import { supabase, parseListParams } from '../_supabase.js';
+
 export default async function handler(req, res) {
   try {
+    const db = supabase();
+    
     if (req.method === 'GET') {
       // Parse URL to get query parameters
       const url = new URL(req.url, `https://${req.headers.host || 'localhost'}`);
       const userFingerprint = url.searchParams.get('user_fingerprint');
+      const { limit, sort, order } = parseListParams(req);
       
       console.log('GET /api/tables/threads - userFingerprint:', userFingerprint);
+      console.log('Query params - limit:', limit, 'sort:', sort, 'order:', order);
       
-      // Create mock data - some threads belong to current user, some don't
-      const requestedUserFP = userFingerprint || 'default-user-fp';
+      try {
+        // Build query
+        let query = db.from('threads').select('*');
+        
+        // If user_fingerprint is specified, filter to that user's threads only
+        if (userFingerprint) {
+          query = query.eq('user_fingerprint', userFingerprint);
+        }
+        
+        // Apply sorting
+        query = query.order(sort, { ascending: order === 'asc' });
+        
+        // Apply limit
+        if (limit && limit > 0) {
+          query = query.limit(limit);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error('Supabase query error:', error);
+          throw error;
+        }
+        
+        console.log('Successfully fetched threads from Supabase:', data?.length || 0, 'threads');
+        return res.status(200).json({ data: data || [] });
+        
+      } catch (supabaseError) {
+        console.error('Supabase error, falling back to mock data:', supabaseError);
+        
+        // Fallback to mock data if Supabase fails
+        const requestedUserFP = userFingerprint || 'default-user-fp';
       
       // Generate mock threads for the requested user
       const userMockThreads = [
@@ -67,10 +103,15 @@ export default async function handler(req, res) {
         userMockThreads : 
         [...userMockThreads, ...otherMockThreads];
 
-      console.log('Threads to return count:', threadsToReturn.length);
-      console.log('User threads created for FP:', requestedUserFP);
+        console.log('Fallback: Threads to return count:', threadsToReturn.length);
+        console.log('Fallback: User threads created for FP:', requestedUserFP);
 
-      return res.status(200).json({ data: threadsToReturn });
+        return res.status(200).json({ 
+          data: threadsToReturn,
+          fallback: true,
+          supabase_error: supabaseError.message 
+        });
+      }
     }
 
     if (req.method === 'POST') {

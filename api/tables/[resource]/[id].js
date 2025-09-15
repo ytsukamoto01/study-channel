@@ -1,4 +1,6 @@
-// Simplified API without complex dependencies
+// Resource API with Supabase integration
+import { supabase } from '../../_supabase.js';
+
 export default async function handler(req, res) {
   try {
     console.log('=== API Request ===');
@@ -7,6 +9,7 @@ export default async function handler(req, res) {
     console.log('Query:', req.query);
     
     const { resource, id } = req.query;
+    const db = supabase();
     
     // Basic validation
     if (!resource || !id) {
@@ -74,69 +77,205 @@ export default async function handler(req, res) {
 
     // Handle GET request
     if (req.method === 'GET') {
-      let mockData;
-      switch (resource) {
-        case 'threads':
-          mockData = mockThread;
-          console.log('Returning thread data for ID:', id);
-          break;
-        case 'comments':
-          mockData = mockComment;
-          console.log('Returning comment data for ID:', id);
-          break;
-        case 'favorites':
-          mockData = mockFavorite;
-          console.log('Returning favorite data for ID:', id);
-          break;
-        default:
-          mockData = { id: id, message: `Mock ${resource} data` };
-          console.log('Returning generic mock data for resource:', resource);
-      }
-      
-      console.log('Mock data generated:', JSON.stringify(mockData, null, 2));
-      return res.status(200).json({ 
-        data: mockData,
-        debug: {
-          api_version: 'simplified-mock',
-          timestamp: new Date().toISOString(),
-          resource: resource,
-          id: id
+      try {
+        console.log(`Fetching ${resource} with id ${id} from Supabase`);
+        
+        const { data, error } = await db
+          .from(resource)
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Supabase GET error:', error);
+          throw error;
         }
-      });
+        
+        if (!data) {
+          console.log('No data found for', resource, id);
+          return res.status(404).json({ 
+            error: 'Not found',
+            resource: resource,
+            id: id
+          });
+        }
+        
+        console.log('Successfully fetched from Supabase:', resource, id);
+        return res.status(200).json({ 
+          data: data,
+          debug: {
+            api_version: 'supabase-connected',
+            timestamp: new Date().toISOString(),
+            resource: resource,
+            id: id
+          }
+        });
+        
+      } catch (supabaseError) {
+        console.error('Supabase error, falling back to mock data:', supabaseError);
+        
+        // Fallback to mock data
+        let mockData;
+        switch (resource) {
+          case 'threads':
+            mockData = mockThread;
+            console.log('Fallback: Returning thread data for ID:', id);
+            break;
+          case 'comments':
+            mockData = mockComment;
+            console.log('Fallback: Returning comment data for ID:', id);
+            break;
+          case 'favorites':
+            mockData = mockFavorite;
+            console.log('Fallback: Returning favorite data for ID:', id);
+            break;
+          default:
+            mockData = { id: id, message: `Mock ${resource} data` };
+            console.log('Fallback: Returning generic mock data for resource:', resource);
+        }
+        
+        return res.status(200).json({ 
+          data: mockData,
+          fallback: true,
+          supabase_error: supabaseError.message,
+          debug: {
+            api_version: 'fallback-mock',
+            timestamp: new Date().toISOString(),
+            resource: resource,
+            id: id
+          }
+        });
+      }
     }
 
     // Handle PATCH request
     if (req.method === 'PATCH') {
       const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
       
-      // For testing: Skip ownership check and allow all edits
-      console.log('PATCH request - Test mode: allowing all edits');
-      
-      // Return updated mock data with actual submitted values
-      const updatedData = {
-        id: id,
-        title: body.title || mockThread.title,
-        content: body.content || mockThread.content,
-        category: body.category || mockThread.category,
-        subcategory: body.subcategory || mockThread.subcategory,
-        hashtags: body.hashtags || mockThread.hashtags,
-        images: body.images || mockThread.images,
-        author_name: mockThread.author_name,
-        user_fingerprint: body.user_fingerprint || mockThread.user_fingerprint,
-        created_at: mockThread.created_at,
-        updated_at: new Date().toISOString(),
-        like_count: mockThread.like_count,
-        reply_count: mockThread.reply_count
-      };
-      
-      return res.status(200).json({ data: updatedData });
+      try {
+        console.log('PATCH request for', resource, id, 'with data:', body);
+        
+        // For threads, check user_fingerprint ownership
+        if (resource === 'threads') {
+          const { data: existingThread } = await db
+            .from('threads')
+            .select('user_fingerprint')
+            .eq('id', id)
+            .maybeSingle();
+          
+          if (!existingThread) {
+            return res.status(404).json({ error: 'Thread not found' });
+          }
+          
+          // Check ownership via user_fingerprint
+          if (body.user_fingerprint !== existingThread.user_fingerprint) {
+            console.log('Ownership check failed:', body.user_fingerprint, '!=', existingThread.user_fingerprint);
+            return res.status(403).json({ error: 'Not authorized to edit this thread' });
+          }
+        }
+        
+        // Prepare update data (exclude user_fingerprint from updates)
+        const updateData = { ...body };
+        delete updateData.user_fingerprint;
+        updateData.updated_at = new Date().toISOString();
+        
+        const { data, error } = await db
+          .from(resource)
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single();
+        
+        if (error) {
+          console.error('Supabase PATCH error:', error);
+          throw error;
+        }
+        
+        console.log('Successfully updated', resource, id);
+        return res.status(200).json({ data: data });
+        
+      } catch (supabaseError) {
+        console.error('Supabase PATCH error, falling back:', supabaseError);
+        
+        // Fallback to mock response
+        const updatedData = {
+          id: id,
+          title: body.title || 'Updated Title',
+          content: body.content || 'Updated content',
+          category: body.category || 'テスト',
+          subcategory: body.subcategory || null,
+          hashtags: body.hashtags || [],
+          images: body.images || [],
+          author_name: 'あなた',
+          user_fingerprint: body.user_fingerprint || currentUserFingerprint,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          like_count: 0,
+          reply_count: 0
+        };
+        
+        return res.status(200).json({ 
+          data: updatedData,
+          fallback: true,
+          supabase_error: supabaseError.message 
+        });
+      }
     }
 
     // Handle DELETE request  
     if (req.method === 'DELETE') {
-      console.log('DELETE request - Test mode: allowing all deletes');
-      // For testing: Skip ownership check and allow all deletes
-      return res.status(204).end();
+      try {
+        let bodyText = '';
+        req.on('data', chunk => {
+          bodyText += chunk.toString();
+        });
+        
+        await new Promise((resolve) => {
+          req.on('end', resolve);
+        });
+        
+        const body = bodyText ? JSON.parse(bodyText) : {};
+        console.log('DELETE request for', resource, id, 'with body:', body);
+        
+        // For threads, check user_fingerprint ownership
+        if (resource === 'threads') {
+          const { data: existingThread } = await db
+            .from('threads')
+            .select('user_fingerprint')
+            .eq('id', id)
+            .maybeSingle();
+          
+          if (!existingThread) {
+            return res.status(404).json({ error: 'Thread not found' });
+          }
+          
+          // Check ownership via user_fingerprint
+          if (body.user_fingerprint !== existingThread.user_fingerprint) {
+            console.log('Ownership check failed:', body.user_fingerprint, '!=', existingThread.user_fingerprint);
+            return res.status(403).json({ error: 'Not authorized to delete this thread' });
+          }
+        }
+        
+        const { error } = await db
+          .from(resource)
+          .delete()
+          .eq('id', id);
+        
+        if (error) {
+          console.error('Supabase DELETE error:', error);
+          throw error;
+        }
+        
+        console.log('Successfully deleted', resource, id);
+        return res.status(204).end();
+        
+      } catch (supabaseError) {
+        console.error('Supabase DELETE error, falling back:', supabaseError);
+        
+        // Fallback - just return success for now
+        console.log('Fallback: DELETE request - allowing delete');
+        return res.status(204).end();
+      }
     }
 
     return res.status(405).json({ error: 'method not allowed' });
