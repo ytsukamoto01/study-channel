@@ -726,36 +726,16 @@ function formatAuthorName(authorName) {
 }
 
 // API呼び出し用のヘルパー関数
-async function apiCall(endpoint, options = {}) {
-    // 常に相対パスを使用（先頭のスラッシュを除去）
-    const url = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-    
-    const defaultOptions = {
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        }
-    };
-    
-    const mergedOptions = {
-        ...defaultOptions,
-        ...options,
-        headers: {
-            ...defaultOptions.headers,
-            ...(options.headers || {})
-        }
-    };
-    
-    console.log('API呼び出し:', url, mergedOptions);
-    
-    const response = await fetch(url, mergedOptions);
-    console.log('APIレスポンス:', response.status, response.statusText);
-    
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('APIエラー:', response.status, errorText);
-        throw new Error(`API呼び出しに失敗: ${response.status} ${errorText}`);
-    }
-    
-    return response.json();
+// utils.js に追加 or 置換
+async function apiCall(url, options = {}) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API ${url} failed: ${res.status} ${text}`);
+  }
+  return await res.json();
 }
+
