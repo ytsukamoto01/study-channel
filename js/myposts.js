@@ -218,7 +218,7 @@ document.getElementById('editForm')?.addEventListener('submit', async (e)=>{
     hashtags: (document.getElementById('editHashtags').value || '').split(',').map(s=>s.trim()).filter(Boolean),
     images: (document.getElementById('editImages').value || '').split(',').map(s=>s.trim()).filter(Boolean)
   };
-  const res = await fetch(`/api/tables/threads/${id}`, {
+  const res = await fetch(`/api/threads/${id}`, {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(body)
@@ -236,7 +236,7 @@ document.getElementById('editForm')?.addEventListener('submit', async (e)=>{
 async function confirmDeleteThread(threadId) {
   if (!confirm('このスレッドを削除しますか？')) return;
   try {
-    await apiCall(`/api/tables/threads/${threadId}`, {
+    await apiCall(`/api/threads/${threadId}`, {
       method: 'DELETE',
       body: JSON.stringify({ user_fingerprint: FP })
     });
@@ -250,7 +250,7 @@ async function confirmDeleteThread(threadId) {
 // 編集ボタン
 async function saveThreadEdits(id, data) {
   try {
-    await apiCall(`/api/tables/threads/${id}`, {
+    await apiCall(`/api/threads/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ ...data, user_fingerprint: FP })
     });
@@ -280,7 +280,7 @@ function onEditSubmit(e){
     images: (document.getElementById('editImages').value || '')
                 .split(',').map(s=>s.trim()).filter(Boolean)
   };
-  fetch(`/api/tables/threads/${id}`, {
+  fetch(`/api/threads/${id}`, {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(body)

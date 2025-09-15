@@ -6,6 +6,27 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY! // サーバ専用
 
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const id = params.id
+  
+  // anonクライアントで個別スレッド取得
+  const anon = createClient(supabaseUrl, anonKey)
+  const { data, error } = await anon
+    .from('threads')
+    .select('*')
+    .eq('id', id)
+    .single()
+  
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return NextResponse.json({ error: 'Thread not found' }, { status: 404 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+  
+  return NextResponse.json(data)
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const id = params.id
   const payload = await req.json() as {
