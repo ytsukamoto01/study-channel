@@ -3,23 +3,55 @@
 let FP = null; // 自分のフィンガープリント（統一）
 
 document.addEventListener('DOMContentLoaded', () => {
-  try { FP = generateUserFingerprint(); } catch(_) {}
+  console.log('=== MyPosts Page Initialization ===');
+  
+  try { 
+    FP = generateUserFingerprint(); 
+    console.log('Generated user fingerprint:', FP);
+  } catch(error) {
+    console.error('Failed to generate fingerprint:', error);
+    FP = 'fallback-fp-' + Date.now(); // フォールバック値
+    console.log('Using fallback fingerprint:', FP);
+  }
+  
+  if (!FP) {
+    console.warn('Fingerprint is null/undefined, using fallback');
+    FP = 'emergency-fp-' + Math.random().toString(36).substring(7);
+  }
+  
+  console.log('Final fingerprint for API calls:', FP);
   loadMyPosts();
 });
 
 // 自分の投稿を読み込み（サーバー側でフィルタリング）
 async function loadMyPosts() {
   try {
+    console.log('=== Loading My Posts ===');
+    console.log('Using fingerprint:', FP);
     showLoading();
 
     // user_fingerprintを送信してサーバー側でフィルタリング
-    const res = await fetch(`/api/tables/threads?user_fingerprint=${encodeURIComponent(FP || 'default-user-fp')}&limit=1000&sort=created_at&order=desc`);
-    if (!res.ok) throw new Error('投稿の読み込みに失敗しました');
+    const apiUrl = `/api/tables/threads?user_fingerprint=${encodeURIComponent(FP || 'default-user-fp')}&limit=1000&sort=created_at&order=desc`;
+    console.log('API URL:', apiUrl);
+    
+    const res = await fetch(apiUrl);
+    console.log('API Response status:', res.status, res.statusText);
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('API Error response:', errorText);
+      throw new Error(`投稿の読み込みに失敗しました (${res.status}): ${errorText}`);
+    }
+    
     const json = await res.json();
+    console.log('API Response data:', json);
+    
     const myThreads = Array.isArray(json.data) ? json.data : [];
+    console.log('My threads count:', myThreads.length);
 
     displayMyPosts(myThreads);
   } catch (e) {
+    console.error('Error in loadMyPosts:', e);
     handleApiError(e, '投稿の読み込みに失敗しました');
   } finally {
     hideLoading();
