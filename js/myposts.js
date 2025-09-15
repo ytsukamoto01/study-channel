@@ -60,10 +60,19 @@ async function loadMyPosts() {
 
 // 自分の投稿を表示
 function displayMyPosts(threads) {
+  console.log('=== Displaying My Posts ===');
+  console.log('Threads to display:', threads);
+  
   const wrap = document.getElementById('myPostsList');
-  if (!wrap) return;
+  console.log('Container element:', wrap);
+  
+  if (!wrap) {
+    console.error('myPostsList element not found!');
+    return;
+  }
 
   if (!threads || threads.length === 0) {
+    console.log('No threads to display, showing empty state');
     wrap.innerHTML = `
       <div class="empty-state">
         <i class="fas fa-edit"></i>
@@ -82,6 +91,9 @@ function displayMyPosts(threads) {
     ...t,
     hashtags: normalizeHashtags(t.hashtags),
   })).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  console.log('Processed thread list:', list);
+  console.log('Generating HTML for', list.length, 'threads');
 
   wrap.innerHTML = list.map(t => {
     const sub = t.subcategory ? `<span class="thread-subcategory">${escapeHtml(t.subcategory)}</span>` : '';
@@ -148,6 +160,9 @@ function displayMyPosts(threads) {
     `;
   }).join('');
 
+  console.log('HTML content length:', wrap.innerHTML.length);
+  console.log('DOM updated successfully');
+  
   updateFavoriteStatus();
 }
 
