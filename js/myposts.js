@@ -232,21 +232,35 @@ document.getElementById('editForm')?.addEventListener('submit', async (e)=>{
   await loadMyPosts();
 });
 
-// 削除（DELETE）
-async function confirmDeleteThread(id){
-  if (!confirm('このスレッドを削除します。よろしいですか？')) return;
-  const res = await fetch(`api/threads/${id}?fp=${encodeURIComponent(FP)}`, {
-    method: 'DELETE',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ user_fingerprint: FP })
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    alert('削除に失敗しました: ' + t);
-    return;
+// 削除ボタン
+async function confirmDeleteThread(threadId) {
+  if (!confirm('このスレッドを削除しますか？')) return;
+  try {
+    await apiCall(`tables/threads/${threadId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ user_fingerprint: FP })
+    });
+    showMessage('削除しました', 'success');
+    loadMyPosts();
+  } catch (e) {
+    handleApiError(e, '削除に失敗しました');
   }
-  await loadMyPosts();
 }
+
+// 編集ボタン
+async function saveThreadEdits(id, data) {
+  try {
+    await apiCall(`tables/threads/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ ...data, user_fingerprint: FP })
+    });
+    showMessage('更新しました', 'success');
+    loadMyPosts();
+  } catch (e) {
+    handleApiError(e, '更新に失敗しました');
+  }
+}
+
 
 /* ---------- ローディング表示/非表示 ---------- */
 function showLoading(){ const el = document.getElementById('loading'); if (el) el.style.display='block'; }
