@@ -148,8 +148,58 @@ export default async function handler(req, res) {
       }
     }
 
-    // PATCH and DELETE methods are not supported for threads
-    if (req.method === 'PATCH' || req.method === 'DELETE') {
+    // Handle DELETE request for favorites
+    if (req.method === 'DELETE') {
+      if (resource === 'favorites') {
+        try {
+          console.log(`Deleting favorite with id ${id} from Supabase`);
+          
+          const { error } = await db
+            .from('favorites')
+            .delete()
+            .eq('id', id);
+          
+          if (error) {
+            console.error('Supabase DELETE error:', error);
+            throw error;
+          }
+          
+          console.log('Successfully deleted favorite from Supabase:', id);
+          return res.status(204).end();
+          
+        } catch (supabaseError) {
+          console.error('Supabase error during deletion:', supabaseError);
+          return res.status(500).json({ 
+            error: 'Failed to delete favorite',
+            message: supabaseError.message,
+            fallback: true,
+            debug: {
+              api_version: 'fallback-delete-error',
+              timestamp: new Date().toISOString(),
+              resource: resource,
+              id: id
+            }
+          });
+        }
+      }
+      
+      // PATCH and DELETE methods are not supported for threads
+      if (resource === 'threads') {
+        return res.status(405).json({ 
+          error: 'Method not allowed',
+          message: 'Thread editing and deletion are not supported'
+        });
+      }
+      
+      // For other resources (comments, likes, etc.), you can add specific handling here if needed
+      return res.status(405).json({ 
+        error: 'Method not allowed',
+        message: `${req.method} is not supported for ${resource}`
+      });
+    }
+    
+    // Handle PATCH request (not supported for most resources)
+    if (req.method === 'PATCH') {
       if (resource === 'threads') {
         return res.status(405).json({ 
           error: 'Method not allowed',

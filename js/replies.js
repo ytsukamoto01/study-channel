@@ -70,9 +70,21 @@ function showPageError(msg) {
 
 // 親コメント1件
 async function loadParentComment() {
-  const parent = await apiCall(`tables/comments/${parentCommentId}`);
-  if (!parent || !parent.id) return showPageError('親コメントが見つかりません');
-  renderParent(parent);
+  try {
+    // 全コメントから該当の親コメントを検索
+    const json = await apiCall(`/api/tables/comments?thread_id=${currentThreadId}&limit=1000`);
+    const allComments = json?.data || [];
+    const parent = allComments.find(c => c.id === parentCommentId);
+    
+    if (!parent) {
+      return showPageError('親コメントが見つかりません');
+    }
+    
+    renderParent(parent);
+  } catch (e) {
+    console.error('親コメント取得エラー:', e);
+    showPageError('親コメントの読み込みに失敗しました');
+  }
 }
 
 function renderParent(c) {
@@ -99,13 +111,19 @@ function renderParent(c) {
 
 // 子（返信）一覧
 async function loadReplies() {
-  // APIにフィルタがない前提で全件→絞り込み（必要ならAPI側に parent_id フィルタを追加して最適化可）
-  const json = await apiCall(`tables/comments?sort=created_at&order=asc&limit=1000`);
-  const all = json?.data || [];
-  const replies = all.filter(c => c.parent_comment_id === parentCommentId);
+  try {
+    // 該当スレッドの全コメントから返信を絞り込み
+    const json = await apiCall(`/api/tables/comments?thread_id=${currentThreadId}&sort=created_at&order=asc&limit=1000`);
+    const all = json?.data || [];
+    const replies = all.filter(c => c.parent_comment_id === parentCommentId);
 
-  document.getElementById('repliesCount').textContent = String(replies.length);
-  renderReplies(replies);
+    document.getElementById('repliesCount').textContent = String(replies.length);
+    renderReplies(replies);
+  } catch (e) {
+    console.error('返信取得エラー:', e);
+    document.getElementById('repliesCount').textContent = '0';
+    renderReplies([]);
+  }
 }
 
 function renderReplies(list) {
@@ -146,7 +164,7 @@ async function handleReplySubmit(e) {
     : '匿名';
 
   try {
-    await apiCall('tables/comments', {
+    await apiCall('/api/tables/comments', {
       method: 'POST',
       body: JSON.stringify({
         thread_id: currentThreadId,
@@ -170,7 +188,7 @@ async function likeThisComment(commentId) {
   try {
     if (!userFingerprint) userFingerprint = generateUserFingerprint();
 
-    const likes = await apiCall('tables/likes');
+    const likes = await apiCall('/api/tables/likes');
     const exists = (likes.data || []).some(l =>
       l.target_type === 'comment' && l.target_id === commentId && l.user_fingerprint === userFingerprint
     );
@@ -179,7 +197,7 @@ async function likeThisComment(commentId) {
       return;
     }
 
-    await apiCall('tables/likes', {
+    await apiCall('/api/tables/likes', {
       method: 'POST',
       body: JSON.stringify({
         target_type: 'comment',

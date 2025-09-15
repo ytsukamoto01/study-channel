@@ -14,7 +14,7 @@ async function loadFavorites() {
         showLoading();
         
         // お気に入りリストを取得
-        const favResponse = await fetch('tables/favorites');
+        const favResponse = await fetch('/api/tables/favorites');
         if (!favResponse.ok) {
             throw new Error('お気に入りの読み込みに失敗しました');
         }
@@ -33,7 +33,7 @@ async function loadFavorites() {
         }
         
         // スレッド情報を取得
-        const threadResponse = await fetch('tables/threads?limit=1000');
+        const threadResponse = await fetch('/api/tables/threads?limit=1000');
         if (!threadResponse.ok) {
             throw new Error('スレッドの読み込みに失敗しました');
         }
@@ -254,7 +254,7 @@ document.head.appendChild(style);
 
 async function toggleFavoriteFromList(threadId) {
   try {
-    await apiCall('tables/favorites', {
+    await apiCall('/api/tables/favorites', {
       method: 'POST',
       body: JSON.stringify({
         thread_id: threadId,
@@ -271,11 +271,11 @@ async function removeFavorite(event, threadId) {
   event.stopPropagation();
   try {
     // まず自分のfavorites一覧を取得して対象IDを特定
-    const res = await apiCall('tables/favorites?limit=1000');
+    const res = await apiCall('/api/tables/favorites?limit=1000');
     const mine = (res.data || []).filter(f => f.user_fingerprint === userFingerprint);
     const target = mine.find(f => f.thread_id === threadId);
     if (!target) return;
-    await apiCall(`tables/favorites/${target.id}`, {
+    await apiCall(`/api/tables/favorites/${target.id}`, {
       method: 'DELETE',
       body: JSON.stringify({ user_fingerprint: userFingerprint })
     });

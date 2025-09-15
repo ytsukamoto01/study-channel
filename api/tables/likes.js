@@ -27,7 +27,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'missing fields' });
 
       const { data, error } = await sb.from('likes')
-        .upsert(body, { onConflict: 'target_id,user_fingerprint' })
+        .upsert(body, { onConflict: 'target_type,target_id,user_fingerprint' })
         .select()
         .single();
       if (error) throw error;

@@ -319,7 +319,7 @@ async function likeThisComment(commentId) {
     if (!userFingerprint) userFingerprint = generateUserFingerprint();
 
     // 既に「いいね」しているか
-    const likes = await apiCall('tables/likes');
+    const likes = await apiCall('/api/tables/likes');
     const exists = (likes.data || []).some(l =>
       l.target_type === 'comment' && l.target_id === commentId && l.user_fingerprint === userFingerprint
     );
@@ -329,7 +329,7 @@ async function likeThisComment(commentId) {
     }
 
     // 追加
-    await apiCall('tables/likes', {
+    await apiCall('/api/tables/likes', {
       method: 'POST',
       body: JSON.stringify({
         target_type: 'comment',
@@ -381,7 +381,7 @@ async function handleCommentSubmit(e) {
 // いいね（スレッド）
 async function likeThread() {
   try {
-    await apiCall('tables/likes', {
+    await apiCall('/api/tables/likes', {
       method: 'POST',
       body: JSON.stringify({
         target_type: 'thread',
