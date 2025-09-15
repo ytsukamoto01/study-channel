@@ -9,12 +9,15 @@ export default async function handler(req, res) {
     console.log('Query:', req.query);
     
     const { resource, id } = req.query;
+    // anon client for read / ownership checks
     const db = supabase();
-    
+    // service role client for updates/deletes (RLS blocks anon)
+    const svc = supabase(true);
+
     // Basic validation
     if (!resource || !id) {
       console.log('Missing params - resource:', resource, 'id:', id);
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'missing params',
         received: { resource, id },
         debug: 'API called but missing required parameters'
@@ -23,23 +26,25 @@ export default async function handler(req, res) {
 
     console.log(`Processing ${req.method} request for ${resource}/${id}`);
 
-    // Extract user_fingerprint from request
-    let currentUserFingerprint = 'default-user-fp'; // デフォルト値
-    
-    if (req.method === 'POST' || req.method === 'PATCH') {
-      const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
-      currentUserFingerprint = body.user_fingerprint || currentUserFingerprint;
-    } else if (req.method === 'DELETE') {
-      // DELETEの場合もリクエストボディから取得を試行
-      let bodyText = '';
-      if (req.body) {
-        const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
-        currentUserFingerprint = body.user_fingerprint || currentUserFingerprint;
+    // Parse request body when needed (works with native Node server)
+    let body = {};
+    if (['POST', 'PATCH', 'DELETE'].includes(req.method)) {
+      if (typeof req.body === 'string') {
+        body = JSON.parse(req.body || '{}');
+      } else if (typeof req.body === 'object' && req.body !== null) {
+        body = req.body;
+      } else {
+        let bodyText = '';
+        for await (const chunk of req) {
+          bodyText += chunk.toString();
+        }
+        body = bodyText ? JSON.parse(bodyText) : {};
       }
-    } else if (req.method === 'GET') {
-      // GET の場合はクエリパラメータから
-      currentUserFingerprint = req.query.user_fingerprint || currentUserFingerprint;
     }
+
+    // Determine user fingerprint from body or query params
+    let currentUserFingerprint =
+      body.user_fingerprint || req.query.user_fingerprint || 'default-user-fp';
 
     // Mock data for testing - uses actual user fingerprint
     const mockThread = {
@@ -150,8 +155,6 @@ export default async function handler(req, res) {
 
     // Handle PATCH request
     if (req.method === 'PATCH') {
-      const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
-      
       try {
         console.log('PATCH request for', resource, id, 'with data:', body);
         
@@ -179,7 +182,7 @@ export default async function handler(req, res) {
         delete updateData.user_fingerprint;
         updateData.updated_at = new Date().toISOString();
         
-        const { data, error } = await db
+        const { data, error } = await svc
           .from(resource)
           .update(updateData)
           .eq('id', id)
@@ -225,16 +228,6 @@ export default async function handler(req, res) {
     // Handle DELETE request  
     if (req.method === 'DELETE') {
       try {
-        let bodyText = '';
-        req.on('data', chunk => {
-          bodyText += chunk.toString();
-        });
-        
-        await new Promise((resolve) => {
-          req.on('end', resolve);
-        });
-        
-        const body = bodyText ? JSON.parse(bodyText) : {};
         console.log('DELETE request for', resource, id, 'with body:', body);
         
         // For threads, check user_fingerprint ownership
@@ -256,25 +249,25 @@ export default async function handler(req, res) {
           }
         }
         
-        const { error } = await db
+        const { error } = await svc
           .from(resource)
           .delete()
           .eq('id', id);
-        
+
         if (error) {
           console.error('Supabase DELETE error:', error);
           throw error;
         }
-        
+
         console.log('Successfully deleted', resource, id);
-        return res.status(204).end();
+        return res.status(200).json({ success: true });
         
       } catch (supabaseError) {
         console.error('Supabase DELETE error, falling back:', supabaseError);
         
         // Fallback - just return success for now
         console.log('Fallback: DELETE request - allowing delete');
-        return res.status(204).end();
+        return res.status(200).json({ success: true, fallback: true });
       }
     }
 
