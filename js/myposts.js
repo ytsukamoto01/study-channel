@@ -218,7 +218,7 @@ document.getElementById('editForm')?.addEventListener('submit', async (e)=>{
     hashtags: (document.getElementById('editHashtags').value || '').split(',').map(s=>s.trim()).filter(Boolean),
     images: (document.getElementById('editImages').value || '').split(',').map(s=>s.trim()).filter(Boolean)
   };
-  const res = await fetch(`tables/threads/${id}`, {
+  const res = await fetch(`api/threads/${id}`, {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(body)
@@ -235,7 +235,7 @@ document.getElementById('editForm')?.addEventListener('submit', async (e)=>{
 // 削除（DELETE）
 async function confirmDeleteThread(id){
   if (!confirm('このスレッドを削除します。よろしいですか？')) return;
-  const res = await fetch(`tables/threads/${id}`, {
+  const res = await fetch(`api/threads/${id}`, {
     method: 'DELETE',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ user_fingerprint: FP })
