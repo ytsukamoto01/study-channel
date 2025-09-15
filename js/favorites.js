@@ -146,53 +146,6 @@ function displayEmptyFavorites() {
     `;
 }
 
-// お気に入りを削除
-async function removeFavorite(event, threadId) {
-    event.stopPropagation(); // 親要素のクリックイベントを防ぐ
-    
-    if (!confirm('このスレッドをお気に入りから削除しますか？')) {
-        return;
-    }
-    
-    try {
-        // お気に入りを検索
-        const response = await fetch('tables/favorites');
-        if (!response.ok) {
-            throw new Error('お気に入りの取得に失敗しました');
-        }
-        
-        const result = await response.json();
-        const favorites = result.data || [];
-        
-        const targetFavorite = favorites.find(fav => 
-            fav.thread_id === threadId && fav.user_fingerprint === userFingerprint
-        );
-        
-        if (!targetFavorite) {
-            alert('お気に入りが見つかりませんでした');
-            return;
-        }
-        
-        // お気に入りを削除
-        const deleteResponse = await fetch(`tables/favorites/${targetFavorite.id}`, {
-            method: 'DELETE'
-        });
-        
-        if (!deleteResponse.ok) {
-            throw new Error('お気に入りの削除に失敗しました');
-        }
-        
-        // 成功メッセージ
-        showSuccessMessage('お気に入りから削除しました');
-        
-        // リストを再読み込み
-        await loadFavorites();
-        
-    } catch (error) {
-        handleApiError(error, 'お気に入りの削除に失敗しました');
-    }
-}
-
 // ローディング表示
 function showLoading() {
     const loading = document.getElementById('loading');
@@ -298,3 +251,38 @@ style.textContent = `
 }
 `;
 document.head.appendChild(style);
+
+async function toggleFavoriteFromList(threadId) {
+  try {
+    await apiCall('tables/favorites', {
+      method: 'POST',
+      body: JSON.stringify({
+        thread_id: threadId,
+        user_fingerprint: userFingerprint
+      })
+    });
+    showMessage('お気に入りに追加しました', 'success');
+  } catch (e) {
+    handleApiError(e, 'お気に入り登録に失敗しました');
+  }
+}
+
+async function removeFavorite(event, threadId) {
+  event.stopPropagation();
+  try {
+    // まず自分のfavorites一覧を取得して対象IDを特定
+    const res = await apiCall('tables/favorites?limit=1000');
+    const mine = (res.data || []).filter(f => f.user_fingerprint === userFingerprint);
+    const target = mine.find(f => f.thread_id === threadId);
+    if (!target) return;
+    await apiCall(`tables/favorites/${target.id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ user_fingerprint: userFingerprint })
+    });
+    showMessage('お気に入りを解除しました', 'success');
+    loadFavorites();
+  } catch (e) {
+    handleApiError(e, 'お気に入り解除に失敗しました');
+  }
+}
+
