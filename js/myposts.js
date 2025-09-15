@@ -222,3 +222,74 @@ async function updateFavoriteStatus() {
         console.error('お気に入り状態の更新エラー:', error);
     }
 }
+
+// グローバルでfingerprintを使えるように
+let MY_FP = null;
+document.addEventListener('DOMContentLoaded', ()=>{
+  try { MY_FP = generateUserFingerprint(); } catch(_) {}
+});
+
+// 編集モーダルを開く
+function openEditModal(id, data){
+  document.getElementById('editThreadId').value = id;
+  document.getElementById('editTitle').value = data.title || '';
+  document.getElementById('editCategory').value = data.category || '';
+  document.getElementById('editSubcategory').value = data.subcategory || '';
+  document.getElementById('editContent').value = data.content || '';
+  document.getElementById('editHashtags').value = data.hashtags || '';
+  document.getElementById('editImages').value = data.images || '';
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal(){
+  document.getElementById('editModal').style.display = 'none';
+}
+
+// 送信
+document.getElementById('editForm')?.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const id = document.getElementById('editThreadId').value;
+  const body = {
+    user_fingerprint: MY_FP, // 所有確認に必須
+    title: document.getElementById('editTitle').value.trim(),
+    category: document.getElementById('editCategory').value.trim(),
+    subcategory: document.getElementById('editSubcategory').value.trim() || null,
+    content: document.getElementById('editContent').value.trim(),
+    hashtags: (document.getElementById('editHashtags').value || '')
+                .split(',')
+                .map(s=>s.trim()).filter(Boolean),
+    images: (document.getElementById('editImages').value || '')
+                .split(',')
+                .map(s=>s.trim()).filter(Boolean)
+  };
+
+  const res = await fetch(`tables/threads/${id}`, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    alert('更新に失敗しました: ' + t);
+    return;
+  }
+  closeEditModal();
+  await loadMyPosts(); // 再描画
+});
+
+// 削除
+async function confirmDeleteThread(id){
+  if (!confirm('このスレッドを削除します。よろしいですか？')) return;
+  const res = await fetch(`tables/threads/${id}`, {
+    method: 'DELETE',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ user_fingerprint: MY_FP })
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    alert('削除に失敗しました: ' + t);
+    return;
+  }
+  await loadMyPosts(); // 再描画
+}
+
