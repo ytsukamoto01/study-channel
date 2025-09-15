@@ -477,7 +477,15 @@ async function toggleFavorite() {
     const favorites = json.data || [];
     const exist = favorites.find(f => f.thread_id === currentThreadId && f.user_fingerprint === fp);
     if (exist) {
-      await fetch(`/api/tables/favorites/${exist.id}`, { method: 'DELETE' });
+      // thread_idとuser_fingerprintで削除
+      await fetch('/api/tables/favorites', { 
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          thread_id: currentThreadId, 
+          user_fingerprint: fp 
+        })
+      });
       updateFavoriteButton(false);
       showSuccessMessage('お気に入りから削除しました');
     } else {

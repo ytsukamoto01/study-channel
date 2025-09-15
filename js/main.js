@@ -89,12 +89,12 @@ async function loadThreads(category = 'all', retryCount = 0) {
         console.log('ベースURL確認:', window.location.origin);
         
         // API接続テスト
-        const testUrl = 'tables/threads';
+        const testUrl = '/api/tables/threads';
         console.log('API URL:', testUrl);
         
         let result;
         try {
-            result = await apiCall('tables/threads');
+            result = await apiCall('/api/tables/threads');
         } catch (error) {
             // 500エラーの場合はリトライ
             if (error.message.includes('500') && retryCount < 2) {
@@ -445,7 +445,7 @@ async function handleNewThreadSubmit(event) {
     }
     
     try {
-        const response = await fetch('tables/threads', {
+        const response = await fetch('/api/tables/threads', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1037,7 +1037,7 @@ async function toggleFavoriteFromList(threadId, button) {
         button.disabled = true;
         
         // 既存のお気に入りをチェック
-        const favoritesData = await apiCall('tables/favorites');
+        const favoritesData = await apiCall('/api/tables/favorites');
         console.log('お気に入りデータ取得:', favoritesData);
         
         // データ構造を確認
@@ -1057,12 +1057,16 @@ async function toggleFavoriteFromList(threadId, button) {
         
         if (existingFavorite) {
             console.log('既存のお気に入りを削除:', existingFavorite.id);
-            // お気に入りから削除
-            const deleteResponse = await fetch(`tables/favorites/${existingFavorite.id}`, {
+            // お気に入りから削除（新しい方式でthread_idとuser_fingerprintを使用）
+            const deleteResponse = await fetch('/api/tables/favorites', {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    thread_id: threadId,
+                    user_fingerprint: userFingerprint
+                })
             });
             
             if (!deleteResponse.ok) {
@@ -1079,7 +1083,7 @@ async function toggleFavoriteFromList(threadId, button) {
         } else {
             console.log('新しいお気に入りを追加');
             // お気に入りに追加
-            const addResponse = await fetch('tables/favorites', {
+            const addResponse = await fetch('/api/tables/favorites', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1118,7 +1122,7 @@ async function toggleFavoriteFromList(threadId, button) {
 async function updateFavoriteStatus() {
     try {
         const userFingerprint = generateUserFingerprint();
-        const favoritesResponse = await fetch('tables/favorites');
+        const favoritesResponse = await fetch('/api/tables/favorites');
         
         if (!favoritesResponse.ok) {
             console.warn('お気に入りデータの取得に失敗:', favoritesResponse.status);

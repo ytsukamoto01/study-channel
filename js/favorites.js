@@ -270,14 +270,13 @@ async function toggleFavoriteFromList(threadId) {
 async function removeFavorite(event, threadId) {
   event.stopPropagation();
   try {
-    // まず自分のfavorites一覧を取得して対象IDを特定
-    const res = await apiCall('/api/tables/favorites?limit=1000');
-    const mine = (res.data || []).filter(f => f.user_fingerprint === userFingerprint);
-    const target = mine.find(f => f.thread_id === threadId);
-    if (!target) return;
-    await apiCall(`/api/tables/favorites/${target.id}`, {
+    // thread_idとuser_fingerprintで直接削除
+    await apiCall('/api/tables/favorites', {
       method: 'DELETE',
-      body: JSON.stringify({ user_fingerprint: userFingerprint })
+      body: JSON.stringify({ 
+        thread_id: threadId,
+        user_fingerprint: userFingerprint 
+      })
     });
     showMessage('お気に入りを解除しました', 'success');
     loadFavorites();
