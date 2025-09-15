@@ -726,16 +726,25 @@ function formatAuthorName(authorName) {
 }
 
 // API呼び出し用のヘルパー関数
-// utils.js に追加 or 置換
+// 与えられたURLが相対パスの場合は `/api/` を先頭に付与する
 async function apiCall(url, options = {}) {
-  const res = await fetch(url, {
+  const isAbsolute = /^https?:/i.test(url);
+  const finalUrl = isAbsolute
+    ? url
+    : url.startsWith('/api/')
+      ? url
+      : `/api/${url.replace(/^\/+/, '')}`;
+
+  const res = await fetch(finalUrl, {
     headers: { 'Content-Type': 'application/json' },
     ...options
   });
+
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`API ${url} failed: ${res.status} ${text}`);
+    throw new Error(`API ${finalUrl} failed: ${res.status} ${text}`);
   }
+
   return await res.json();
 }
 
