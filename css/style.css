@@ -1483,7 +1483,8 @@ body {
 .edit-btn:hover { border-color: #667eea; box-shadow: 0 2px 8px rgba(102,126,234,.15); }
 .delete-btn:hover { border-color: #ff6b6b; box-shadow: 0 2px 8px rgba(255,107,107,.15); }
 
-/* “お気に入り★”など右上UIと被らないように */
+/* 右上ボタン等と干渉しないように */
 .thread-item .thread-actions-row { position: relative; z-index: 5; }
+
 
 
