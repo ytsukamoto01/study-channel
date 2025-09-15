@@ -197,10 +197,12 @@ function openEditModalFromCard(cardEl){
   document.getElementById('editHashtags').value = cardEl.getAttribute('data-hashtags') || '';
   document.getElementById('editImages').value = cardEl.getAttribute('data-images') || '';
   document.getElementById('editModal').style.display = 'flex';
+  document.getElementById('editModal').classList.add('active');
 }
 
 function closeEditModal(){
   document.getElementById('editModal').style.display = 'none';
+  document.getElementById('editModal').classList.remove('active');
 }
 
 // 送信（PATCH）
