@@ -9,7 +9,10 @@ export default async function handler(req, res) {
     console.log('Query:', req.query);
     
     const { resource, id } = req.query;
+    // anon client for read / ownership checks
     const db = supabase();
+    // service role client for updates/deletes (RLS blocks anon)
+    const svc = supabase(true);
     
     // Basic validation
     if (!resource || !id) {
@@ -179,7 +182,7 @@ export default async function handler(req, res) {
         delete updateData.user_fingerprint;
         updateData.updated_at = new Date().toISOString();
         
-        const { data, error } = await db
+        const { data, error } = await svc
           .from(resource)
           .update(updateData)
           .eq('id', id)
@@ -256,7 +259,7 @@ export default async function handler(req, res) {
           }
         }
         
-        const { error } = await db
+        const { error } = await svc
           .from(resource)
           .delete()
           .eq('id', id);
