@@ -64,7 +64,8 @@ function scrollToCommentForm() {
 // スレッド詳細読み込み
 async function loadThreadDetail(threadId) {
   try {
-    currentThread = await apiCall(`/api/tables/threads/${threadId}`);
+    const response = await apiCall(`/api/tables/threads/${threadId}`);
+    currentThread = response.data;
     if (!currentThread || !currentThread.id) throw new Error('スレッドが見つかりません');
 
     // 正規化
