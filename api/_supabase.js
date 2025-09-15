@@ -71,7 +71,8 @@ export function supabase(service = false) {
 }
 
 export function parseListParams(req) {
-  const url = new URL(req.url, `https://${req.headers.host}`);
+  // some runtimes don't provide req.headers.host (e.g. during tests)
+  const url = new URL(req.url, 'http://localhost');
   return {
     limit: Number(url.searchParams.get('limit') || '100'),
     sort: url.searchParams.get('sort') || 'created_at',
