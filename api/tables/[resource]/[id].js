@@ -198,30 +198,8 @@ export default async function handler(req, res) {
         return res.status(200).json({ data: data });
         
       } catch (supabaseError) {
-        console.error('Supabase PATCH error, falling back:', supabaseError);
-        
-        // Fallback to mock response
-        const updatedData = {
-          id: id,
-          title: body.title || 'Updated Title',
-          content: body.content || 'Updated content',
-          category: body.category || 'テスト',
-          subcategory: body.subcategory || null,
-          hashtags: body.hashtags || [],
-          images: body.images || [],
-          author_name: 'あなた',
-          user_fingerprint: body.user_fingerprint || currentUserFingerprint,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          like_count: 0,
-          reply_count: 0
-        };
-        
-        return res.status(200).json({ 
-          data: updatedData,
-          fallback: true,
-          supabase_error: supabaseError.message 
-        });
+        console.error('Supabase PATCH error:', supabaseError);
+        return res.status(500).json({ error: supabaseError.message });
       }
     }
 
@@ -291,11 +269,8 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
         
       } catch (supabaseError) {
-        console.error('Supabase DELETE error, falling back:', supabaseError);
-        
-        // Fallback - just return success for now
-        console.log('Fallback: DELETE request - allowing delete');
-        return res.status(200).json({ success: true, fallback: true });
+        console.error('Supabase DELETE error:', supabaseError);
+        return res.status(500).json({ error: supabaseError.message });
       }
     }
 
