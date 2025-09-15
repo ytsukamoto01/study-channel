@@ -246,62 +246,52 @@ async function likeThisComment(commentId) {
 }
 
 // ====== 下部の「スレッドにコメントを投稿」 ======
+// コメント投稿
 async function handleCommentSubmit(e) {
   e.preventDefault();
-  if (!currentThreadId) return;
+  const content = document.getElementById('commentContent').value.trim();
+  if (!content) return showMessage('コメントを入力してください', 'error');
 
-  const content = (document.getElementById('commentContent')?.value || '').trim();
-  if (!content) {
-    alert('コメント内容を入力してください');
-    return;
-  }
-
-  const commentData = {
-    thread_id: currentThreadId,
-    content,
-    images: (typeof uploadedImages !== 'undefined' && uploadedImages.comment) ? uploadedImages.comment : [],
-    author_name: getCommentAuthorName(),
-    like_count: 0,
-    comment_number: 0 // サーバ側で採番でもOK
-  };
-
-  // 簡易バリデーション（utils.js想定の関数があれば使う）
-  try {
-    if (typeof validateCommentData === 'function') {
-      const errs = validateCommentData(commentData);
-      if (errs.length) {
-        alert(errs.join('\n'));
-        return;
-      }
-    }
-  } catch (_) {}
+  const authorRadio = document.querySelector('input[name="commentAuthorType"]:checked');
+  const authorName = authorRadio?.value === 'custom'
+    ? document.getElementById('commentCustomAuthorName').value || '匿名'
+    : '匿名';
 
   try {
-    // 既存件数で採番（簡易）
-    const res = await apiCall('tables/comments');
-    const threadComments = (res.data || []).filter(c => c.thread_id === currentThreadId);
-    commentData.comment_number = threadComments.length + 1;
-
-    // 作成
     await apiCall('tables/comments', {
       method: 'POST',
-      body: JSON.stringify(commentData)
+      body: JSON.stringify({
+        thread_id: currentThreadId,
+        content,
+        author_name: authorName,
+        user_fingerprint: userFingerprint
+      })
     });
-
-    // スレッドの返信数を更新（親＋返信の総数ではなく、ここは便宜上全件数でも可）
-    await updateThreadReplyCount(currentThreadId, threadComments.length + 1);
-
-    // フォームリセット
-    resetCommentForm();
-
-    // 再読込
-    await loadComments(currentThreadId);
-    showSuccessMessage('コメントを投稿しました！');
+    document.getElementById('commentContent').value = '';
+    showMessage('コメントを投稿しました', 'success');
+    loadComments(currentThreadId);
   } catch (e) {
-    console.error(e);
-    handleApiError(e, 'コメントの投稿に失敗しました');
+    handleApiError(e, 'コメント投稿に失敗しました');
   }
 }
+
+// いいね（スレッド）
+async function likeThread() {
+  try {
+    await apiCall('tables/likes', {
+      method: 'POST',
+      body: JSON.stringify({
+        target_type: 'thread',
+        target_id: currentThreadId,
+        user_fingerprint: userFingerprint
+      })
+    });
+    showMessage('いいねしました', 'success');
+  } catch (e) {
+    handleApiError(e, 'いいねに失敗しました');
+  }
+}
+
 
 // 投稿者名の取得（下部フォーム）
 function getCommentAuthorName() {
@@ -351,46 +341,6 @@ async function updateThreadReplyCount(threadId, replyCount) {
     });
   } catch (e) {
     console.warn('返信数の更新に失敗:', e);
-  }
-}
-
-// ====== スレッド「いいね」 ======
-async function likeThread() {
-  if (!currentThreadId) return;
-  try {
-    if (!userFingerprint) userFingerprint = generateUserFingerprint();
-
-    const likes = await apiCall('tables/likes');
-    const exists = (likes.data || []).some(l =>
-      l.target_type === 'thread' && l.target_id === currentThreadId && l.user_fingerprint === userFingerprint
-    );
-    if (exists) {
-      showErrorMessage('既にいいねしています');
-      return;
-    }
-
-    await apiCall('tables/likes', {
-      method: 'POST',
-      body: JSON.stringify({
-        target_type: 'thread',
-        target_id: currentThreadId,
-        user_fingerprint: userFingerprint
-      })
-    });
-
-    const newLike = (currentThread.like_count || 0) + 1;
-    currentThread.like_count = newLike;
-
-    await apiCall(`tables/threads/${currentThreadId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ like_count: newLike })
-    });
-
-    document.getElementById('threadLikeCount').textContent = newLike;
-    showSuccessMessage('いいねしました！');
-  } catch (e) {
-    console.error(e);
-    handleApiError(e, 'いいねに失敗しました');
   }
 }
 
