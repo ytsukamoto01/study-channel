@@ -748,10 +748,12 @@ async function apiCall(url, options = {}) {
     const text = await res.text();
     throw new Error(`API ${url} failed: ${res.status} ${text}`);
   }
-  // Some endpoints (e.g. DELETE) may return no content
-  if (res.status === 204) {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
     return {};
   }
-  return await res.json();
 }
 

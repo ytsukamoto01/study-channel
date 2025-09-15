@@ -237,18 +237,46 @@ export default async function handler(req, res) {
             .select('user_fingerprint')
             .eq('id', id)
             .maybeSingle();
-          
+
           if (!existingThread) {
             return res.status(404).json({ error: 'Thread not found' });
           }
-          
+
           // Check ownership via user_fingerprint
           if (body.user_fingerprint !== existingThread.user_fingerprint) {
             console.log('Ownership check failed:', body.user_fingerprint, '!=', existingThread.user_fingerprint);
             return res.status(403).json({ error: 'Not authorized to delete this thread' });
           }
+
+          // Collect comment ids so related likes can be removed
+          const { data: comments } = await svc
+            .from('comments')
+            .select('id')
+            .eq('thread_id', id);
+
+          if (comments && comments.length > 0) {
+            const ids = comments.map(c => c.id);
+            const { error: commentLikesError } = await svc
+              .from('likes')
+              .delete()
+              .eq('target_type', 'comment')
+              .in('target_id', ids);
+            if (commentLikesError) {
+              console.error('Failed to delete comment likes:', commentLikesError);
+            }
+          }
+
+          // Remove likes directly attached to the thread
+          const { error: threadLikesError } = await svc
+            .from('likes')
+            .delete()
+            .eq('target_type', 'thread')
+            .eq('target_id', id);
+          if (threadLikesError) {
+            console.error('Failed to delete thread likes:', threadLikesError);
+          }
         }
-        
+
         const { error } = await svc
           .from(resource)
           .delete()

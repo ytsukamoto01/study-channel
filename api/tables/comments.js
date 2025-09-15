@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     
     if (req.method === 'GET') {
       try {
-        const url = new URL(req.url, `https://${req.headers.host}`);
+        const url = new URL(req.url, 'http://localhost');
         const threadId = url.searchParams.get('thread_id');
         
         console.log('Fetching comments for thread:', threadId);
