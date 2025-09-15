@@ -107,6 +107,22 @@ function displayMyPosts(threads) {
                         ${(thread.reply_count || 0) > 0 ? 'コメントあり' : 'コメント待ち'}
                     </span>
                 </div>
+
+                <div class="thread-actions-row">
+                  <button class="edit-btn" onclick="event.stopPropagation(); openEditModal('${thread.id}', ${JSON.stringify({
+                    title: thread.title,
+                    content: thread.content,
+                    category: thread.category,
+                    subcategory: thread.subcategory || '',
+                    hashtags: Array.isArray(thread.hashtags) ? thread.hashtags.join(',') : '',
+                    images: Array.isArray(thread.images) ? thread.images.join(',') : ''
+                  }).replace(/"/g,'&quot;')})">
+                    <i class="fas fa-pen"></i> 編集
+                  </button>
+                  <button class="delete-btn" onclick="event.stopPropagation(); confirmDeleteThread('${thread.id}')">
+                    <i class="fas fa-trash"></i> 削除
+                  </button>
+                </div>
             </div>
         `;
     }).join('');
