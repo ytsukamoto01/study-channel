@@ -137,39 +137,33 @@ function renderReplies(list) {
 // 返信投稿
 async function handleReplySubmit(e) {
   e.preventDefault();
-  const content = (document.getElementById('replyContent')?.value || '').trim();
-  if (!content) return;
+  const content = document.getElementById('replyContent').value.trim();
+  if (!content) return showMessage('返信を入力してください', 'error');
+
+  const authorRadio = document.querySelector('input[name="commentAuthorType"]:checked');
+  const authorName = authorRadio?.value === 'custom'
+    ? document.getElementById('commentCustomAuthorName').value || '匿名'
+    : '匿名';
 
   try {
-    // 既存の返信数を取得 → comment_numberを採番
-    const all = await apiCall('tables/comments?limit=1000');
-    const replies = (all.data || []).filter(c => c.parent_comment_id === parentCommentId);
-
-    const body = {
-      thread_id: currentThreadId,
-      content,
-      author_name: getCommentAuthorName(),
-      like_count: 0,
-      comment_number: replies.length + 1,     // ←ここで採番
-      parent_comment_id: parentCommentId
-    };
-
-    const res = await apiCall('tables/comments', {
+    await apiCall('tables/comments', {
       method: 'POST',
-      body: JSON.stringify(body)
+      body: JSON.stringify({
+        thread_id: currentThreadId,
+        parent_comment_id: parentCommentId,
+        content,
+        author_name: authorName,
+        user_fingerprint: userFingerprint
+      })
     });
-
-    if (!res || res.error) throw new Error(res?.error || '投稿に失敗しました');
-
-    // クリア＆再読込
     document.getElementById('replyContent').value = '';
-    await loadReplies();
-    alert('返信を投稿しました');
-  } catch (err) {
-    console.error('返信投稿エラー', err);
-    alert('返信の投稿に失敗しました: ' + err.message);
+    showMessage('返信を投稿しました', 'success');
+    loadReplies();
+  } catch (e) {
+    handleApiError(e, '返信投稿に失敗しました');
   }
 }
+
 
 // コメントにいいね（親/返信どちらも）
 async function likeThisComment(commentId) {
