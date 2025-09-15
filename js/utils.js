@@ -20,6 +20,18 @@ const STUDY_SUBJECTS = [
     '世界史派', '日本史選択', '地理研究者', '政経学習中', '倫理考察中'
 ];
 
+// Ensure all relative fetch calls hit our API routes
+if (typeof window !== 'undefined' && window.fetch) {
+  const originalFetch = window.fetch;
+  window.fetch = function(resource, options) {
+    if (typeof resource === 'string' && !resource.startsWith('http') && !resource.startsWith('/api/')) {
+      if (!resource.startsWith('/')) resource = '/' + resource;
+      resource = '/api' + resource;
+    }
+    return originalFetch(resource, options);
+  };
+}
+
 // 匿名ユーザー名を生成する関数
 function generateAnonymousName() {
     const names = Math.random() > 0.7 ? STUDY_SUBJECTS : ANONYMOUS_NAMES;
@@ -408,10 +420,6 @@ function showPage(page) {
         case 'home':
             window.location.href = 'index.html';
             break;
-        case 'myPosts':
-        case 'myposts':
-            window.location.href = 'myposts.html';
-            break;
         case 'favorites':
             window.location.href = 'favorites.html';
             break;
@@ -736,6 +744,12 @@ async function apiCall(url, options = {}) {
     const text = await res.text();
     throw new Error(`API ${url} failed: ${res.status} ${text}`);
   }
-  return await res.json();
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
 }
 

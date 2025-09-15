@@ -1,44 +1,42 @@
-// Simplified favorites API
+// /api/tables/favorites.js
+import { supabase, parseListParams } from '../_supabase.js';
+
 export default async function handler(req, res) {
+  const sb = supabase(true);
   try {
     if (req.method === 'GET') {
-      // Return mock favorites
-      const mockFavorites = [
-        {
-          id: 'fav-1',
-          thread_id: '40c41e65-d184-4e16-b75b-e432777ce5ac',
-          user_fingerprint: 'test-user-fp',
-          created_at: new Date().toISOString()
-        }
-      ];
-
-      return res.status(200).json({ data: mockFavorites });
+      const { limit, sort, order } = parseListParams(req);
+      const { data, error } = await sb
+        .from('favorites')
+        .select('*')
+        .order(sort, { ascending: order === 'asc' })
+        .limit(limit);
+      if (error) throw error;
+      return res.status(200).json({ data });
     }
 
     if (req.method === 'POST') {
-      const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
-      
-      const newFavorite = {
-        id: `fav-${Date.now()}`,
-        thread_id: body.thread_id,
-        user_fingerprint: body.user_fingerprint,
-        created_at: new Date().toISOString()
-      };
+      let body = {};
+      try {
+        body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+      } catch {
+        return res.status(400).json({ error: 'invalid json body' });
+      }
+      if (!body.thread_id || !body.user_fingerprint)
+        return res.status(400).json({ error: 'missing fields' });
 
-      return res.status(201).json(newFavorite);
-    }
-
-    if (req.method === 'DELETE') {
-      return res.status(204).end();
+      const { data, error } = await sb
+        .from('favorites')
+        .upsert(body, { onConflict: 'thread_id,user_fingerprint' })
+        .select()
+        .single();
+      if (error) throw error;
+      return res.status(201).json({ data });
     }
 
     return res.status(405).json({ error: 'method not allowed' });
-
-  } catch (error) {
-    console.error('Favorites API Error:', error);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      message: error.message 
-    });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: e.message || 'server error' });
   }
 }
