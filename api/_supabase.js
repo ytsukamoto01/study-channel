@@ -6,7 +6,24 @@ export function supabase(service = false) {
   const key = service
     ? process.env.SUPABASE_SERVICE_ROLE_KEY
     : process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error('Supabase env is missing');
+  
+  console.log('Supabase init:', { 
+    service, 
+    hasUrl: !!url, 
+    hasKey: !!key,
+    envKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE'))
+  });
+  
+  if (!url || !key) {
+    console.error('Missing Supabase env vars:', {
+      SUPABASE_URL: !!process.env.SUPABASE_URL,
+      SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
+      SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      allEnvKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE'))
+    });
+    throw new Error('Supabase env is missing');
+  }
+  
   return createClient(url, key, { auth: { persistSession: false } });
 }
 

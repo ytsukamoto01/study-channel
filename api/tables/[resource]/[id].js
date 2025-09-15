@@ -2,14 +2,32 @@
 import { supabase } from '../../../_supabase.js';
 
 export default async function handler(req, res) {
-  const sb = supabase(true); // Use service role for all operations to bypass RLS
-
   try {
-    const { resource, id } = req.query;
-    if (!resource || !id) return res.status(400).json({ error: 'missing params' });
+    console.log('API call:', { method: req.method, resource: req.query.resource, id: req.query.id });
+    
+    const sb = supabase(true); // Use service role for all operations to bypass RLS
+    console.log('Supabase client created successfully');
 
+    const { resource, id } = req.query;
+    if (!resource || !id) {
+      console.log('Missing params:', { resource, id });
+      return res.status(400).json({ error: 'missing params' });
+    }
+
+    console.log('Fetching record:', { resource, id });
     const { data: record, error: getErr } = await sb.from(resource).select('*').eq('id', id).maybeSingle();
-    if (getErr || !record) return res.status(404).json({ error: 'not found' });
+    
+    if (getErr) {
+      console.error('Supabase error:', getErr);
+      return res.status(500).json({ error: getErr.message, details: getErr });
+    }
+    
+    if (!record) {
+      console.log('Record not found:', { resource, id });
+      return res.status(404).json({ error: 'not found' });
+    }
+    
+    console.log('Record found:', { id: record.id, resource });
 
     if (req.method === 'GET') return res.status(200).json({ data: record });
 
@@ -42,8 +60,12 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'method not allowed' });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ error: e.message || 'server error' });
+    console.error('Unexpected error in [resource]/[id] API:', e);
+    return res.status(500).json({ 
+      error: e.message || 'server error',
+      stack: process.env.NODE_ENV === 'development' ? e.stack : undefined,
+      details: e
+    });
   }
 }
 
