@@ -13,7 +13,7 @@ async function loadMyPosts() {
     showLoading();
 
     // まず全件取得（limitは十分大きめ）
-    const res = await fetch(`tables/threads?limit=1000&sort=created_at&order=desc`);
+    const res = await fetch(`/api/tables/threads?limit=1000&sort=created_at&order=desc`);
     if (!res.ok) throw new Error('投稿の読み込みに失敗しました');
     const json = await res.json();
     const all = Array.isArray(json.data) ? json.data : [];
@@ -131,20 +131,20 @@ function openThread(id){
 
 async function toggleFavoriteFromList(threadId, button) {
   try {
-    const res = await fetch(`tables/favorites?limit=1000`);
+    const res = await fetch(`/api/tables/favorites?limit=1000`);
     const json = await res.json();
     const all = Array.isArray(json.data) ? json.data : [];
     const mine = all.filter(f => f.user_fingerprint === FP);
 
     const existing = mine.find(f => f.thread_id === threadId);
     if (existing) {
-      await fetch(`tables/favorites/${existing.id}`, { method: 'DELETE' });
+      await fetch(`/api/tables/favorites/${existing.id}`, { method: 'DELETE' });
       button.classList.remove('favorited');
       button.querySelector('i').classList.remove('fas');
       button.querySelector('i').classList.add('far');
       showMessage('お気に入りから削除しました', 'success');
     } else {
-      await fetch('tables/favorites', {
+      await fetch('/api/tables/favorites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ thread_id: threadId, user_fingerprint: FP })
@@ -162,7 +162,7 @@ async function toggleFavoriteFromList(threadId, button) {
 
 async function updateFavoriteStatus() {
   try {
-    const res = await fetch(`tables/favorites?limit=1000`);
+    const res = await fetch(`/api/tables/favorites?limit=1000`);
     if (!res.ok) return;
     const json = await res.json();
     const all = Array.isArray(json.data) ? json.data : [];
@@ -218,7 +218,7 @@ document.getElementById('editForm')?.addEventListener('submit', async (e)=>{
     hashtags: (document.getElementById('editHashtags').value || '').split(',').map(s=>s.trim()).filter(Boolean),
     images: (document.getElementById('editImages').value || '').split(',').map(s=>s.trim()).filter(Boolean)
   };
-  const res = await fetch(`api/threads/${id}`, {
+  const res = await fetch(`/api/tables/threads/${id}`, {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(body)
@@ -236,7 +236,7 @@ document.getElementById('editForm')?.addEventListener('submit', async (e)=>{
 async function confirmDeleteThread(threadId) {
   if (!confirm('このスレッドを削除しますか？')) return;
   try {
-    await apiCall(`tables/threads/${threadId}`, {
+    await apiCall(`/api/tables/threads/${threadId}`, {
       method: 'DELETE',
       body: JSON.stringify({ user_fingerprint: FP })
     });
@@ -250,7 +250,7 @@ async function confirmDeleteThread(threadId) {
 // 編集ボタン
 async function saveThreadEdits(id, data) {
   try {
-    await apiCall(`tables/threads/${id}`, {
+    await apiCall(`/api/tables/threads/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ ...data, user_fingerprint: FP })
     });
@@ -280,7 +280,7 @@ function onEditSubmit(e){
     images: (document.getElementById('editImages').value || '')
                 .split(',').map(s=>s.trim()).filter(Boolean)
   };
-  fetch(`/api/threads/${id}`, {
+  fetch(`/api/tables/threads/${id}`, {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(body)

@@ -64,7 +64,7 @@ function scrollToCommentForm() {
 // スレッド詳細読み込み
 async function loadThreadDetail(threadId) {
   try {
-    currentThread = await apiCall(`tables/threads/${threadId}`);
+    currentThread = await apiCall(`/api/tables/threads/${threadId}`);
     if (!currentThread || !currentThread.id) throw new Error('スレッドが見つかりません');
 
     // 正規化
@@ -335,7 +335,7 @@ function toggleCommentAuthorNameInput() {
 // 返信数を更新（簡易）
 async function updateThreadReplyCount(threadId, replyCount) {
   try {
-    await apiCall(`tables/threads/${threadId}`, {
+    await apiCall(`/api/tables/threads/${threadId}`, {
       method: 'PATCH',
       body: JSON.stringify({ reply_count: replyCount })
     });
@@ -348,7 +348,7 @@ async function updateThreadReplyCount(threadId, replyCount) {
 async function checkFavoriteStatus(threadId) {
   try {
     const fp = generateUserFingerprint();
-    const res = await fetch('tables/favorites');
+    const res = await fetch('/api/tables/favorites');
     if (!res.ok) return updateFavoriteButton(false);
     const json = await res.json();
     const favorites = json.data || [];
@@ -374,17 +374,17 @@ async function toggleFavorite() {
   if (!currentThreadId) return;
   try {
     const fp = generateUserFingerprint();
-    const res = await fetch('tables/favorites');
+    const res = await fetch('/api/tables/favorites');
     if (!res.ok) throw new Error('お気に入り状態の取得に失敗しました');
     const json = await res.json();
     const favorites = json.data || [];
     const exist = favorites.find(f => f.thread_id === currentThreadId && f.user_fingerprint === fp);
     if (exist) {
-      await fetch(`tables/favorites/${exist.id}`, { method: 'DELETE' });
+      await fetch(`/api/tables/favorites/${exist.id}`, { method: 'DELETE' });
       updateFavoriteButton(false);
       showSuccessMessage('お気に入りから削除しました');
     } else {
-      await fetch('tables/favorites', {
+      await fetch('/api/tables/favorites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ thread_id: currentThreadId, user_fingerprint: fp })
