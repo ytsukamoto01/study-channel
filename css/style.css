@@ -1610,24 +1610,7 @@ body {
   justify-content: flex-end;
 }
 
-.edit-btn,
-.delete-btn {
-  appearance: none;
-  border: 1px solid #e0e0e0;
-  background: #fff;
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #333;
-  cursor: pointer;
-  transition: all .2s ease;
-}
-
-.edit-btn:hover { border-color: #667eea; box-shadow: 0 2px 8px rgba(102,126,234,.15); }
-.delete-btn:hover { border-color: #ff6b6b; box-shadow: 0 2px 8px rgba(255,107,107,.15); }
-
-/* 右上ボタン等と干渉しないように */
-.thread-item .thread-actions-row { position: relative; z-index: 5; }
+/* 編集・削除ボタンスタイルは廃止されました */
 
 
 

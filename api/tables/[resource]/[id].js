@@ -148,134 +148,20 @@ export default async function handler(req, res) {
       }
     }
 
-    // Handle PATCH request
-    if (req.method === 'PATCH') {
-      const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+    // PATCH and DELETE methods are not supported for threads
+    if (req.method === 'PATCH' || req.method === 'DELETE') {
+      if (resource === 'threads') {
+        return res.status(405).json({ 
+          error: 'Method not allowed',
+          message: 'Thread editing and deletion are not supported'
+        });
+      }
       
-      try {
-        console.log('PATCH request for', resource, id, 'with data:', body);
-        
-        // For threads, check user_fingerprint ownership
-        if (resource === 'threads') {
-          const { data: existingThread } = await db
-            .from('threads')
-            .select('user_fingerprint')
-            .eq('id', id)
-            .maybeSingle();
-          
-          if (!existingThread) {
-            return res.status(404).json({ error: 'Thread not found' });
-          }
-          
-          // Check ownership via user_fingerprint
-          if (body.user_fingerprint !== existingThread.user_fingerprint) {
-            console.log('Ownership check failed:', body.user_fingerprint, '!=', existingThread.user_fingerprint);
-            return res.status(403).json({ error: 'Not authorized to edit this thread' });
-          }
-        }
-        
-        // Prepare update data (exclude user_fingerprint from updates)
-        const updateData = { ...body };
-        delete updateData.user_fingerprint;
-        updateData.updated_at = new Date().toISOString();
-        
-        const { data, error } = await db
-          .from(resource)
-          .update(updateData)
-          .eq('id', id)
-          .select()
-          .single();
-        
-        if (error) {
-          console.error('Supabase PATCH error:', error);
-          throw error;
-        }
-        
-        console.log('Successfully updated', resource, id);
-        return res.status(200).json({ data: data });
-        
-      } catch (supabaseError) {
-        console.error('Supabase PATCH error, falling back:', supabaseError);
-        
-        // Fallback to mock response
-        const updatedData = {
-          id: id,
-          title: body.title || 'Updated Title',
-          content: body.content || 'Updated content',
-          category: body.category || 'テスト',
-          subcategory: body.subcategory || null,
-          hashtags: body.hashtags || [],
-          images: body.images || [],
-          author_name: 'あなた',
-          user_fingerprint: body.user_fingerprint || currentUserFingerprint,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          like_count: 0,
-          reply_count: 0
-        };
-        
-        return res.status(200).json({ 
-          data: updatedData,
-          fallback: true,
-          supabase_error: supabaseError.message 
-        });
-      }
-    }
-
-    // Handle DELETE request  
-    if (req.method === 'DELETE') {
-      try {
-        let bodyText = '';
-        req.on('data', chunk => {
-          bodyText += chunk.toString();
-        });
-        
-        await new Promise((resolve) => {
-          req.on('end', resolve);
-        });
-        
-        const body = bodyText ? JSON.parse(bodyText) : {};
-        console.log('DELETE request for', resource, id, 'with body:', body);
-        
-        // For threads, check user_fingerprint ownership
-        if (resource === 'threads') {
-          const { data: existingThread } = await db
-            .from('threads')
-            .select('user_fingerprint')
-            .eq('id', id)
-            .maybeSingle();
-          
-          if (!existingThread) {
-            return res.status(404).json({ error: 'Thread not found' });
-          }
-          
-          // Check ownership via user_fingerprint
-          if (body.user_fingerprint !== existingThread.user_fingerprint) {
-            console.log('Ownership check failed:', body.user_fingerprint, '!=', existingThread.user_fingerprint);
-            return res.status(403).json({ error: 'Not authorized to delete this thread' });
-          }
-        }
-        
-        const { error } = await db
-          .from(resource)
-          .delete()
-          .eq('id', id);
-        
-        if (error) {
-          console.error('Supabase DELETE error:', error);
-          throw error;
-        }
-        
-        console.log('Successfully deleted', resource, id);
-        return res.status(204).end();
-        
-      } catch (supabaseError) {
-        console.error('Supabase DELETE error, falling back:', supabaseError);
-        
-        // Fallback - just return success for now
-        console.log('Fallback: DELETE request - allowing delete');
-        return res.status(204).end();
-      }
+      // For other resources (comments, likes, etc.), you can add specific handling here if needed
+      return res.status(405).json({ 
+        error: 'Method not allowed',
+        message: `${req.method} is not supported for ${resource}`
+      });
     }
 
     return res.status(405).json({ error: 'method not allowed' });

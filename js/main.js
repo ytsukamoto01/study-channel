@@ -555,21 +555,10 @@ async function handleReplySubmit(event) {
     }
 }
 
-// スレッドの返信数を更新
+// スレッドの返信数を更新（統計更新は無効化されました）
 async function updateThreadReplyCount(threadId, replyCount) {
-    try {
-        await fetch(`tables/threads/${threadId}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                reply_count: replyCount
-            })
-        });
-    } catch (error) {
-        console.error('返信数の更新に失敗:', error);
-    }
+    // この機能は無効化されました - 統計情報は手動更新されません
+    console.log('統計更新は無効化されました:', { threadId, replyCount });
 }
 
 // スレッドにいいね
@@ -610,23 +599,17 @@ async function likeThread() {
             throw new Error('いいねに失敗しました');
         }
         
-        // スレッドのいいね数を更新
-        const threadResponse = await fetch(`tables/threads/${currentThreadId}`);
-        const thread = await threadResponse.json();
-        const newLikeCount = (thread.like_count || 0) + 1;
+        // スレッドのいいね数を更新（統計更新は無効化されました）
+        // const threadResponse = await fetch(`tables/threads/${currentThreadId}`);
+        // const thread = await threadResponse.json();
+        // const newLikeCount = (thread.like_count || 0) + 1;
         
-        await fetch(`tables/threads/${currentThreadId}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                like_count: newLikeCount
-            })
-        });
+        // 統計更新は無効化されました
+        console.log('統計更新は無効化されました - いいね数は手動更新されません');
         
-        // 表示を更新
-        document.getElementById('threadLikeCount').textContent = newLikeCount;
+        // 表示を更新（固定値）
+        const currentCount = parseInt(document.getElementById('threadLikeCount').textContent || '0');
+        document.getElementById('threadLikeCount').textContent = currentCount + 1;
         await loadThreads(currentFilter);
         
     } catch (error) {
@@ -672,20 +655,13 @@ async function likeComment(commentId) {
             throw new Error('いいねに失敗しました');
         }
         
-        // コメントのいいね数を更新
-        const commentResponse = await fetch(`tables/comments/${commentId}`);
-        const comment = await commentResponse.json();
-        const newLikeCount = (comment.like_count || 0) + 1;
+        // コメントのいいね数を更新（統計更新は無効化されました）
+        // const commentResponse = await fetch(`tables/comments/${commentId}`);
+        // const comment = await commentResponse.json();
+        // const newLikeCount = (comment.like_count || 0) + 1;
         
-        await fetch(`tables/comments/${commentId}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                like_count: newLikeCount
-            })
-        });
+        // 統計更新は無効化されました
+        console.log('統計更新は無効化されました - コメントいいね数は手動更新されません');
         
         // コメント一覧を再読み込み
         await loadComments(currentThreadId);

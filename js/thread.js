@@ -225,11 +225,20 @@ function displayThreadDetail(thread) {
 // コメント読み込み（親のみ表示・古い順、件数は親＋返信の合計）
 async function loadComments(threadId) {
   try {
-    const json = await apiCall(`tables/comments?sort=created_at&order=asc&limit=1000`);
-    const all = (json?.data || []).filter(c => c.thread_id === threadId);
+    console.log('Loading comments for thread:', threadId);
+    
+    // APIパスを正規化（/api/プレフィックスを追加）
+    const json = await apiCall(`/api/tables/comments?thread_id=${threadId}&sort=created_at&order=asc&limit=1000`);
+    console.log('Comments API response:', json);
+    
+    const all = json?.data || [];
+    console.log('Total comments loaded:', all.length);
 
     const parents = all.filter(c => !c.parent_comment_id);
     const children = all.filter(c => c.parent_comment_id);
+    
+    console.log('Parent comments:', parents.length);
+    console.log('Reply comments:', children.length);
 
     // 親に返信件数を紐付け（表示上は件数のみ。本文は別ページ）
     const repliesByParent = {};
@@ -246,8 +255,12 @@ async function loadComments(threadId) {
     // 親のみ表示（古い順）
     parents.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     displayComments(parents);
+    
+    console.log('Comments display completed');
   } catch (e) {
     console.error('コメントの読み込みエラー:', e);
+    // エラー時は空のコメントリストを表示
+    displayComments([]);
   }
 }
 
@@ -348,7 +361,7 @@ async function handleCommentSubmit(e) {
     : '匿名';
 
   try {
-    await apiCall('tables/comments', {
+    await apiCall('/api/tables/comments', {
       method: 'POST',
       body: JSON.stringify({
         thread_id: currentThreadId,
@@ -422,16 +435,10 @@ function toggleCommentAuthorNameInput() {
   }
 }
 
-// 返信数を更新（簡易）
+// 返信数を更新（統計更新は無効化されました）
 async function updateThreadReplyCount(threadId, replyCount) {
-  try {
-    await apiCall(`/api/tables/threads/${threadId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ reply_count: replyCount })
-    });
-  } catch (e) {
-    console.warn('返信数の更新に失敗:', e);
-  }
+  // この機能は無効化されました - 統計情報は手動更新されません
+  console.log('統計更新は無効化されました:', { threadId, replyCount });
 }
 
 // ====== お気に入り ======

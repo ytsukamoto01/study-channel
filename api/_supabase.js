@@ -8,63 +8,14 @@ export function supabase(service = false) {
     ? (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY)
     : (process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY);
   
-  // Emergency: Return mock data if no environment variables (for debugging)
+  // Require environment variables for Supabase connection
   if (!url || !key) {
-    console.error('Missing Supabase env - returning test data');
+    console.error('Missing Supabase environment variables');
     console.error('SUPABASE_URL:', url ? 'SET' : 'NOT_SET');
     console.error('SUPABASE_ANON_KEY:', key ? 'SET' : 'NOT_SET');
     console.error('Available env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
     
-    // Return a mock object that simulates Supabase for testing
-    return {
-      from: (table) => ({
-        select: () => ({
-          eq: (field, value) => ({
-            maybeSingle: async () => {
-              // Return mock thread data for testing
-              if (table === 'threads') {
-                return {
-                  data: {
-                    id: value,
-                    title: 'Test Thread',
-                    content: 'This is a test thread for debugging',
-                    category: 'Test',
-                    author_name: '匿名',
-                    created_at: new Date().toISOString(),
-                    like_count: 0,
-                    reply_count: 0,
-                    user_fingerprint: 'test-user'
-                  },
-                  error: null
-                };
-              }
-              return { data: null, error: { message: 'Not found' } };
-            }
-          })
-        }),
-        update: () => ({
-          eq: () => ({
-            select: () => ({
-              single: async () => ({
-                data: { id: 'test', updated: true },
-                error: null
-              })
-            })
-          })
-        }),
-        delete: () => ({
-          eq: async () => ({ error: null })
-        }),
-        insert: () => ({
-          select: () => ({
-            single: async () => ({
-              data: { id: 'new-test', created: true },
-              error: null
-            })
-          })
-        })
-      })
-    };
+    throw new Error(`Missing Supabase environment variables. Required: SUPABASE_URL${url ? ' ✓' : ' ✗'}, SUPABASE_ANON_KEY${key ? ' ✓' : ' ✗'}`);
   }
   
   return createClient(url, key, { auth: { persistSession: false } });

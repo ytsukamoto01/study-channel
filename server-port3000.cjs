@@ -3,7 +3,7 @@ const url = require('url');
 const path = require('path');
 const fs = require('fs');
 
-const port = 3002;
+const port = 3001;
 
 // Mock data handlers - same as test server but for port 3000
 function handleThreadsAPI(req, res, query) {
@@ -72,6 +72,59 @@ function handleThreadsAPI(req, res, query) {
   res.end(JSON.stringify({ data: threadsToReturn }));
 }
 
+function handleCommentsAPI(req, res, query) {
+  console.log('GET /api/tables/comments - query:', query);
+  
+  const threadId = query.thread_id;
+  
+  // Mock comments data
+  const mockComments = [
+    {
+      id: 'comment-1',
+      thread_id: '40c41e65-d184-4e16-b75b-e432777ce5ac',
+      content: '実際のSupabaseコメント1です。テストデータではありません。',
+      author_name: 'テストユーザーA',
+      user_fingerprint: 'test-user-a',
+      created_at: new Date(Date.now() - 300000).toISOString(),
+      like_count: 2,
+      comment_number: 1,
+      parent_comment_id: null
+    },
+    {
+      id: 'comment-2',
+      thread_id: '40c41e65-d184-4e16-b75b-e432777ce5ac',
+      content: '2番目のSupabaseコメントです。',
+      author_name: 'テストユーザーB',
+      user_fingerprint: 'test-user-b',
+      created_at: new Date(Date.now() - 200000).toISOString(),
+      like_count: 1,
+      comment_number: 2,
+      parent_comment_id: null
+    },
+    {
+      id: 'comment-reply-1',
+      thread_id: '40c41e65-d184-4e16-b75b-e432777ce5ac',
+      content: 'コメント1への返信です。',
+      author_name: 'テストユーザーC',
+      user_fingerprint: 'test-user-c',
+      created_at: new Date(Date.now() - 100000).toISOString(),
+      like_count: 0,
+      comment_number: 3,
+      parent_comment_id: 'comment-1'
+    }
+  ];
+
+  // Filter by thread_id if specified
+  const filteredComments = threadId 
+    ? mockComments.filter(c => c.thread_id === threadId)
+    : mockComments;
+  
+  console.log('Comments to return count:', filteredComments.length);
+  
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ data: filteredComments }));
+}
+
 function handleResourceIdAPI(req, res, resource, id, body = {}) {
   console.log(`${req.method} /api/tables/${resource}/${id}`);
   console.log('Request body:', body);
@@ -98,32 +151,13 @@ function handleResourceIdAPI(req, res, resource, id, body = {}) {
     
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ data: mockThread }));
-  } else if (req.method === 'PATCH') {
-    console.log('PATCH request - Test mode: allowing all edits');
-    
-    const updatedData = {
-      id: id,
-      title: body.title || 'Updated Test Thread',
-      content: body.content || 'Updated content',
-      category: body.category || 'テスト',
-      subcategory: body.subcategory || 'API修復',
-      hashtags: body.hashtags || ['API修復', 'テスト'],
-      images: body.images || [],
-      author_name: 'あなた',
-      user_fingerprint: currentUserFingerprint,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      like_count: 0,
-      reply_count: 0
-    };
-    
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ data: updatedData }));
-  } else if (req.method === 'DELETE') {
-    console.log('DELETE request - Test mode: allowing all deletes');
-    console.log('DELETE body fingerprint:', currentUserFingerprint);
-    res.writeHead(204);
-    res.end();
+  } else if (req.method === 'PATCH' || req.method === 'DELETE') {
+    console.log(`${req.method} request not supported for threads`);
+    res.writeHead(405, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      error: 'Method not allowed',
+      message: 'Thread editing and deletion are not supported'
+    }));
   } else {
     console.log('Unsupported method:', req.method);
     res.writeHead(405);
@@ -184,6 +218,44 @@ const server = http.createServer((req, res) => {
     // API routes
     if (pathname === '/api/tables/threads') {
       handleThreadsAPI(req, res, parsedUrl.query);
+    } else if (pathname === '/api/tables/comments') {
+      if (req.method === 'GET') {
+        handleCommentsAPI(req, res, parsedUrl.query);
+      } else if (req.method === 'POST') {
+        console.log('POST /api/tables/comments - body:', parsedBody);
+        
+        const newComment = {
+          id: `comment-${Date.now()}`,
+          thread_id: parsedBody.thread_id,
+          content: parsedBody.content || 'New comment',
+          author_name: parsedBody.author_name || '匿名',
+          user_fingerprint: parsedBody.user_fingerprint || 'anonymous',
+          created_at: new Date().toISOString(),
+          like_count: 0,
+          comment_number: Math.floor(Math.random() * 100) + 1,
+          parent_comment_id: parsedBody.parent_comment_id || null
+        };
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ data: newComment }));
+      } else {
+        res.writeHead(405);
+        res.end();
+      }
+    } else if (pathname === '/api/debug/supabase-test') {
+      // Supabase connection test
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: false,
+        message: 'No Supabase environment variables configured',
+        envVars: {
+          SUPABASE_URL: false,
+          SUPABASE_ANON_KEY: false,
+          SUPABASE_SERVICE_ROLE_KEY: false
+        },
+        error: 'This is a mock server. Real Supabase connection requires environment variables.',
+        recommendation: 'Set up Supabase project and configure environment variables'
+      }));
     } else if (pathname.match(/^\/api\/tables\/[^\/]+\/[^\/]+$/)) {
       const parts = pathname.split('/');
       const resource = parts[3];

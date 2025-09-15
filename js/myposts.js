@@ -111,16 +111,9 @@ function displayMyPosts(threads) {
          </div>`
       : '';
 
-    // data-* に編集用データを入れて安全に渡す（JSON埋め込みのエスケープを気にしなくてよい）
     return `
       <div class="thread-item category-${t.category} fade-in my-post-item"
            data-thread-id="${t.id}"
-           data-title="${escapeHtml(t.title)}"
-           data-category="${escapeHtml(t.category)}"
-           data-subcategory="${escapeHtml(t.subcategory || '')}"
-           data-content="${escapeHtml(t.content)}"
-           data-hashtags="${escapeHtml((t.hashtags || []).join(','))}"
-           data-images="${escapeHtml((Array.isArray(t.images) ? t.images : []).join(','))}"
            onclick="openThread('${t.id}')">
         <button class="favorite-btn favorite-btn-top" data-thread-id="${t.id}" onclick="event.stopPropagation(); toggleFavoriteFromList('${t.id}', this)">
           <i class="far fa-star"></i>
@@ -156,14 +149,7 @@ function displayMyPosts(threads) {
           </span>
         </div>
 
-        <div class="thread-actions-row">
-          <button class="edit-btn" onclick="event.stopPropagation(); openEditModalFromCard(this.closest('.thread-item'))">
-            <i class="fas fa-pen"></i> 編集
-          </button>
-          <button class="delete-btn" onclick="event.stopPropagation(); confirmDeleteThread('${t.id}')">
-            <i class="fas fa-trash"></i> 削除
-          </button>
-        </div>
+        <!-- 編集・削除機能は廃止されました -->
       </div>
     `;
   }).join('');
@@ -236,120 +222,13 @@ async function updateFavoriteStatus() {
   }
 }
 
-/* ---------- 編集/削除 ---------- */
-
-// カードDOMから編集モーダルを開く
-function openEditModalFromCard(cardEl){
-  const id  = cardEl.getAttribute('data-thread-id');
-  document.getElementById('editThreadId').value = id;
-  document.getElementById('editTitle').value = cardEl.getAttribute('data-title') || '';
-  document.getElementById('editCategory').value = cardEl.getAttribute('data-category') || '';
-  document.getElementById('editSubcategory').value = cardEl.getAttribute('data-subcategory') || '';
-  document.getElementById('editContent').value = cardEl.getAttribute('data-content') || '';
-  document.getElementById('editHashtags').value = cardEl.getAttribute('data-hashtags') || '';
-  document.getElementById('editImages').value = cardEl.getAttribute('data-images') || '';
-  document.getElementById('editModal').style.display = 'flex';
-  document.getElementById('editModal').classList.add('active');
-}
-
-function closeEditModal(){
-  document.getElementById('editModal').style.display = 'none';
-  document.getElementById('editModal').classList.remove('active');
-}
-
-// 送信（PATCH）
-document.getElementById('editForm')?.addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const id = document.getElementById('editThreadId').value;
-  const body = {
-    user_fingerprint: FP, // 所有確認
-    title: document.getElementById('editTitle').value.trim(),
-    category: document.getElementById('editCategory').value.trim(),
-    subcategory: document.getElementById('editSubcategory').value.trim() || null,
-    content: document.getElementById('editContent').value.trim(),
-    hashtags: (document.getElementById('editHashtags').value || '').split(',').map(s=>s.trim()).filter(Boolean),
-    images: (document.getElementById('editImages').value || '').split(',').map(s=>s.trim()).filter(Boolean)
-  };
-  const res = await fetch(`/api/tables/threads/${id}`, {
-    method: 'PATCH',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    alert('更新に失敗しました: ' + t);
-    return;
-  }
-  closeEditModal();
-  await loadMyPosts();
-});
-
-// 削除ボタン
-async function confirmDeleteThread(threadId) {
-  if (!confirm('このスレッドを削除しますか？')) return;
-  try {
-    await apiCall(`/api/tables/threads/${threadId}`, {
-      method: 'DELETE',
-      body: JSON.stringify({ user_fingerprint: FP })
-    });
-    showMessage('削除しました', 'success');
-    loadMyPosts();
-  } catch (e) {
-    handleApiError(e, '削除に失敗しました');
-  }
-}
-
-// 編集ボタン
-async function saveThreadEdits(id, data) {
-  try {
-    await apiCall(`/api/tables/threads/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ ...data, user_fingerprint: FP })
-    });
-    showMessage('更新しました', 'success');
-    loadMyPosts();
-  } catch (e) {
-    handleApiError(e, '更新に失敗しました');
-  }
-}
+/* ---------- 編集/削除機能は廃止されました ---------- */
 
 
 /* ---------- ローディング表示/非表示 ---------- */
 function showLoading(){ const el = document.getElementById('loading'); if (el) el.style.display='block'; }
 function hideLoading(){ const el = document.getElementById('loading'); if (el) el.style.display='none'; }
 
-function onEditSubmit(e){
-  e.preventDefault();
-  const id = document.getElementById('editThreadId').value;
-  const body = {
-    user_fingerprint: FP,
-    title: document.getElementById('editTitle').value.trim(),
-    category: document.getElementById('editCategory').value.trim(),
-    subcategory: document.getElementById('editSubcategory').value.trim() || null,
-    content: document.getElementById('editContent').value.trim(),
-    hashtags: (document.getElementById('editHashtags').value || '')
-                .split(',').map(s=>s.trim()).filter(Boolean),
-    images: (document.getElementById('editImages').value || '')
-                .split(',').map(s=>s.trim()).filter(Boolean)
-  };
-  fetch(`/api/tables/threads/${id}`, {
-    method: 'PATCH',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(body)
-  }).then(async res=>{
-    if(!res.ok){ alert('更新に失敗しました: ' + await res.text()); return; }
-    closeEditModal();
-    await loadMyPosts();
-  });
-}
-
-// ★ DOM構築後に確実にバインド
-document.addEventListener('DOMContentLoaded', ()=>{
-  const form = document.getElementById('editForm');
-  if(form && !form.dataset.bound){
-    form.addEventListener('submit', onEditSubmit);
-    form.dataset.bound = '1';
-  }
-});
+// 編集・削除機能は廃止されました
 
 
