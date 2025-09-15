@@ -3,9 +3,6 @@
   "trailingSlash": false,
   "redirects": [
     { "source": "/index.html", "destination": "/", "permanent": true }
-  ],
-  "rewrites": [
-    { "source": "/tables/:path*", "destination": "/api/tables/:path*" }
   ]
 }
 

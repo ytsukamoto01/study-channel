@@ -64,7 +64,7 @@ function scrollToCommentForm() {
 // スレッド詳細読み込み
 async function loadThreadDetail(threadId) {
   try {
-    currentThread = await apiCall(`/api/threads/${threadId}`);
+    currentThread = await apiCall(`/api/tables/threads/${threadId}`);
     if (!currentThread || !currentThread.id) throw new Error('スレッドが見つかりません');
 
     // 正規化
@@ -335,7 +335,7 @@ function toggleCommentAuthorNameInput() {
 // 返信数を更新（簡易）
 async function updateThreadReplyCount(threadId, replyCount) {
   try {
-    await apiCall(`/api/threads/${threadId}`, {
+    await apiCall(`/api/tables/threads/${threadId}`, {
       method: 'PATCH',
       body: JSON.stringify({ reply_count: replyCount })
     });
