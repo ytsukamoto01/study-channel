@@ -1,4 +1,5 @@
-import { supabase } from '../../_supabase.js';
+// /api/tables/[resource]/[id].js
+import { supabase } from '../../../_supabase.js';
 
 export default async function handler(req, res) {
   const sb = supabase(true);
@@ -12,7 +13,13 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') return res.status(200).json({ data: record });
 
-    const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+    let body = {};
+    try {
+      body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+    } catch {
+      return res.status(400).json({ error: 'invalid json body' });
+    }
+
     const { user_fingerprint, ...fields } = body;
     if (!user_fingerprint || user_fingerprint !== record.user_fingerprint)
       return res.status(403).json({ error: 'forbidden' });
