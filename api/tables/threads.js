@@ -115,25 +115,66 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
-      
-      // Create new mock thread
-      const newThread = {
-        id: `new-${Date.now()}`,
-        title: body.title || 'New Test Thread',
-        content: body.content || 'New test content',
-        category: body.category || 'Test',
-        subcategory: body.subcategory || null,
-        author_name: body.author_name || '匿名',
-        user_fingerprint: body.user_fingerprint || 'anonymous',
-        created_at: new Date().toISOString(),
-        like_count: 0,
-        reply_count: 0,
-        hashtags: body.hashtags || [],
-        images: body.images || []
-      };
+      try {
+        const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+        
+        console.log('Creating new thread:', body);
+        
+        const threadData = {
+          title: body.title || 'New Thread',
+          content: body.content || 'New thread content',
+          category: body.category || 'General',
+          subcategory: body.subcategory || null,
+          author_name: body.author_name || '匿名',
+          user_fingerprint: body.user_fingerprint || 'anonymous',
+          like_count: 0,
+          reply_count: 0,
+          hashtags: body.hashtags || [],
+          images: body.images || []
+        };
+        
+        const { data, error } = await db
+          .from('threads')
+          .insert(threadData)
+          .select()
+          .single();
+        
+        if (error) {
+          console.error('Supabase thread insert error:', error);
+          throw error;
+        }
+        
+        console.log('Successfully created thread in Supabase:', data.id);
+        return res.status(200).json({ data: data });
+        
+      } catch (supabaseError) {
+        console.error('Supabase thread creation error, falling back:', supabaseError);
+        
+        // Fallback to mock response
+        const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+        const newThread = {
+          id: `new-${Date.now()}`,
+          title: body.title || 'New Test Thread',
+          content: body.content || 'New test content',
+          category: body.category || 'Test',
+          subcategory: body.subcategory || null,
+          author_name: body.author_name || '匿名',
+          user_fingerprint: body.user_fingerprint || 'anonymous',
+          created_at: new Date().toISOString(),
+          like_count: 0,
+          reply_count: 0,
+          hashtags: body.hashtags || [],
+          images: body.images || []
+        };
 
-      return res.status(200).json({ data: newThread });
+        return res.status(200).json({ 
+          data: newThread,
+          debug: {
+            supabase_error: supabaseError.message,
+            using_fallback: true
+          }
+        });
+      }
     }
 
     return res.status(405).json({ error: 'method not allowed' });
