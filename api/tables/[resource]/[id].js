@@ -2,26 +2,16 @@
 import { supabase } from '../../../_supabase.js';
 
 export default async function handler(req, res) {
+  const sb = supabase(true); // Use service role for all operations to bypass RLS
+
   try {
     const { resource, id } = req.query;
     if (!resource || !id) return res.status(400).json({ error: 'missing params' });
 
-    // For GET requests, use anon client (respects RLS)
-    if (req.method === 'GET') {
-      const anonSb = supabase(false);
-      const { data: record, error: getErr } = await anonSb.from(resource).select('*').eq('id', id).maybeSingle();
-      if (getErr) {
-        console.error('GET error:', getErr);
-        return res.status(500).json({ error: getErr.message });
-      }
-      if (!record) return res.status(404).json({ error: 'not found' });
-      return res.status(200).json({ data: record });
-    }
-
-    // For PATCH/DELETE, first check with anon client, then use service role
-    const anonSb = supabase(false);
-    const { data: record, error: getErr } = await anonSb.from(resource).select('*').eq('id', id).maybeSingle();
+    const { data: record, error: getErr } = await sb.from(resource).select('*').eq('id', id).maybeSingle();
     if (getErr || !record) return res.status(404).json({ error: 'not found' });
+
+    if (req.method === 'GET') return res.status(200).json({ data: record });
 
     let body = {};
     try {
@@ -35,21 +25,17 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'forbidden' });
 
     if (req.method === 'PATCH') {
-      // Use service role for updates
-      const serviceSb = supabase(true);
       const updatable = {};
       ['title','content','category','subcategory','hashtags','images'].forEach(k => {
         if (k in fields) updatable[k] = fields[k];
       });
-      const { data, error } = await serviceSb.from(resource).update(updatable).eq('id', id).select().single();
+      const { data, error } = await sb.from(resource).update(updatable).eq('id', id).select().single();
       if (error) return res.status(400).json({ error: error.message });
       return res.status(200).json({ data });
     }
 
     if (req.method === 'DELETE') {
-      // Use service role for deletion
-      const serviceSb = supabase(true);
-      const { error } = await serviceSb.from(resource).delete().eq('id', id);
+      const { error } = await sb.from(resource).delete().eq('id', id);
       if (error) return res.status(400).json({ error: error.message });
       return res.status(204).end();
     }

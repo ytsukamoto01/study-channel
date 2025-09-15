@@ -2,7 +2,7 @@ import { supabase, parseListParams } from '../_supabase.js';
 
 export default async function handler(req, res) {
   try {
-    const sb = supabase();
+    const sb = supabase(true); // Use service role
 
     if (req.method === 'GET') {
       const { limit, sort, order } = parseListParams(req);
