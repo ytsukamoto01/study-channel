@@ -1,13 +1,11 @@
 import { supabase, parseListParams } from '../_supabase.js';
 
 export default async function handler(req, res) {
+  const sb = supabase(true);
   try {
-    const sb = supabase();
-
     if (req.method === 'GET') {
       const { limit, sort, order } = parseListParams(req);
-      const { data, error } = await sb
-        .from('likes')
+      const { data, error } = await sb.from('likes')
         .select('*')
         .order(sort, { ascending: order === 'asc' })
         .limit(limit);
@@ -16,17 +14,15 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const body = req.body && typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
-      if (!body.target_type || !body.target_id || !body.user_fingerprint) {
+      const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+      if (!body.target_type || !body.target_id || !body.user_fingerprint)
         return res.status(400).json({ error: 'missing fields' });
-      }
-      const { data, error } = await sb.from('likes').insert({
-        target_type: body.target_type,
-        target_id: body.target_id,
-        user_fingerprint: body.user_fingerprint
-      }).select().single();
+      const { data, error } = await sb.from('likes')
+        .upsert(body, { onConflict: 'target_id,user_fingerprint' })
+        .select()
+        .single();
       if (error) throw error;
-      return res.status(201).json(data);
+      return res.status(201).json({ data });
     }
 
     return res.status(405).json({ error: 'method not allowed' });
