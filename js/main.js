@@ -460,7 +460,6 @@ async function handleNewThreadSubmit(event) {
         // 投稿したスレッドIDをローカルストレージに保存
         const created = await response.json();             // { data: {...} }
         const createdId = (created && created.data && created.data.id) || created.id;
-        // 投稿したスレッドIDをローカルに保存（mypostsの旧ローカル方式を活かす場合）
         const myThreadIds = getUserPreference('myThreadIds', []);
         if (createdId && !myThreadIds.includes(createdId)) {
             myThreadIds.push(createdId);

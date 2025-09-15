@@ -7,14 +7,18 @@ export function supabase(service = false) {
   const key = service
     ? (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY)
     : (process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY);
-  
-  // Emergency: Return mock data if no environment variables (for debugging)
+
   if (!url || !key) {
+    // Service-role operations should not silently fall back
+    if (service) {
+      throw new Error('Missing Supabase service role configuration');
+    }
+
     console.error('Missing Supabase env - returning test data');
     console.error('SUPABASE_URL:', url ? 'SET' : 'NOT_SET');
     console.error('SUPABASE_ANON_KEY:', key ? 'SET' : 'NOT_SET');
     console.error('Available env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
-    
+
     // Return a mock object that simulates Supabase for testing
     return {
       from: (table) => ({
@@ -66,12 +70,13 @@ export function supabase(service = false) {
       })
     };
   }
-  
+
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
 export function parseListParams(req) {
-  const url = new URL(req.url, `https://${req.headers.host}`);
+  // some runtimes don't provide req.headers.host (e.g. during tests)
+  const url = new URL(req.url, 'http://localhost');
   return {
     limit: Number(url.searchParams.get('limit') || '100'),
     sort: url.searchParams.get('sort') || 'created_at',

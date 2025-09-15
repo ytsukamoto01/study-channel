@@ -177,12 +177,8 @@ const server = http.createServer((req, res) => {
       handleResourceIdAPI(req, res, resource, id, parsedBody);
     } else if (pathname === '/' || pathname === '/index.html') {
       serveFile(res, 'index.html');
-    } else if (pathname === '/myposts.html' || pathname === '/myposts') {
-      serveFile(res, 'myposts.html');
     } else if (pathname === '/thread.html' || pathname === '/thread') {
       serveFile(res, 'thread.html');
-    } else if (pathname === '/test-myposts.html' || pathname === '/test-myposts') {
-      serveFile(res, 'test-myposts.html');
     } else if (pathname.startsWith('/js/')) {
       serveFile(res, pathname.substring(1), 'application/javascript');
     } else if (pathname.startsWith('/css/')) {

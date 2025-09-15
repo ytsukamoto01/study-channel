@@ -70,9 +70,14 @@ function showPageError(msg) {
 
 // 親コメント1件
 async function loadParentComment() {
-  const parent = await apiCall(`tables/comments/${parentCommentId}`);
-  if (!parent || !parent.id) return showPageError('親コメントが見つかりません');
-  renderParent(parent);
+  try {
+    const json = await apiCall(`tables/comments/${parentCommentId}`);
+    const parent = json?.data;
+    if (!parent || !parent.id) return showPageError('親コメントが見つかりません');
+    renderParent(parent);
+  } catch (e) {
+    handleApiError(e, '親コメントが見つかりません');
+  }
 }
 
 function renderParent(c) {

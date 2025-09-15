@@ -39,8 +39,6 @@ const server = http.createServer((req, res) => {
     resourceIdHandler(req, res);
   } else if (pathname === '/' || pathname === '/index.html') {
     serveFile(res, 'index.html');
-  } else if (pathname === '/myposts.html' || pathname === '/myposts') {
-    serveFile(res, 'myposts.html');
   } else if (pathname === '/thread.html' || pathname === '/thread') {
     serveFile(res, 'thread.html');
   } else if (pathname.startsWith('/js/')) {

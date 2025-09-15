@@ -15,7 +15,6 @@
 ### 1. マルチページアーキテクチャ
 - **ホームページ** (`index.html`) - スレッド一覧とカテゴリフィルタリング
 - **スレッド詳細ページ** (`thread.html`) - 個別スレッド表示とコメント機能
-- **投稿一覧ページ** (`myposts.html`) - ユーザーの投稿履歴
 - **お気に入りページ** (`favorites.html`) - お気に入り登録したスレッド一覧
 
 ### 2. コア機能
@@ -56,18 +55,15 @@
 ```
 ├── index.html              # ホームページ
 ├── thread.html            # スレッド詳細ページ  
-├── myposts.html           # 投稿一覧ページ
 ├── favorites.html         # お気に入りページ
 ├── css/
 │   ├── style.css          # 共通スタイル
 │   ├── thread.css         # スレッド詳細スタイル
-│   ├── myposts.css        # 投稿一覧スタイル
 │   └── favorites.css      # お気に入りスタイル
 ├── js/
 │   ├── utils.js           # ユーティリティ関数
 │   ├── main.js            # ホームページ機能
 │   ├── thread.js          # スレッド詳細機能
-│   ├── myposts.js         # 投稿一覧機能
 │   ├── favorites.js       # お気に入り機能
 │   └── debug.js           # デバッグ・診断機能
 └── README.md
@@ -146,7 +142,6 @@
 - メインページ (index.html) - スレッド一覧表示正常
 - スレッド詳細ページ (thread.html) - 構文エラー修正済み
 - お気に入りページ (favorites.html) - ページ読み込み正常
-- 投稿一覧ページ (myposts.html) - ページ読み込み正常
 
 ## 🔮 今後の開発予定
 
