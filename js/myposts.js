@@ -252,36 +252,38 @@ async function confirmDeleteThread(id){
 function showLoading(){ const el = document.getElementById('loading'); if (el) el.style.display='block'; }
 function hideLoading(){ const el = document.getElementById('loading'); if (el) el.style.display='none'; }
 
-// 送信（PATCH） — 関数化
-async function onEditSubmit(e) {
+function onEditSubmit(e){
   e.preventDefault();
   const id = document.getElementById('editThreadId').value;
   const body = {
-    user_fingerprint: FP, // 所有確認
+    user_fingerprint: FP,
     title: document.getElementById('editTitle').value.trim(),
     category: document.getElementById('editCategory').value.trim(),
     subcategory: document.getElementById('editSubcategory').value.trim() || null,
     content: document.getElementById('editContent').value.trim(),
-    hashtags: (document.getElementById('editHashtags').value || '').split(',').map(s=>s.trim()).filter(Boolean),
-    images: (document.getElementById('editImages').value || '').split(',').map(s=>s.trim()).filter(Boolean)
+    hashtags: (document.getElementById('editHashtags').value || '')
+                .split(',').map(s=>s.trim()).filter(Boolean),
+    images: (document.getElementById('editImages').value || '')
+                .split(',').map(s=>s.trim()).filter(Boolean)
   };
-  const res = await fetch(`tables/threads/${id}`, {
+  fetch(`/api/threads/${id}`, {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(body)
+  }).then(async res=>{
+    if(!res.ok){ alert('更新に失敗しました: ' + await res.text()); return; }
+    closeEditModal();
+    await loadMyPosts();
   });
-  if (!res.ok) {
-    const t = await res.text();
-    alert('更新に失敗しました: ' + t);
-    return;
-  }
-  closeEditModal();
-  await loadMyPosts();
 }
 
-// ★ DOMContentLoaded 後に確実にフォームを取得してバインド
-document.addEventListener('DOMContentLoaded', () => {
+// ★ DOM構築後に確実にバインド
+document.addEventListener('DOMContentLoaded', ()=>{
   const form = document.getElementById('editForm');
-  if (form) form.addEventListener('submit', onEditSubmit);
+  if(form && !form.dataset.bound){
+    form.addEventListener('submit', onEditSubmit);
+    form.dataset.bound = '1';
+  }
 });
+
 
