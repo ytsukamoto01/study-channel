@@ -9,7 +9,7 @@ let filteredThreads = [];
 
 // ページ読み込み時の初期化
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('=== メインページ初期化開始 ===');
+    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
     
     // 必要な関数が存在するかチェック
     console.log('関数チェック:');
