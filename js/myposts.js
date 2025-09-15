@@ -235,7 +235,7 @@ document.getElementById('editForm')?.addEventListener('submit', async (e)=>{
 // 削除（DELETE）
 async function confirmDeleteThread(id){
   if (!confirm('このスレッドを削除します。よろしいですか？')) return;
-  const res = await fetch(`api/threads/${id}`, {
+  const res = await fetch(`api/threads/${id}?fp=${encodeURIComponent(FP)}`, {
     method: 'DELETE',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ user_fingerprint: FP })
