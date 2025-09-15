@@ -11,6 +11,9 @@ export function supabase(service = false) {
   // Emergency: Return mock data if no environment variables (for debugging)
   if (!url || !key) {
     console.error('Missing Supabase env - returning test data');
+    console.error('SUPABASE_URL:', url ? 'SET' : 'NOT_SET');
+    console.error('SUPABASE_ANON_KEY:', key ? 'SET' : 'NOT_SET');
+    console.error('Available env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
     
     // Return a mock object that simulates Supabase for testing
     return {
