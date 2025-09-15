@@ -7,19 +7,16 @@ document.addEventListener('DOMContentLoaded', () => {
   loadMyPosts();
 });
 
-// 自分の投稿を読み込み（APIがフィルタに未対応でも動くように全件→絞り込み）
+// 自分の投稿を読み込み（サーバー側でフィルタリング）
 async function loadMyPosts() {
   try {
     showLoading();
 
-    // まず全件取得（limitは十分大きめ）
-    const res = await fetch(`/api/tables/threads?limit=1000&sort=created_at&order=desc`);
+    // user_fingerprintを送信してサーバー側でフィルタリング
+    const res = await fetch(`/api/tables/threads?user_fingerprint=${encodeURIComponent(FP || 'default-user-fp')}&limit=1000&sort=created_at&order=desc`);
     if (!res.ok) throw new Error('投稿の読み込みに失敗しました');
     const json = await res.json();
-    const all = Array.isArray(json.data) ? json.data : [];
-
-    // クライアント側で自分の投稿に絞る
-    const myThreads = all.filter(t => t.user_fingerprint === FP);
+    const myThreads = Array.isArray(json.data) ? json.data : [];
 
     displayMyPosts(myThreads);
   } catch (e) {

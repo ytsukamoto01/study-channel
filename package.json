@@ -4,9 +4,12 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "echo \"static site\""
+    "build": "echo \"static site\"",
+    "dev": "node server-port3000.cjs",
+    "test-dev": "node test-server.cjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "^2.45.0",
+    "vercel": "^48.0.0"
   }
 }

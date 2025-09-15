@@ -7,6 +7,73 @@ let currentThreadId = null;
 let currentThread = null;
 let userFingerprint = null;
 
+// エラーページ表示関数
+function showErrorPage(message) {
+  const container = document.querySelector('main .container');
+  if (container) {
+    container.innerHTML = `
+      <div class="error-page">
+        <div class="error-content">
+          <i class="fas fa-exclamation-triangle error-icon"></i>
+          <h2>エラーが発生しました</h2>
+          <p class="error-message">${escapeHtml(message)}</p>
+          <div class="error-actions">
+            <button onclick="location.reload()" class="retry-btn">
+              <i class="fas fa-refresh"></i> 再試行
+            </button>
+            <button onclick="location.href='/'" class="home-btn">
+              <i class="fas fa-home"></i> ホームに戻る
+            </button>
+          </div>
+        </div>
+      </div>
+      <style>
+        .error-page {
+          text-align: center;
+          padding: 60px 20px;
+        }
+        .error-content {
+          max-width: 500px;
+          margin: 0 auto;
+        }
+        .error-icon {
+          font-size: 4rem;
+          color: #f44336;
+          margin-bottom: 20px;
+        }
+        .error-message {
+          margin: 20px 0;
+          color: #666;
+          line-height: 1.6;
+          white-space: pre-line;
+        }
+        .error-actions {
+          margin-top: 30px;
+        }
+        .retry-btn, .home-btn {
+          margin: 0 10px;
+          padding: 12px 24px;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 16px;
+        }
+        .retry-btn {
+          background: #2196f3;
+          color: white;
+        }
+        .home-btn {
+          background: #666;
+          color: white;
+        }
+        .retry-btn:hover, .home-btn:hover {
+          opacity: 0.9;
+        }
+      </style>
+    `;
+  }
+}
+
 // 初期化
 document.addEventListener('DOMContentLoaded', function () {
   try {
@@ -64,9 +131,19 @@ function scrollToCommentForm() {
 // スレッド詳細読み込み
 async function loadThreadDetail(threadId) {
   try {
+    console.log('Loading thread detail for ID:', threadId);
+    console.log('API URL:', `/api/tables/threads/${threadId}`);
+    
     const response = await apiCall(`/api/tables/threads/${threadId}`);
+    console.log('API Response:', response);
+    
     currentThread = response.data;
-    if (!currentThread || !currentThread.id) throw new Error('スレッドが見つかりません');
+    if (!currentThread || !currentThread.id) {
+      console.error('Invalid thread data received:', currentThread);
+      throw new Error('スレッドが見つかりません');
+    }
+
+    console.log('Thread loaded successfully:', currentThread.title);
 
     // 正規化
     currentThread.hashtags = normalizeHashtags(currentThread.hashtags);
@@ -81,8 +158,20 @@ async function loadThreadDetail(threadId) {
     // お気に入り状態
     await checkFavoriteStatus(threadId);
   } catch (e) {
-    console.error(e);
-    showErrorPage(e.message || 'スレッドの読み込みに失敗しました');
+    console.error('Error loading thread detail:', e);
+    console.error('Error stack:', e.stack);
+    
+    let errorMessage = 'スレッドの読み込みに失敗しました';
+    if (e.message) {
+      errorMessage += ': ' + e.message;
+    }
+    
+    // APIエラーの詳細を表示
+    if (e.message.includes('API')) {
+      errorMessage += '\n\nAPI接続に問題があります。しばらく待ってから再試行してください。';
+    }
+    
+    showErrorPage(errorMessage);
   }
 }
 

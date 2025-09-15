@@ -1,22 +1,52 @@
 // Simplified API without complex dependencies
 export default async function handler(req, res) {
   try {
+    console.log('=== API Request ===');
+    console.log('Method:', req.method);
+    console.log('URL:', req.url);
+    console.log('Query:', req.query);
+    
     const { resource, id } = req.query;
     
     // Basic validation
     if (!resource || !id) {
-      return res.status(400).json({ error: 'missing params' });
+      console.log('Missing params - resource:', resource, 'id:', id);
+      return res.status(400).json({ 
+        error: 'missing params',
+        received: { resource, id },
+        debug: 'API called but missing required parameters'
+      });
     }
 
-    // Mock data for testing - this will work regardless of environment
+    console.log(`Processing ${req.method} request for ${resource}/${id}`);
+
+    // Extract user_fingerprint from request
+    let currentUserFingerprint = 'default-user-fp'; // デフォルト値
+    
+    if (req.method === 'POST' || req.method === 'PATCH') {
+      const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+      currentUserFingerprint = body.user_fingerprint || currentUserFingerprint;
+    } else if (req.method === 'DELETE') {
+      // DELETEの場合もリクエストボディから取得を試行
+      let bodyText = '';
+      if (req.body) {
+        const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+        currentUserFingerprint = body.user_fingerprint || currentUserFingerprint;
+      }
+    } else if (req.method === 'GET') {
+      // GET の場合はクエリパラメータから
+      currentUserFingerprint = req.query.user_fingerprint || currentUserFingerprint;
+    }
+
+    // Mock data for testing - uses actual user fingerprint
     const mockThread = {
       id: id,
       title: 'テストスレッド - API修復中',
       content: 'このスレッドはAPI修復のためのテストデータです。まもなく正常なデータに戻ります。',
       category: 'テスト',
       subcategory: 'API修復',
-      author_name: 'システム',
-      user_fingerprint: 'test-user-fp',
+      author_name: 'あなた',
+      user_fingerprint: currentUserFingerprint, // 実際のユーザーFPを使用
       created_at: new Date().toISOString(),
       like_count: 0,
       reply_count: 0,
@@ -28,8 +58,8 @@ export default async function handler(req, res) {
       id: id,
       thread_id: 'test-thread-id',
       content: 'テストコメント',
-      author_name: 'システム',
-      user_fingerprint: 'test-user-fp',
+      author_name: 'あなた',
+      user_fingerprint: currentUserFingerprint, // 実際のユーザーFPを使用
       created_at: new Date().toISOString(),
       like_count: 0,
       comment_number: 1
@@ -38,7 +68,7 @@ export default async function handler(req, res) {
     const mockFavorite = {
       id: id,
       thread_id: 'test-thread-id',
-      user_fingerprint: 'test-user-fp',
+      user_fingerprint: currentUserFingerprint, // 実際のユーザーFPを使用
       created_at: new Date().toISOString()
     };
 
@@ -48,31 +78,64 @@ export default async function handler(req, res) {
       switch (resource) {
         case 'threads':
           mockData = mockThread;
+          console.log('Returning thread data for ID:', id);
           break;
         case 'comments':
           mockData = mockComment;
+          console.log('Returning comment data for ID:', id);
           break;
         case 'favorites':
           mockData = mockFavorite;
+          console.log('Returning favorite data for ID:', id);
           break;
         default:
           mockData = { id: id, message: `Mock ${resource} data` };
+          console.log('Returning generic mock data for resource:', resource);
       }
       
-      return res.status(200).json({ data: mockData });
+      console.log('Mock data generated:', JSON.stringify(mockData, null, 2));
+      return res.status(200).json({ 
+        data: mockData,
+        debug: {
+          api_version: 'simplified-mock',
+          timestamp: new Date().toISOString(),
+          resource: resource,
+          id: id
+        }
+      });
     }
 
     // Handle PATCH request
     if (req.method === 'PATCH') {
       const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
       
-      // Return updated mock data
-      const updatedData = { ...mockThread, ...body, id: id, updated_at: new Date().toISOString() };
+      // For testing: Skip ownership check and allow all edits
+      console.log('PATCH request - Test mode: allowing all edits');
+      
+      // Return updated mock data with actual submitted values
+      const updatedData = {
+        id: id,
+        title: body.title || mockThread.title,
+        content: body.content || mockThread.content,
+        category: body.category || mockThread.category,
+        subcategory: body.subcategory || mockThread.subcategory,
+        hashtags: body.hashtags || mockThread.hashtags,
+        images: body.images || mockThread.images,
+        author_name: mockThread.author_name,
+        user_fingerprint: body.user_fingerprint || mockThread.user_fingerprint,
+        created_at: mockThread.created_at,
+        updated_at: new Date().toISOString(),
+        like_count: mockThread.like_count,
+        reply_count: mockThread.reply_count
+      };
+      
       return res.status(200).json({ data: updatedData });
     }
 
-    // Handle DELETE request
+    // Handle DELETE request  
     if (req.method === 'DELETE') {
+      console.log('DELETE request - Test mode: allowing all deletes');
+      // For testing: Skip ownership check and allow all deletes
       return res.status(204).end();
     }
 
