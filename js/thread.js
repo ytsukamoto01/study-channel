@@ -338,9 +338,26 @@ async function likeThisComment(commentId) {
       })
     });
 
-    // 即時反映
-    const box = document.querySelector(`[data-comment-id="${commentId}"] .comment-like-count`);
-    if (box) box.textContent = String((parseInt(box.textContent || '0', 10) + 1));
+    // 即時反映 - より確実にUI更新
+    const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+    if (commentElement) {
+      const likeButton = commentElement.querySelector('.comment-like-btn');
+      const likeCountSpan = commentElement.querySelector('.comment-like-count');
+      
+      if (likeCountSpan) {
+        const currentCount = parseInt(likeCountSpan.textContent || '0', 10);
+        likeCountSpan.textContent = String(currentCount + 1);
+      }
+      
+      // ボタンのスタイルも変更してフィードバックを強化
+      if (likeButton) {
+        likeButton.style.transform = 'scale(1.1)';
+        setTimeout(() => {
+          likeButton.style.transform = 'scale(1)';
+        }, 150);
+      }
+    }
+    
     showSuccessMessage('いいねしました！');
   } catch (e) {
     console.error(e);
@@ -370,9 +387,19 @@ async function handleCommentSubmit(e) {
         user_fingerprint: userFingerprint
       })
     });
+    
+    // 即座にコメント数を更新
+    const commentCountElement = document.getElementById('commentCount');
+    if (commentCountElement) {
+      const currentCount = parseInt(commentCountElement.textContent || '0');
+      commentCountElement.textContent = currentCount + 1;
+    }
+    
     document.getElementById('commentContent').value = '';
-    showMessage('コメントを投稿しました', 'success');
-    loadComments(currentThreadId);
+    showSuccessMessage('コメントを投稿しました！');
+    
+    // コメント一覧を再読み込み
+    await loadComments(currentThreadId);
   } catch (e) {
     handleApiError(e, 'コメント投稿に失敗しました');
   }
@@ -381,6 +408,21 @@ async function handleCommentSubmit(e) {
 // いいね（スレッド）
 async function likeThread() {
   try {
+    if (!userFingerprint) userFingerprint = generateUserFingerprint();
+
+    // 既にいいねしているかチェック
+    const likes = await apiCall('/api/tables/likes');
+    const existingLike = (likes.data || []).find(like => 
+        like.target_id === currentThreadId && 
+        like.target_type === 'thread' && 
+        like.user_fingerprint === userFingerprint
+    );
+    
+    if (existingLike) {
+        showErrorMessage('既にいいねしています');
+        return;
+    }
+
     await apiCall('/api/tables/likes', {
       method: 'POST',
       body: JSON.stringify({
@@ -389,7 +431,15 @@ async function likeThread() {
         user_fingerprint: userFingerprint
       })
     });
-    showMessage('いいねしました', 'success');
+    
+    // 即座にUIを更新
+    const threadLikeCountElement = document.getElementById('threadLikeCount');
+    if (threadLikeCountElement) {
+      const currentCount = parseInt(threadLikeCountElement.textContent || '0');
+      threadLikeCountElement.textContent = currentCount + 1;
+    }
+    
+    showSuccessMessage('いいねしました！');
   } catch (e) {
     handleApiError(e, 'いいねに失敗しました');
   }

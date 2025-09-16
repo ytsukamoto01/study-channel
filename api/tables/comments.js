@@ -1,6 +1,27 @@
 // Comments API with Supabase integration
 import { supabase, parseListParams } from '../_supabase.js';
 
+// Calculate real-time like count for a comment
+async function calculateCommentCounts(db, comment) {
+  try {
+    // Calculate like count for this comment
+    const { count: likeCount } = await db
+      .from('likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('target_type', 'comment')
+      .eq('target_id', comment.id);
+    
+    return {
+      ...comment,
+      like_count: likeCount || 0
+    };
+  } catch (error) {
+    console.error('Error calculating comment counts:', error);
+    // Return comment with original count if calculation fails
+    return comment;
+  }
+}
+
 export default async function handler(req, res) {
   try {
     const db = supabase();
@@ -25,8 +46,13 @@ export default async function handler(req, res) {
           throw error;
         }
         
-        console.log('Successfully fetched comments from Supabase:', data?.length || 0);
-        return res.status(200).json({ data: data || [] });
+        // Calculate real-time like counts for all comments
+        const commentsWithCounts = await Promise.all(
+          (data || []).map(comment => calculateCommentCounts(db, comment))
+        );
+        
+        console.log('Successfully fetched comments from Supabase:', commentsWithCounts?.length || 0);
+        return res.status(200).json({ data: commentsWithCounts || [] });
         
       } catch (supabaseError) {
         console.error('Supabase comments error, falling back to mock data:', supabaseError);
@@ -108,8 +134,11 @@ export default async function handler(req, res) {
           throw error;
         }
         
-        console.log('Successfully created comment in Supabase:', data.id);
-        return res.status(200).json({ data: data });
+        // Calculate like counts for the new comment
+        const commentWithCounts = await calculateCommentCounts(db, data);
+        
+        console.log('Successfully created comment in Supabase:', commentWithCounts.id);
+        return res.status(200).json({ data: commentWithCounts });
         
       } catch (supabaseError) {
         console.error('Supabase comment creation error, falling back to mock response:', supabaseError);

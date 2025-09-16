@@ -1,6 +1,34 @@
 // Threads API with Supabase integration
 import { supabase, parseListParams } from '../_supabase.js';
 
+// Calculate real-time like count and comment count for a thread
+async function calculateThreadCounts(db, thread) {
+  try {
+    // Calculate like count
+    const { count: likeCount } = await db
+      .from('likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('target_type', 'thread')
+      .eq('target_id', thread.id);
+    
+    // Calculate comment count (both parent comments and replies)
+    const { count: commentCount } = await db
+      .from('comments')
+      .select('*', { count: 'exact', head: true })
+      .eq('thread_id', thread.id);
+    
+    return {
+      ...thread,
+      like_count: likeCount || 0,
+      reply_count: commentCount || 0
+    };
+  } catch (error) {
+    console.error('Error calculating thread counts:', error);
+    // Return thread with original counts if calculation fails
+    return thread;
+  }
+}
+
 export default async function handler(req, res) {
   try {
     const db = supabase();
@@ -9,13 +37,40 @@ export default async function handler(req, res) {
       // Parse URL to get query parameters
       const url = new URL(req.url, `https://${req.headers.host || 'localhost'}`);
       const userFingerprint = url.searchParams.get('user_fingerprint');
+      const threadId = url.pathname.split('/').pop(); // Extract thread ID from URL path
       const { limit, sort, order } = parseListParams(req);
       
       console.log('GET /api/tables/threads - userFingerprint:', userFingerprint);
-      console.log('Query params - limit:', limit, 'sort:', sort, 'order:', order);
+      console.log('Query params - limit:', limit, 'sort:', sort, 'order:', order, 'threadId:', threadId);
       
       try {
-        // Build query
+        // Single thread request (e.g., /api/tables/threads/[id])
+        if (threadId && threadId !== 'threads') {
+          console.log('Fetching single thread:', threadId);
+          
+          const { data: threadData, error } = await db
+            .from('threads')
+            .select('*')
+            .eq('id', threadId)
+            .single();
+          
+          if (error) {
+            console.error('Supabase single thread query error:', error);
+            throw error;
+          }
+          
+          if (!threadData) {
+            return res.status(404).json({ error: 'Thread not found' });
+          }
+          
+          // Calculate real-time counts
+          const updatedThread = await calculateThreadCounts(db, threadData);
+          
+          console.log('Successfully fetched single thread:', updatedThread.title);
+          return res.status(200).json({ data: updatedThread });
+        }
+        
+        // List threads request
         let query = db.from('threads').select('*');
         
         // If user_fingerprint is specified, filter to that user's threads only
@@ -38,8 +93,13 @@ export default async function handler(req, res) {
           throw error;
         }
         
-        console.log('Successfully fetched threads from Supabase:', data?.length || 0, 'threads');
-        return res.status(200).json({ data: data || [] });
+        // Calculate real-time counts for all threads
+        const threadsWithCounts = await Promise.all(
+          (data || []).map(thread => calculateThreadCounts(db, thread))
+        );
+        
+        console.log('Successfully fetched threads from Supabase:', threadsWithCounts?.length || 0, 'threads');
+        return res.status(200).json({ data: threadsWithCounts || [] });
         
       } catch (supabaseError) {
         console.error('Supabase error, falling back to mock data:', supabaseError);

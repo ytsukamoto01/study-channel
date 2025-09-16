@@ -174,9 +174,19 @@ async function handleReplySubmit(e) {
         user_fingerprint: userFingerprint
       })
     });
+    
+    // 即座に返信数を更新
+    const repliesCountElement = document.getElementById('repliesCount');
+    if (repliesCountElement) {
+      const currentCount = parseInt(repliesCountElement.textContent || '0');
+      repliesCountElement.textContent = currentCount + 1;
+    }
+    
     document.getElementById('replyContent').value = '';
-    showMessage('返信を投稿しました', 'success');
-    loadReplies();
+    showMessage('返信を投稿しました！', 'success');
+    
+    // 返信一覧を再読み込み
+    await loadReplies();
   } catch (e) {
     handleApiError(e, '返信投稿に失敗しました');
   }
@@ -193,7 +203,7 @@ async function likeThisComment(commentId) {
       l.target_type === 'comment' && l.target_id === commentId && l.user_fingerprint === userFingerprint
     );
     if (exists) {
-      alert('このコメントには既に「いいね」しています');
+      showMessage('このコメントには既にいいねしています', 'error');
       return;
     }
 
@@ -206,11 +216,30 @@ async function likeThisComment(commentId) {
       })
     });
 
-    // 表示だけ即時 +1
-    const box = document.querySelector(`[data-comment-id="${commentId}"] .comment-like-count`);
-    if (box) box.textContent = String((parseInt(box.textContent || '0', 10) + 1));
+    // 即座にUIを更新してフィードバック強化
+    const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+    if (commentElement) {
+      const likeButton = commentElement.querySelector('.comment-like-btn');
+      const likeCountSpan = commentElement.querySelector('.comment-like-count');
+      
+      if (likeCountSpan) {
+        const currentCount = parseInt(likeCountSpan.textContent || '0', 10);
+        likeCountSpan.textContent = String(currentCount + 1);
+      }
+      
+      // ボタンアニメーションでフィードバック
+      if (likeButton) {
+        likeButton.style.transform = 'scale(1.2)';
+        likeButton.style.transition = 'transform 0.2s ease';
+        setTimeout(() => {
+          likeButton.style.transform = 'scale(1)';
+        }, 200);
+      }
+    }
+    
+    showMessage('いいねしました！', 'success');
   } catch (e) {
     console.error(e);
-    alert('いいねに失敗しました');
+    showMessage('いいねに失敗しました', 'error');
   }
 }

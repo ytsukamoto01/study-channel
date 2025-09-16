@@ -514,7 +514,7 @@ async function handleReplySubmit(event) {
         commentData.comment_number = threadComments.length + 1;
         
         // コメントを作成
-        const response = await fetch('tables/comments', {
+        const response = await fetch('/api/tables/comments', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -526,8 +526,8 @@ async function handleReplySubmit(event) {
             throw new Error('返信の投稿に失敗しました');
         }
         
-        // スレッドの返信数を更新
-        await updateThreadReplyCount(currentThreadId, threadComments.length + 1);
+        // スレッド統計を即座に更新
+        updateThreadStatsInList(currentThreadId, 'comment', 1);
         
         // フォームをリセット
         document.getElementById('replyContent').value = '';
@@ -547,8 +547,7 @@ async function handleReplySubmit(event) {
         // コメント一覧を再読み込み
         await loadComments(currentThreadId);
         
-        // スレッド一覧も更新
-        await loadThreads(currentFilter);
+        showMessage('返信を投稿しました！', 'success');
         
     } catch (error) {
         handleApiError(error, '返信の投稿に失敗しました');
@@ -567,9 +566,8 @@ async function likeThread() {
     
     try {
         // 既にいいねしているかチェック
-        const likesResponse = await fetch(`tables/likes`);
-        const likesResult = await likesResponse.json();
-        const existingLike = (likesResult.data || []).find(like => 
+        const likesResponse = await apiCall('/api/tables/likes');
+        const existingLike = (likesResponse.data || []).find(like => 
             like.target_id === currentThreadId && 
             like.target_type === 'thread' && 
             like.user_fingerprint === userFingerprint
@@ -587,7 +585,7 @@ async function likeThread() {
             user_fingerprint: userFingerprint
         };
         
-        const likeResponse = await fetch('tables/likes', {
+        const likeResponse = await fetch('/api/tables/likes', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -599,18 +597,17 @@ async function likeThread() {
             throw new Error('いいねに失敗しました');
         }
         
-        // スレッドのいいね数を更新（統計更新は無効化されました）
-        // const threadResponse = await fetch(`tables/threads/${currentThreadId}`);
-        // const thread = await threadResponse.json();
-        // const newLikeCount = (thread.like_count || 0) + 1;
+        // 即座にUIを更新
+        const threadLikeCountElement = document.getElementById('threadLikeCount');
+        if (threadLikeCountElement) {
+            const currentCount = parseInt(threadLikeCountElement.textContent || '0');
+            threadLikeCountElement.textContent = currentCount + 1;
+        }
         
-        // 統計更新は無効化されました
-        console.log('統計更新は無効化されました - いいね数は手動更新されません');
+        // スレッド一覧のいいね数も更新
+        updateThreadStatsInList(currentThreadId, 'like', 1);
         
-        // 表示を更新（固定値）
-        const currentCount = parseInt(document.getElementById('threadLikeCount').textContent || '0');
-        document.getElementById('threadLikeCount').textContent = currentCount + 1;
-        await loadThreads(currentFilter);
+        showMessage('いいねしました！', 'success');
         
     } catch (error) {
         handleApiError(error, 'いいねに失敗しました');
@@ -623,16 +620,15 @@ async function likeComment(commentId) {
     
     try {
         // 既にいいねしているかチェック
-        const likesResponse = await fetch(`tables/likes`);
-        const likesResult = await likesResponse.json();
-        const existingLike = (likesResult.data || []).find(like => 
+        const likesResponse = await apiCall('/api/tables/likes');
+        const existingLike = (likesResponse.data || []).find(like => 
             like.target_id === commentId && 
             like.target_type === 'comment' && 
             like.user_fingerprint === userFingerprint
         );
         
         if (existingLike) {
-            alert('既にいいねしています');
+            showMessage('既にいいねしています', 'error');
             return;
         }
         
@@ -643,7 +639,7 @@ async function likeComment(commentId) {
             user_fingerprint: userFingerprint
         };
         
-        const likeResponse = await fetch('tables/likes', {
+        const likeResponse = await fetch('/api/tables/likes', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -655,16 +651,16 @@ async function likeComment(commentId) {
             throw new Error('いいねに失敗しました');
         }
         
-        // コメントのいいね数を更新（統計更新は無効化されました）
-        // const commentResponse = await fetch(`tables/comments/${commentId}`);
-        // const comment = await commentResponse.json();
-        // const newLikeCount = (comment.like_count || 0) + 1;
+        // 即座にUIを更新
+        const commentLikeButton = document.querySelector(`[onclick="likeComment('${commentId}')"]`);
+        if (commentLikeButton) {
+            const heartIcon = commentLikeButton.querySelector('i');
+            const likeCountSpan = commentLikeButton.textContent.match(/\d+/);
+            const currentCount = likeCountSpan ? parseInt(likeCountSpan[0]) : 0;
+            commentLikeButton.innerHTML = `<i class="fas fa-heart"></i> ${currentCount + 1}`;
+        }
         
-        // 統計更新は無効化されました
-        console.log('統計更新は無効化されました - コメントいいね数は手動更新されません');
-        
-        // コメント一覧を再読み込み
-        await loadComments(currentThreadId);
+        showMessage('いいねしました！', 'success');
         
     } catch (error) {
         handleApiError(error, 'いいねに失敗しました');
@@ -844,6 +840,34 @@ function filterBySubcategory(category, subcategory) {
     });
     
     event.target.classList.add('active');
+}
+
+// スレッド統計をリストで更新
+function updateThreadStatsInList(threadId, statType, increment) {
+    currentThreads.forEach(thread => {
+        if (thread.id === threadId) {
+            if (statType === 'like') {
+                thread.like_count = (thread.like_count || 0) + increment;
+            } else if (statType === 'comment') {
+                thread.reply_count = (thread.reply_count || 0) + increment;
+            }
+        }
+    });
+    
+    // 表示も即座に更新
+    const threadElement = document.querySelector(`[onclick="openThreadPage('${threadId}')"] .thread-stats`);
+    if (threadElement) {
+        const statsElements = threadElement.querySelectorAll('span');
+        statsElements.forEach(stat => {
+            if (statType === 'comment' && stat.innerHTML.includes('fa-comments')) {
+                const currentCount = parseInt(stat.textContent.match(/\d+/)?.[0] || '0');
+                stat.innerHTML = `<i class="fas fa-comments"></i> ${currentCount + increment}`;
+            } else if (statType === 'like' && stat.innerHTML.includes('fa-heart')) {
+                const currentCount = parseInt(stat.textContent.match(/\d+/)?.[0] || '0');
+                stat.innerHTML = `<i class="fas fa-heart"></i> ${currentCount + increment}`;
+            }
+        });
+    }
 }
 
 // フィルタされたスレッドを表示
