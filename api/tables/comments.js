@@ -29,13 +29,51 @@ export default async function handler(req, res) {
         return res.status(200).json({ data: data || [] });
         
       } catch (supabaseError) {
-        console.error('Supabase comments error:', supabaseError);
+        console.error('Supabase comments error, falling back to mock data:', supabaseError);
         
-        // Return empty array instead of mock data
+        // フォールバック用のモックコメントデータ
+        const threadId = url.searchParams.get('thread_id') || 'default-thread';
+        const mockComments = [
+          {
+            id: `comment-${threadId}-1`,
+            thread_id: threadId,
+            content: 'これはテスト用のコメントです。Supabase接続に問題があるため、モックデータを表示しています。',
+            author_name: 'テストユーザー1',
+            user_fingerprint: 'test-user-1',
+            created_at: new Date(Date.now() - 3600000).toISOString(), // 1時間前
+            like_count: 2,
+            comment_number: 1,
+            parent_comment_id: null
+          },
+          {
+            id: `comment-${threadId}-2`,
+            thread_id: threadId,
+            content: 'これも別のテストコメントです。データベース接続が復旧すれば実際のデータが表示されます。',
+            author_name: 'テストユーザー2',
+            user_fingerprint: 'test-user-2',
+            created_at: new Date(Date.now() - 1800000).toISOString(), // 30分前
+            like_count: 1,
+            comment_number: 2,
+            parent_comment_id: null
+          },
+          {
+            id: `comment-${threadId}-3`,
+            thread_id: threadId,
+            content: '>> 1\nこれは返信のテストです。',
+            author_name: 'テストユーザー3',
+            user_fingerprint: 'test-user-3',
+            created_at: new Date(Date.now() - 900000).toISOString(), // 15分前
+            like_count: 0,
+            comment_number: 3,
+            parent_comment_id: `comment-${threadId}-1`
+          }
+        ];
+        
         return res.status(200).json({ 
-          data: [],
+          data: mockComments,
+          fallback: true,
           error: {
-            message: 'Failed to fetch comments from database',
+            message: 'Failed to fetch comments from database, using mock data',
             supabase_error: supabaseError.message,
             need_config: !process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY
           }
@@ -74,12 +112,30 @@ export default async function handler(req, res) {
         return res.status(200).json({ data: data });
         
       } catch (supabaseError) {
-        console.error('Supabase comment creation error:', supabaseError);
+        console.error('Supabase comment creation error, falling back to mock response:', supabaseError);
         
-        return res.status(500).json({ 
-          error: 'Failed to create comment',
-          message: supabaseError.message,
-          need_config: !process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY
+        // フォールバック用のモック投稿レスポンス
+        const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+        const mockComment = {
+          id: `mock-comment-${Date.now()}`,
+          thread_id: body.thread_id || 'default-thread',
+          content: body.content || 'New comment',
+          author_name: body.author_name || '匿名',
+          user_fingerprint: body.user_fingerprint || 'anonymous',
+          created_at: new Date().toISOString(),
+          like_count: 0,
+          comment_number: body.comment_number || 1,
+          parent_comment_id: body.parent_comment_id || null
+        };
+        
+        return res.status(200).json({ 
+          data: mockComment,
+          fallback: true,
+          error: {
+            message: 'Failed to create comment in database, using mock response',
+            supabase_error: supabaseError.message,
+            need_config: !process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY
+          }
         });
       }
     }
