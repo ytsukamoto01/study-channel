@@ -49,8 +49,35 @@ async function calculateThreadCounts(db, thread) {
   } catch (error) {
     console.error('Error calculating thread counts for thread', thread.id, ':', error);
     console.error('Error stack:', error.stack);
-    // Return thread with original counts if calculation fails
-    console.log('Returning original thread due to error:', {
+    
+    // Try alternative method: direct count query as fallback
+    try {
+      console.log('Attempting fallback like count method for thread', thread.id);
+      
+      const { data: likes, error: fallbackError } = await db
+        .from('likes')
+        .select('id')
+        .eq('target_type', 'thread')
+        .eq('target_id', thread.id);
+      
+      if (!fallbackError && Array.isArray(likes)) {
+        const fallbackLikeCount = likes.length;
+        console.log('Fallback like count successful:', fallbackLikeCount);
+        
+        return {
+          ...thread,
+          like_count: fallbackLikeCount,
+          reply_count: thread.reply_count || 0
+        };
+      }
+      
+      console.error('Fallback method also failed:', fallbackError);
+    } catch (fallbackError) {
+      console.error('Fallback method exception:', fallbackError);
+    }
+    
+    // Return thread with original counts if all methods fail
+    console.log('All methods failed, returning original thread:', {
       id: thread.id,
       title: thread.title,
       original_like_count: thread.like_count
