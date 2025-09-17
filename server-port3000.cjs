@@ -188,6 +188,52 @@ function handleFavoritesAPI(req, res, query, body = {}) {
 // Mock likes storage
 let mockLikes = [];
 
+function handleFavoriteToggleAPI(req, res, body = {}) {
+  console.log(`${req.method} /api/favorites/toggle - body:`, body);
+  
+  if (req.method !== 'POST') {
+    res.writeHead(405, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+    return;
+  }
+  
+  const { threadId, userFingerprint } = body;
+  
+  if (!threadId || !userFingerprint) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'threadId and userFingerprint are required' }));
+    return;
+  }
+  
+  // Check if favorite already exists
+  const existingIndex = mockFavorites.findIndex(f => 
+    f.thread_id === threadId && f.user_fingerprint === userFingerprint
+  );
+  
+  let action;
+  
+  if (existingIndex !== -1) {
+    // Remove existing favorite
+    mockFavorites.splice(existingIndex, 1);
+    action = 'unfavorited';
+    console.log(`Removed favorite for thread: ${threadId}, user: ${userFingerprint}`);
+  } else {
+    // Add new favorite
+    const newFavorite = {
+      id: `fav-${Date.now()}`,
+      thread_id: threadId,
+      user_fingerprint: userFingerprint,
+      created_at: new Date().toISOString()
+    };
+    mockFavorites.push(newFavorite);
+    action = 'favorited';
+    console.log(`Added favorite for thread: ${threadId}, user: ${userFingerprint}`);
+  }
+  
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ ok: true, action: action }));
+}
+
 function handleLikesAPI(req, res, query, body = {}) {
   console.log(`${req.method} /api/tables/likes - query:`, query, 'body:', body);
   
@@ -382,6 +428,8 @@ const server = http.createServer((req, res) => {
       handleFavoritesAPI(req, res, parsedUrl.query, parsedBody);
     } else if (pathname === '/api/tables/likes') {
       handleLikesAPI(req, res, parsedUrl.query, parsedBody);
+    } else if (pathname === '/api/favorites/toggle') {
+      handleFavoriteToggleAPI(req, res, parsedBody);
     } else if (pathname === '/api/debug/supabase-test') {
       // Supabase connection test
       res.writeHead(200, { 'Content-Type': 'application/json' });

@@ -254,35 +254,29 @@ document.head.appendChild(style);
 
 async function toggleFavoriteFromList(threadId) {
   try {
-    // 既存のお気に入りをチェック
-    const favoritesData = await apiCall('/api/tables/favorites');
-    const favorites = Array.isArray(favoritesData.data) ? favoritesData.data : [];
+    // 新しいtoggle APIを使用
+    const toggleResponse = await fetch('/api/favorites/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        threadId: threadId,
+        userFingerprint: userFingerprint
+      })
+    });
     
-    const existingFavorite = favorites.find(fav => 
-      fav && fav.thread_id === threadId && fav.user_fingerprint === userFingerprint
-    );
+    if (!toggleResponse.ok) {
+      const errorData = await toggleResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || 'お気に入り操作に失敗しました');
+    }
     
-    if (existingFavorite) {
-      // お気に入りから削除
-      await apiCall('/api/tables/favorites', {
-        method: 'DELETE',
-        body: JSON.stringify({
-          thread_id: threadId,
-          user_fingerprint: userFingerprint
-        })
-      });
+    const result = await toggleResponse.json();
+    console.log('トグル結果:', result);
+    
+    if (result.action === 'favorited') {
+      showMessage('お気に入りに追加しました', 'success');
+    } else if (result.action === 'unfavorited') {
       showMessage('お気に入りを解除しました', 'success');
       loadFavorites(); // お気に入り一覧を再読み込み
-    } else {
-      // お気に入りに追加
-      await apiCall('/api/tables/favorites', {
-        method: 'POST',
-        body: JSON.stringify({
-          thread_id: threadId,
-          user_fingerprint: userFingerprint
-        })
-      });
-      showMessage('お気に入りに追加しました', 'success');
     }
   } catch (e) {
     console.error('お気に入り操作エラー:', e);
@@ -293,17 +287,32 @@ async function toggleFavoriteFromList(threadId) {
 async function removeFavorite(event, threadId) {
   event.stopPropagation();
   try {
-    // thread_idとuser_fingerprintで直接削除
-    await apiCall('/api/tables/favorites', {
-      method: 'DELETE',
-      body: JSON.stringify({ 
-        thread_id: threadId,
-        user_fingerprint: userFingerprint 
+    // 新しいtoggle APIを使用（お気に入り状態を確認して削除）
+    const toggleResponse = await fetch('/api/favorites/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        threadId: threadId,
+        userFingerprint: userFingerprint
       })
     });
-    showMessage('お気に入りを解除しました', 'success');
-    loadFavorites();
+    
+    if (!toggleResponse.ok) {
+      const errorData = await toggleResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || 'お気に入り削除に失敗しました');
+    }
+    
+    const result = await toggleResponse.json();
+    console.log('削除結果:', result);
+    
+    if (result.action === 'unfavorited') {
+      showMessage('お気に入りを解除しました', 'success');
+      loadFavorites(); // お気に入り一覧を再読み込み
+    } else {
+      showMessage('お気に入りの削除に失敗しました', 'error');
+    }
   } catch (e) {
+    console.error('お気に入り削除エラー:', e);
     handleApiError(e, 'お気に入り解除に失敗しました');
   }
 }

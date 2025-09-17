@@ -552,46 +552,34 @@ async function toggleFavorite() {
   if (!currentThreadId) return;
   try {
     const fp = generateUserFingerprint();
-    const res = await fetch('/api/tables/favorites');
-    if (!res.ok) throw new Error('お気に入り状態の取得に失敗しました');
-    const json = await res.json();
-    const favorites = json.data || [];
-    const exist = favorites.find(f => f.thread_id === currentThreadId && f.user_fingerprint === fp);
-    if (exist) {
-      // お気に入りから削除
-      const deleteResponse = await fetch('/api/tables/favorites', { 
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          thread_id: currentThreadId, 
-          user_fingerprint: fp 
-        })
-      });
-      
-      if (!deleteResponse.ok) {
-        const errorData = await deleteResponse.json().catch(() => ({}));
-        throw new Error(errorData.message || 'お気に入りの削除に失敗しました');
-      }
-      
-      updateFavoriteButton(false);
-      showSuccessMessage('お気に入りから削除しました');
-    } else {
-      // お気に入りに追加
-      const addResponse = await fetch('/api/tables/favorites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ thread_id: currentThreadId, user_fingerprint: fp })
-      });
-      
-      if (!addResponse.ok) {
-        const errorData = await addResponse.json().catch(() => ({}));
-        throw new Error(errorData.message || 'お気に入りの追加に失敗しました');
-      }
-      
+    
+    // 新しいtoggle APIを使用
+    const toggleResponse = await fetch('/api/favorites/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        threadId: currentThreadId, 
+        userFingerprint: fp 
+      })
+    });
+    
+    if (!toggleResponse.ok) {
+      const errorData = await toggleResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || 'お気に入り操作に失敗しました');
+    }
+    
+    const result = await toggleResponse.json();
+    console.log('トグル結果:', result);
+    
+    if (result.action === 'favorited') {
       updateFavoriteButton(true);
       showSuccessMessage('お気に入りに追加しました');
+    } else if (result.action === 'unfavorited') {
+      updateFavoriteButton(false);
+      showSuccessMessage('お気に入りから削除しました');
     }
   } catch (e) {
+    console.error('お気に入り操作エラー:', e);
     handleApiError(e, 'お気に入りの更新に失敗しました');
   }
 }

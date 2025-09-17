@@ -121,3 +121,38 @@ SELECT schemaname, tablename, rowsecurity
 FROM pg_tables 
 WHERE schemaname = 'public' 
 AND tablename IN ('favorites', 'likes', 'threads', 'comments');
+
+-- ===== RPC FUNCTIONS =====
+
+-- Toggle favorite function
+CREATE OR REPLACE FUNCTION toggle_favorite(p_thread_id text, p_user_fingerprint text)
+RETURNS text AS $$
+DECLARE
+    existing_favorite_id text;
+BEGIN
+    -- Check if favorite already exists
+    SELECT id INTO existing_favorite_id 
+    FROM favorites 
+    WHERE thread_id = p_thread_id AND user_fingerprint = p_user_fingerprint
+    LIMIT 1;
+    
+    IF existing_favorite_id IS NOT NULL THEN
+        -- Remove existing favorite
+        DELETE FROM favorites 
+        WHERE id = existing_favorite_id;
+        RETURN 'unfavorited';
+    ELSE
+        -- Add new favorite
+        INSERT INTO favorites (thread_id, user_fingerprint, created_at)
+        VALUES (p_thread_id, p_user_fingerprint, NOW());
+        RETURN 'favorited';
+    END IF;
+    
+EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Error toggling favorite: %', SQLERRM;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute permission to authenticated and anonymous users
+GRANT EXECUTE ON FUNCTION toggle_favorite(text, text) TO anon;
+GRANT EXECUTE ON FUNCTION toggle_favorite(text, text) TO authenticated;
