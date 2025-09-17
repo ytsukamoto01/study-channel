@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /
+
+# 静的リソースの許可
+Allow: /css/
+Allow: /js/
+Allow: /*.png
+Allow: /*.jpg
+Allow: /*.jpeg
+Allow: /*.gif
+Allow: /*.ico
+Allow: /*.svg
+
+# APIエンドポイントのクロール除外
+Disallow: /api/
+
+# テスト・デバッグページの除外
+Disallow: /test-*
+Disallow: /debug/
+
+# サイトマップの場所
+Sitemap: https://www.studychannel.net/sitemap.xml
+
+# クロール頻度の調整
+Crawl-delay: 1

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- 静的サイトマップ -->
+  <sitemap>
+    <loc>https://www.studychannel.net/sitemap.xml</loc>
+    <lastmod>2024-09-17</lastmod>
+  </sitemap>
+
+  <!-- 動的サイトマップ（スレッド一覧） -->
+  <sitemap>
+    <loc>https://www.studychannel.net/api/sitemap/dynamic</loc>
+    <lastmod>2024-09-17</lastmod>
+  </sitemap>
+
+</sitemapindex>

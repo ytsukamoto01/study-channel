@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+
+  <!-- メインページ -->
+  <url>
+    <loc>https://www.studychannel.net/</loc>
+    <lastmod>2024-09-17</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- 個別スレッドページ（動的） -->
+  <url>
+    <loc>https://www.studychannel.net/thread.html</loc>
+    <lastmod>2024-09-17</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- お気に入り一覧ページ -->
+  <url>
+    <loc>https://www.studychannel.net/favorites.html</loc>
+    <lastmod>2024-09-17</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- あなたの投稿一覧ページ -->
+  <url>
+    <loc>https://www.studychannel.net/myposts.html</loc>
+    <lastmod>2024-09-17</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- 返信一覧ページ -->
+  <url>
+    <loc>https://www.studychannel.net/replies.html</loc>
+    <lastmod>2024-09-17</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Google Search Console認証ファイル -->
+  <url>
+    <loc>https://www.studychannel.net/googlee96a9c0ce5f4a2d5.html</loc>
+    <lastmod>2024-09-17</lastmod>
+    <changefreq>never</changefreq>
+    <priority>0.1</priority>
+  </url>
+
+</urlset>
