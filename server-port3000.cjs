@@ -125,6 +125,126 @@ function handleCommentsAPI(req, res, query) {
   res.end(JSON.stringify({ data: filteredComments }));
 }
 
+// Mock favorites storage
+let mockFavorites = [];
+
+function handleFavoritesAPI(req, res, query, body = {}) {
+  console.log(`${req.method} /api/tables/favorites - query:`, query, 'body:', body);
+  
+  if (req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ data: mockFavorites }));
+  } else if (req.method === 'POST') {
+    const newFavorite = {
+      id: `fav-${Date.now()}`,
+      thread_id: body.thread_id,
+      user_fingerprint: body.user_fingerprint || 'anonymous',
+      created_at: new Date().toISOString()
+    };
+    
+    // Check if already exists
+    const existing = mockFavorites.find(f => 
+      f.thread_id === newFavorite.thread_id && 
+      f.user_fingerprint === newFavorite.user_fingerprint
+    );
+    
+    if (!existing) {
+      mockFavorites.push(newFavorite);
+    }
+    
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ data: newFavorite }));
+  } else if (req.method === 'DELETE') {
+    const { thread_id, user_fingerprint } = body;
+    
+    if (!thread_id || !user_fingerprint) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ 
+        error: 'missing fields: thread_id and user_fingerprint required' 
+      }));
+      return;
+    }
+    
+    const initialLength = mockFavorites.length;
+    mockFavorites = mockFavorites.filter(f => 
+      !(f.thread_id === thread_id && f.user_fingerprint === user_fingerprint)
+    );
+    
+    const deletedCount = initialLength - mockFavorites.length;
+    console.log(`Deleted ${deletedCount} favorites`);
+    
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      data: [], 
+      message: 'Favorite removed successfully' 
+    }));
+  } else {
+    res.writeHead(405);
+    res.end();
+  }
+}
+
+// Mock likes storage
+let mockLikes = [];
+
+function handleLikesAPI(req, res, query, body = {}) {
+  console.log(`${req.method} /api/tables/likes - query:`, query, 'body:', body);
+  
+  if (req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ data: mockLikes }));
+  } else if (req.method === 'POST') {
+    const newLike = {
+      id: `like-${Date.now()}`,
+      target_type: body.target_type,
+      target_id: body.target_id,
+      user_fingerprint: body.user_fingerprint || 'anonymous',
+      created_at: new Date().toISOString()
+    };
+    
+    // Check if already exists
+    const existing = mockLikes.find(l => 
+      l.target_type === newLike.target_type &&
+      l.target_id === newLike.target_id && 
+      l.user_fingerprint === newLike.user_fingerprint
+    );
+    
+    if (!existing) {
+      mockLikes.push(newLike);
+    }
+    
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ data: newLike }));
+  } else if (req.method === 'DELETE') {
+    const { target_type, target_id, user_fingerprint } = body;
+    
+    if (!target_type || !target_id || !user_fingerprint) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ 
+        error: 'missing fields: target_type, target_id and user_fingerprint required' 
+      }));
+      return;
+    }
+    
+    const initialLength = mockLikes.length;
+    mockLikes = mockLikes.filter(l => 
+      !(l.target_type === target_type && l.target_id === target_id && l.user_fingerprint === user_fingerprint)
+    );
+    
+    const deletedCount = initialLength - mockLikes.length;
+    console.log(`Deleted ${deletedCount} likes`);
+    
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      data: [], 
+      message: 'Like removed successfully' 
+    }));
+  } else {
+    res.writeHead(405);
+    res.end();
+  }
+}
+
 function handleResourceIdAPI(req, res, resource, id, body = {}) {
   console.log(`${req.method} /api/tables/${resource}/${id}`);
   console.log('Request body:', body);
@@ -242,6 +362,10 @@ const server = http.createServer((req, res) => {
         res.writeHead(405);
         res.end();
       }
+    } else if (pathname === '/api/tables/favorites') {
+      handleFavoritesAPI(req, res, parsedUrl.query, parsedBody);
+    } else if (pathname === '/api/tables/likes') {
+      handleLikesAPI(req, res, parsedUrl.query, parsedBody);
     } else if (pathname === '/api/debug/supabase-test') {
       // Supabase connection test
       res.writeHead(200, { 'Content-Type': 'application/json' });
