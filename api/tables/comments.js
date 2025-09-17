@@ -116,6 +116,14 @@ export default async function handler(req, res) {
         
         console.log('Creating new comment:', body);
         
+        // Calculate next comment number for this thread
+        const { count: existingCommentsCount } = await db
+          .from('comments')
+          .select('*', { count: 'exact', head: true })
+          .eq('thread_id', body.thread_id);
+        
+        const nextCommentNumber = (existingCommentsCount || 0) + 1;
+        
         const commentData = {
           thread_id: body.thread_id,
           content: body.content || '',
@@ -123,7 +131,7 @@ export default async function handler(req, res) {
           author_name: body.author_name || '匿名',
           user_fingerprint: body.user_fingerprint || 'anonymous',
           like_count: 0,
-          comment_number: body.comment_number || 1,
+          comment_number: nextCommentNumber,
           parent_comment_id: body.parent_comment_id || null
         };
         
@@ -157,6 +165,10 @@ export default async function handler(req, res) {
         
         // フォールバック用のモック投稿レスポンス
         const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+        
+        // Generate next comment number (simulate database calculation)
+        const nextCommentNumber = Math.floor(Math.random() * 100) + 1; // Random for mock
+        
         const mockComment = {
           id: `mock-comment-${Date.now()}`,
           thread_id: body.thread_id || 'default-thread',
@@ -166,7 +178,7 @@ export default async function handler(req, res) {
           user_fingerprint: body.user_fingerprint || 'anonymous',
           created_at: new Date().toISOString(),
           like_count: 0,
-          comment_number: body.comment_number || 1,
+          comment_number: nextCommentNumber,
           parent_comment_id: body.parent_comment_id || null
         };
         

@@ -125,8 +125,9 @@ function handleCommentsAPI(req, res, query) {
   res.end(JSON.stringify({ data: filteredComments }));
 }
 
-// Mock favorites storage
+// Mock storage
 let mockFavorites = [];
+let mockCommentsStorage = [];
 
 function handleFavoritesAPI(req, res, query, body = {}) {
   console.log(`${req.method} /api/tables/favorites - query:`, query, 'body:', body);
@@ -344,17 +345,32 @@ const server = http.createServer((req, res) => {
       } else if (req.method === 'POST') {
         console.log('POST /api/tables/comments - body:', parsedBody);
         
+        // Calculate next comment number for this thread (simulate database count)
+        const threadId = parsedBody.thread_id;
+        if (!global.mockCommentsStorage) {
+          global.mockCommentsStorage = [];
+        }
+        const existingCommentsForThread = global.mockCommentsStorage.filter(c => c.thread_id === threadId);
+        const nextCommentNumber = existingCommentsForThread.length + 1;
+        
         const newComment = {
           id: `comment-${Date.now()}`,
           thread_id: parsedBody.thread_id,
           content: parsedBody.content || 'New comment',
+          images: Array.isArray(parsedBody.images) ? parsedBody.images : [],
           author_name: parsedBody.author_name || '匿名',
           user_fingerprint: parsedBody.user_fingerprint || 'anonymous',
           created_at: new Date().toISOString(),
           like_count: 0,
-          comment_number: Math.floor(Math.random() * 100) + 1,
+          comment_number: nextCommentNumber,
           parent_comment_id: parsedBody.parent_comment_id || null
         };
+        
+        // Store comment for future requests (in-memory storage)
+        if (!global.mockCommentsStorage) {
+          global.mockCommentsStorage = [];
+        }
+        global.mockCommentsStorage.push(newComment);
         
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ data: newComment }));
