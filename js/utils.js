@@ -746,10 +746,19 @@ function formatAuthorName(authorName) {
 // API呼び出し用のヘルパー関数
 // utils.js に追加 or 置換
 async function apiCall(url, options = {}) {
+  console.log('=== API CALL ===');
+  console.log('URL:', url);
+  console.log('Options:', options);
+  
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
     ...options
   });
+  
+  console.log('=== API RESPONSE ===');
+  console.log('Status:', res.status);
+  console.log('Headers:', Object.fromEntries(res.headers.entries()));
+  
   if (!res.ok) {
     let errorMessage = `API ${url} failed: ${res.status}`;
     try {

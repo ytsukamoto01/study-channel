@@ -103,7 +103,10 @@ export default async function handler(req, res) {
       try {
         // Single thread request (e.g., /api/tables/threads/[id])
         if (threadId && threadId !== 'threads') {
-          console.log('Fetching single thread:', threadId);
+          console.log('=== THREADS API: Fetching single thread ===');
+          console.log('Thread ID:', threadId);
+          console.log('Request URL:', req.url);
+          console.log('Request method:', req.method);
           
           const { data: threadData, error } = await db
             .from('threads')

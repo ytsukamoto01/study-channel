@@ -131,13 +131,17 @@ function scrollToCommentForm() {
 // スレッド詳細読み込み
 async function loadThreadDetail(threadId) {
   try {
-    console.log('Loading thread detail for ID:', threadId);
+    console.log('=== FRONTEND: Loading thread detail ===');
+    console.log('Thread ID:', threadId);
     console.log('API URL:', `/api/tables/threads/${threadId}`);
     
     const response = await apiCall(`/api/tables/threads/${threadId}`);
-    console.log('API Response:', response);
+    console.log('=== FRONTEND: API Response received ===');
+    console.log('Full API Response:', response);
+    console.log('Response status:', response.status);
     console.log('Thread data received:', response.data);
     console.log('Thread like_count from API:', response.data?.like_count);
+    console.log('Thread object keys:', Object.keys(response.data || {}));
     
     currentThread = response.data;
     if (!currentThread || !currentThread.id) {
