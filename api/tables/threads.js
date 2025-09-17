@@ -4,27 +4,57 @@ import { supabase, parseListParams } from '../_supabase.js';
 // Calculate real-time like count and comment count for a thread
 async function calculateThreadCounts(db, thread) {
   try {
+    console.log('calculateThreadCounts called for thread:', thread.id, thread.title);
+    
     // Calculate like count
-    const { count: likeCount } = await db
+    const { count: likeCount, error: likesError } = await db
       .from('likes')
       .select('*', { count: 'exact', head: true })
       .eq('target_type', 'thread')
       .eq('target_id', thread.id);
     
+    if (likesError) {
+      console.error('Error fetching like count for thread', thread.id, ':', likesError);
+    }
+    
+    console.log('Like count for thread', thread.id, ':', likeCount);
+    
     // Calculate comment count (both parent comments and replies)
-    const { count: commentCount } = await db
+    const { count: commentCount, error: commentsError } = await db
       .from('comments')
       .select('*', { count: 'exact', head: true })
       .eq('thread_id', thread.id);
     
-    return {
+    if (commentsError) {
+      console.error('Error fetching comment count for thread', thread.id, ':', commentsError);
+    }
+    
+    console.log('Comment count for thread', thread.id, ':', commentCount);
+    
+    const updatedThread = {
       ...thread,
       like_count: likeCount || 0,
       reply_count: commentCount || 0
     };
+    
+    console.log('Updated thread with counts:', {
+      id: updatedThread.id,
+      title: updatedThread.title,
+      original_like_count: thread.like_count,
+      new_like_count: updatedThread.like_count,
+      reply_count: updatedThread.reply_count
+    });
+    
+    return updatedThread;
   } catch (error) {
-    console.error('Error calculating thread counts:', error);
+    console.error('Error calculating thread counts for thread', thread.id, ':', error);
+    console.error('Error stack:', error.stack);
     // Return thread with original counts if calculation fails
+    console.log('Returning original thread due to error:', {
+      id: thread.id,
+      title: thread.title,
+      original_like_count: thread.like_count
+    });
     return thread;
   }
 }
