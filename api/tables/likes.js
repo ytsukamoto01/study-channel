@@ -109,7 +109,10 @@ export default async function handler(req, res) {
           });
         }
         
-        const { data, error } = await db
+        // Use service role for delete operations to bypass RLS
+        const serviceDb = supabase(true);
+        
+        const { data, error } = await serviceDb
           .from('likes')
           .delete()
           .eq('target_type', body.target_type)
@@ -134,7 +137,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ 
           error: 'Failed to delete like',
           message: supabaseError.message,
-          need_config: !process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY
+          need_config: !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY
         });
       }
     }
