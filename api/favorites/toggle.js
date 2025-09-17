@@ -1,13 +1,19 @@
 // /api/favorites/toggle.js - Vercel API Routes対応
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase Admin Client (Service Role Key使用)
+// Supabase Admin Client (Service Role Key使用) - 既存の環境変数パターンに対応
 function getSupabaseAdmin() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // 複数の環境変数パターンをフォールバック
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
   
   if (!supabaseUrl || !serviceKey) {
-    throw new Error('Missing Supabase environment variables: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+    console.error('Missing Supabase environment variables');
+    console.error('SUPABASE_URL:', supabaseUrl ? 'SET' : 'NOT_SET');
+    console.error('SERVICE_KEY:', serviceKey ? 'SET' : 'NOT_SET');
+    console.error('Available env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
+    
+    throw new Error(`Missing Supabase environment variables. Required: SUPABASE_URL${supabaseUrl ? ' ✓' : ' ✗'}, SUPABASE_SERVICE_ROLE_KEY${serviceKey ? ' ✓' : ' ✗'}`);
   }
   
   return createClient(supabaseUrl, serviceKey, { 
