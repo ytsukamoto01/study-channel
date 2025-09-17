@@ -94,7 +94,23 @@ export default async function handler(req, res) {
           }
           
           // Calculate real-time counts
+          console.log('About to calculate thread counts for thread:', threadData.id);
+          console.log('Thread data before calculation:', {
+            id: threadData.id,
+            title: threadData.title,
+            original_like_count: threadData.like_count
+          });
+          
           const updatedThread = await calculateThreadCounts(db, threadData);
+          
+          console.log('Thread counts calculation completed for:', threadData.id);
+          console.log('Updated thread data:', {
+            id: updatedThread.id,
+            title: updatedThread.title,
+            original_like_count: threadData.like_count,
+            calculated_like_count: updatedThread.like_count,
+            reply_count: updatedThread.reply_count
+          });
           
           console.log('Successfully fetched single thread:', updatedThread.title);
           return res.status(200).json({ data: updatedThread });
