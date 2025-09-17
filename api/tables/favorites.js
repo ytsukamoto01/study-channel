@@ -78,45 +78,6 @@ export default async function handler(req, res) {
 
     if (req.method === 'DELETE') {
       try {
-        // DELETE用にthread_idとuser_fingerprintで削除する方式に変更
-        const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
-        const { thread_id, user_fingerprint } = body;
-        
-        if (!thread_id || !user_fingerprint) {
-          return res.status(400).json({ 
-            error: 'thread_id and user_fingerprint required for deletion' 
-          });
-        }
-        
-        console.log('Deleting favorite for thread:', thread_id, 'user:', user_fingerprint);
-        
-        const { error } = await db
-          .from('favorites')
-          .delete()
-          .eq('thread_id', thread_id)
-          .eq('user_fingerprint', user_fingerprint);
-        
-        if (error) {
-          console.error('Supabase favorite delete error:', error);
-          throw error;
-        }
-        
-        console.log('Successfully deleted favorite from Supabase');
-        return res.status(204).end();
-        
-      } catch (supabaseError) {
-        console.error('Supabase favorite deletion error:', supabaseError);
-        
-        return res.status(500).json({ 
-          error: 'Failed to delete favorite',
-          message: supabaseError.message,
-          need_config: !process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY
-        });
-      }
-    }
-
-    if (req.method === 'DELETE') {
-      try {
         const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
         
         console.log('Deleting favorite:', body);

@@ -751,9 +751,27 @@ async function apiCall(url, options = {}) {
     ...options
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API ${url} failed: ${res.status} ${text}`);
+    let errorMessage = `API ${url} failed: ${res.status}`;
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch (e) {
+      // JSONパースに失敗した場合はテキストを取得
+      try {
+        const text = await res.text();
+        errorMessage = text || errorMessage;
+      } catch (e2) {
+        // テキスト取得も失敗した場合はデフォルトメッセージを使用
+      }
+    }
+    throw new Error(errorMessage);
   }
+  
+  // DELETEメソッドで204 No Contentの場合は空オブジェクトを返す
+  if (res.status === 204) {
+    return {};
+  }
+  
   return await res.json();
 }
 

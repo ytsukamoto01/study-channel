@@ -3,7 +3,7 @@ const url = require('url');
 const path = require('path');
 const fs = require('fs');
 
-const port = 3001;
+const port = 3000;
 
 // Mock data handlers - same as test server but for port 3000
 function handleThreadsAPI(req, res, query) {
