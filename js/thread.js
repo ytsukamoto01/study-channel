@@ -136,6 +136,8 @@ async function loadThreadDetail(threadId) {
     
     const response = await apiCall(`/api/tables/threads/${threadId}`);
     console.log('API Response:', response);
+    console.log('Thread data received:', response.data);
+    console.log('Thread like_count from API:', response.data?.like_count);
     
     currentThread = response.data;
     if (!currentThread || !currentThread.id) {
@@ -177,11 +179,25 @@ async function loadThreadDetail(threadId) {
 
 // スレッド表示
 function displayThreadDetail(thread) {
+  console.log('displayThreadDetail called with thread:', thread);
+  console.log('Thread like_count value:', thread.like_count);
+  
   document.getElementById('threadTitle').textContent = thread.title;
   document.getElementById('threadAuthor').innerHTML = formatAuthorName(thread.author_name);
   document.getElementById('threadDate').textContent = getRelativeTime(new Date(thread.created_at).getTime());
   document.getElementById('threadContent').textContent = thread.content;
-  document.getElementById('threadLikeCount').textContent = thread.like_count || 0;
+  
+  // いいね数の設定を強化
+  const likeCountElement = document.getElementById('threadLikeCount');
+  const likeCount = thread.like_count || 0;
+  console.log('Setting thread like count to:', likeCount);
+  
+  if (likeCountElement) {
+    likeCountElement.textContent = likeCount;
+    console.log('Thread like count element updated. Current text:', likeCountElement.textContent);
+  } else {
+    console.error('threadLikeCount element not found!');
+  }
 
   const categoryBadge = document.getElementById('threadCategoryBadge');
   if (categoryBadge) {
@@ -467,7 +483,20 @@ async function likeThread() {
     const threadLikeCountElement = document.getElementById('threadLikeCount');
     if (threadLikeCountElement) {
       const currentCount = parseInt(threadLikeCountElement.textContent || '0');
-      threadLikeCountElement.textContent = currentCount + 1;
+      const newCount = currentCount + 1;
+      threadLikeCountElement.textContent = newCount;
+      console.log('Thread like count updated from', currentCount, 'to', newCount);
+      
+      // ボタンにアニメーション効果も追加
+      const likeButton = threadLikeCountElement.closest('.like-btn');
+      if (likeButton) {
+        likeButton.style.transform = 'scale(1.1)';
+        setTimeout(() => {
+          likeButton.style.transform = 'scale(1)';
+        }, 150);
+      }
+    } else {
+      console.error('threadLikeCount element not found during like update!');
     }
     
     showSuccessMessage('いいねしました！');
