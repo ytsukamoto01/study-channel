@@ -872,8 +872,22 @@ body {
 .search-filters {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 15px;
     flex-wrap: wrap;
+}
+
+.search-main-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.search-filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-left: auto;
 }
 
 .search-type-select {
@@ -1777,13 +1791,27 @@ body {
         gap: 10px;
     }
     
-    .filter-group {
+    .search-main-controls {
+        width: 100%;
+        justify-content: stretch;
+    }
+    
+    .search-filter-controls {
+        width: 100%;
+        margin-left: 0;
         justify-content: space-between;
     }
     
+    .filter-group {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
     .search-btn {
-        width: 100%;
+        flex: 1;
         justify-content: center;
+        margin-left: 10px;
     }
 }
 
