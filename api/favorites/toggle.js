@@ -1,25 +1,5 @@
 // /api/favorites/toggle.js - Vercel API Routes対応
-import { createClient } from '@supabase/supabase-js';
-
-// Supabase Admin Client (Service Role Key使用) - 既存の環境変数パターンに対応
-function getSupabaseAdmin() {
-  // 複数の環境変数パターンをフォールバック
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-  
-  if (!supabaseUrl || !serviceKey) {
-    console.error('Missing Supabase environment variables');
-    console.error('SUPABASE_URL:', supabaseUrl ? 'SET' : 'NOT_SET');
-    console.error('SERVICE_KEY:', serviceKey ? 'SET' : 'NOT_SET');
-    console.error('Available env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
-    
-    throw new Error(`Missing Supabase environment variables. Required: SUPABASE_URL${supabaseUrl ? ' ✓' : ' ✗'}, SUPABASE_SERVICE_ROLE_KEY${serviceKey ? ' ✓' : ' ✗'}`);
-  }
-  
-  return createClient(supabaseUrl, serviceKey, { 
-    auth: { persistSession: false, autoRefreshToken: false } 
-  });
-}
+import { supabase } from '../_supabase.js';
 
 export default async function handler(req, res) {
   // CORS headers
@@ -46,10 +26,11 @@ export default async function handler(req, res) {
 
     console.log('Toggle favorite:', { threadId, userFingerprint });
 
-    const supabaseAdmin = getSupabaseAdmin();
+    // Use service role for admin operations (bypass RLS)
+    const serviceDb = supabase(true);
     
     // Call Supabase RPC function
-    const { data, error } = await supabaseAdmin.rpc('toggle_favorite', {
+    const { data, error } = await serviceDb.rpc('toggle_favorite', {
       p_thread_id: threadId,
       p_user_fingerprint: userFingerprint,
     });
