@@ -873,6 +873,7 @@ body {
     display: flex;
     align-items: center;
     gap: 15px;
+    flex-wrap: wrap;
 }
 
 .search-type-select {
@@ -881,6 +882,55 @@ body {
     border-radius: 6px;
     background-color: white;
     cursor: pointer;
+}
+
+.search-btn {
+    background-color: #667eea;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.search-btn:hover {
+    background-color: #5a67d8;
+    transform: translateY(-1px);
+}
+
+.search-btn i {
+    font-size: 13px;
+}
+
+/* フィルターグループのスタイル */
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.filter-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+    margin: 0;
+}
+
+.filter-select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background-color: white;
+    cursor: pointer;
+    font-size: 14px;
+    min-width: 100px;
 }
 
 .advanced-search-btn {
@@ -902,19 +952,13 @@ body {
     background-color: #667eea;
 }
 
-/* 詳細検索パネル */
+/* 詳細検索パネル（使用停止 - フィルターは検索バーに統合） */
 .advanced-search-panel {
     display: none;
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    padding: 20px;
-    margin-top: 15px;
-    border: 1px solid #e9ecef;
 }
 
 .advanced-search-panel.active {
-    display: block;
-    animation: slideDown 0.3s ease;
+    display: none;
 }
 
 @keyframes slideDown {
@@ -1689,6 +1733,58 @@ body {
 
 .image-modal-close:hover {
   color: #ccc;
+}
+
+/* 検索ハイライト */
+.search-highlight {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+/* 検索結果の空状態用ボタン */
+.clear-search-btn {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 15px;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.clear-search-btn:hover {
+    background-color: #5a6268;
+    transform: translateY(-1px);
+}
+
+.clear-search-btn i {
+    font-size: 12px;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .search-filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .filter-group {
+        justify-content: space-between;
+    }
+    
+    .search-btn {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 

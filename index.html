@@ -111,24 +111,21 @@
                     <button class="search-btn" onclick="executeSearch()">
                         <i class="fas fa-search"></i> 検索実行
                     </button>
-                </div>
-            </div>
-            
-            <!-- 検索フィルター（期間・並び順） -->
-            <div class="advanced-search-panel" id="advancedSearchPanel" style="display: block;">
-                <div class="search-options">
-                    <div class="search-option">
+                    
+                    <!-- 期間・並び順フィルターを同じ行に配置 -->
+                    <div class="filter-group">
                         <label>期間:</label>
-                        <select id="dateFilter" onchange="executeSearch()">
+                        <select id="dateFilter" class="filter-select" onchange="executeSearch()">
                             <option value="all">すべて</option>
                             <option value="today">今日</option>
                             <option value="week">1週間</option>
                             <option value="month">1ヶ月</option>
                         </select>
                     </div>
-                    <div class="search-option">
+                    
+                    <div class="filter-group">
                         <label>並び順:</label>
-                        <select id="sortOrder" onchange="executeSearch()">
+                        <select id="sortOrder" class="filter-select" onchange="executeSearch()">
                             <option value="newest">新しい順</option>
                             <option value="oldest">古い順</option>
                             <option value="popular">人気順</option>
