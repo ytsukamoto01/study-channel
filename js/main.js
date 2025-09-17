@@ -1081,7 +1081,7 @@ async function toggleFavoriteFromList(threadId, button) {
         
         if (existingFavorite) {
             console.log('既存のお気に入りを削除:', existingFavorite.id);
-            // お気に入りから削除（新しい方式でthread_idとuser_fingerprintを使用）
+            // お気に入りから削除
             const deleteResponse = await fetch('/api/tables/favorites', {
                 method: 'DELETE',
                 headers: {
@@ -1094,15 +1094,24 @@ async function toggleFavoriteFromList(threadId, button) {
             });
             
             if (!deleteResponse.ok) {
-                throw new Error('お気に入りの削除に失敗しました');
+                const errorData = await deleteResponse.json().catch(() => ({}));
+                throw new Error(errorData.message || 'お気に入りの削除に失敗しました');
             }
             
+            // 即座にUIを更新
             button.classList.remove('favorited');
             const icon = button.querySelector('i');
             if (icon) {
                 icon.classList.remove('fas');
                 icon.classList.add('far');
             }
+            
+            // アニメーション効果
+            button.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                button.style.transform = 'scale(1)';
+            }, 150);
+            
             showMessage('お気に入りから削除しました', 'success');
         } else {
             console.log('新しいお気に入りを追加');

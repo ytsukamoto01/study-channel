@@ -53,6 +53,21 @@
         <h3>返信を投稿</h3>
         <form id="replyForm" class="comment-form">
           <textarea id="replyContent" rows="4" placeholder="返信を入力..."></textarea>
+          
+          <!-- 画像添付機能 -->
+          <div class="form-group">
+            <label for="replyImages">画像添付</label>
+            <div class="image-upload-wrapper">
+              <input type="file" id="replyImages" accept="image/*" multiple onchange="handleImageUpload(event, 'reply')">
+              <div class="image-upload-area" onclick="document.getElementById('replyImages').click()">
+                <i class="fas fa-camera"></i>
+                <p>画像を選択またはドラッグ&ドロップ</p>
+                <small>最大5枚まで（JPG, PNG, GIF対応）</small>
+              </div>
+              <div class="image-preview-container" id="replyImagePreview"></div>
+            </div>
+          </div>
+          
           <div class="comment-author-selection">
             <label><input type="radio" name="commentAuthorType" value="anonymous" checked> 匿名</label>
             <label><input type="radio" name="commentAuthorType" value="custom"> 名前を入力</label>
@@ -65,6 +80,14 @@
       </section>
     </div>
   </main>
+
+  <!-- Image Modal -->
+  <div class="image-modal-overlay" id="imageModal">
+    <div class="image-modal-content">
+      <button class="image-modal-close" onclick="closeImageModal()">&times;</button>
+      <img id="modalImage" src="" alt="拡大画像">
+    </div>
+  </div>
 
   <script src="js/utils.js"></script>
   <script src="js/replies.js"></script>

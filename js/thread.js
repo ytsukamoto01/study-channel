@@ -280,6 +280,18 @@ function renderParentItem(c) {
   const likeCount = c.like_count || 0;
   const repliesCount = c.reply_count_local || 0;
 
+  // 画像表示
+  const imagesHtml = (Array.isArray(c.images) && c.images.length > 0) 
+    ? `<div class="comment-images">
+         <div class="image-gallery">
+           ${c.images.map((imageUrl, index) => `
+             <img src="${imageUrl}" alt="コメント画像${index + 1}" class="gallery-image" 
+                  onclick="openImageModal('${imageUrl}')">
+           `).join('')}
+         </div>
+       </div>`
+    : '';
+
   // 「返信する」→ replies.html へ遷移＆フォームへスクロール
   const replyLink = `replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}#replyFormSection`;
 
@@ -300,6 +312,7 @@ function renderParentItem(c) {
         <span class="date">${dateHtml}</span>
       </div>
       <div class="comment-content">${contentHtml}</div>
+      ${imagesHtml}
       <div class="comment-actions">
         <button class="comment-reply-btn" onclick="location.href='${replyLink}'">
           <i class="fas fa-reply"></i> 返信
@@ -370,7 +383,15 @@ async function likeThisComment(commentId) {
 async function handleCommentSubmit(e) {
   e.preventDefault();
   const content = document.getElementById('commentContent').value.trim();
-  if (!content) return showMessage('コメントを入力してください', 'error');
+  
+  // 画像データを取得してバリデーション
+  const images = (typeof uploadedImages !== 'undefined' && Array.isArray(uploadedImages.comment)) 
+    ? uploadedImages.comment 
+    : [];
+  
+  if (!content && images.length === 0) {
+    return showMessage('コメント内容または画像を入力してください', 'error');
+  }
 
   const authorRadio = document.querySelector('input[name="commentAuthorType"]:checked');
   const authorName = authorRadio?.value === 'custom'
@@ -383,6 +404,7 @@ async function handleCommentSubmit(e) {
       body: JSON.stringify({
         thread_id: currentThreadId,
         content,
+        images: images,
         author_name: authorName,
         user_fingerprint: userFingerprint
       })
@@ -396,6 +418,15 @@ async function handleCommentSubmit(e) {
     }
     
     document.getElementById('commentContent').value = '';
+    
+    // 画像データをクリア
+    if (typeof uploadedImages !== 'undefined') {
+      uploadedImages.comment = [];
+      if (typeof updateImagePreview === 'function') {
+        updateImagePreview('comment');
+      }
+    }
+    
     showSuccessMessage('コメントを投稿しました！');
     
     // コメント一覧を再読み込み
@@ -527,8 +558,8 @@ async function toggleFavorite() {
     const favorites = json.data || [];
     const exist = favorites.find(f => f.thread_id === currentThreadId && f.user_fingerprint === fp);
     if (exist) {
-      // thread_idとuser_fingerprintで削除
-      await fetch('/api/tables/favorites', { 
+      // お気に入りから削除
+      const deleteResponse = await fetch('/api/tables/favorites', { 
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -536,14 +567,27 @@ async function toggleFavorite() {
           user_fingerprint: fp 
         })
       });
+      
+      if (!deleteResponse.ok) {
+        const errorData = await deleteResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || 'お気に入りの削除に失敗しました');
+      }
+      
       updateFavoriteButton(false);
       showSuccessMessage('お気に入りから削除しました');
     } else {
-      await fetch('/api/tables/favorites', {
+      // お気に入りに追加
+      const addResponse = await fetch('/api/tables/favorites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ thread_id: currentThreadId, user_fingerprint: fp })
       });
+      
+      if (!addResponse.ok) {
+        const errorData = await addResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || 'お気に入りの追加に失敗しました');
+      }
+      
       updateFavoriteButton(true);
       showSuccessMessage('お気に入りに追加しました');
     }

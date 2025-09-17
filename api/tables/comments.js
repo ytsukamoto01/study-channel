@@ -64,6 +64,7 @@ export default async function handler(req, res) {
             id: `comment-${threadId}-1`,
             thread_id: threadId,
             content: 'これはテスト用のコメントです。Supabase接続に問題があるため、モックデータを表示しています。',
+            images: [],
             author_name: 'テストユーザー1',
             user_fingerprint: 'test-user-1',
             created_at: new Date(Date.now() - 3600000).toISOString(), // 1時間前
@@ -75,6 +76,7 @@ export default async function handler(req, res) {
             id: `comment-${threadId}-2`,
             thread_id: threadId,
             content: 'これも別のテストコメントです。データベース接続が復旧すれば実際のデータが表示されます。',
+            images: [],
             author_name: 'テストユーザー2',
             user_fingerprint: 'test-user-2',
             created_at: new Date(Date.now() - 1800000).toISOString(), // 30分前
@@ -86,6 +88,7 @@ export default async function handler(req, res) {
             id: `comment-${threadId}-3`,
             thread_id: threadId,
             content: '>> 1\nこれは返信のテストです。',
+            images: [],
             author_name: 'テストユーザー3',
             user_fingerprint: 'test-user-3',
             created_at: new Date(Date.now() - 900000).toISOString(), // 15分前
@@ -115,13 +118,22 @@ export default async function handler(req, res) {
         
         const commentData = {
           thread_id: body.thread_id,
-          content: body.content || 'New comment',
+          content: body.content || '',
+          images: Array.isArray(body.images) ? body.images : [],
           author_name: body.author_name || '匿名',
           user_fingerprint: body.user_fingerprint || 'anonymous',
           like_count: 0,
           comment_number: body.comment_number || 1,
           parent_comment_id: body.parent_comment_id || null
         };
+        
+        // バリデーション: コンテンツまたは画像のどちらかが必要
+        if (!commentData.content.trim() && (!commentData.images || commentData.images.length === 0)) {
+          return res.status(400).json({ 
+            error: 'Content or images required',
+            message: 'コメントにはテキストまたは画像が必要です'
+          });
+        }
         
         const { data, error } = await db
           .from('comments')
@@ -149,6 +161,7 @@ export default async function handler(req, res) {
           id: `mock-comment-${Date.now()}`,
           thread_id: body.thread_id || 'default-thread',
           content: body.content || 'New comment',
+          images: Array.isArray(body.images) ? body.images : [],
           author_name: body.author_name || '匿名',
           user_fingerprint: body.user_fingerprint || 'anonymous',
           created_at: new Date().toISOString(),

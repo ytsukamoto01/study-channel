@@ -91,6 +91,19 @@ function renderParent(c) {
   const box = document.getElementById('parentCommentBox');
   if (!box) return;
   box.setAttribute('data-comment-id', c.id);
+  
+  // 画像表示
+  const imagesHtml = (Array.isArray(c.images) && c.images.length > 0) 
+    ? `<div class="comment-images">
+         <div class="image-gallery">
+           ${c.images.map((imageUrl, index) => `
+             <img src="${imageUrl}" alt="コメント画像${index + 1}" class="gallery-image" 
+                  onclick="openImageModal('${imageUrl}')">
+           `).join('')}
+         </div>
+       </div>`
+    : '';
+  
   box.innerHTML = `
     <div class="comment-header">
       <span class="comment-number">${c.comment_number != null ? `${c.comment_number}.` : ''}</span>
@@ -98,6 +111,7 @@ function renderParent(c) {
       <span class="date">${getRelativeTime(new Date(c.created_at).getTime())}</span>
     </div>
     <div class="comment-content">${escapeHtml(c.content || '')}</div>
+    ${imagesHtml}
     <div class="comment-actions">
       <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
         <i class="fas fa-heart"></i> <span class="comment-like-count">${c.like_count || 0}</span>
@@ -136,27 +150,50 @@ function renderReplies(list) {
     return;
   }
 
-  wrap.innerHTML = list.map(c => `
-    <div class="reply-item" data-comment-id="${c.id}">
-      <div class="comment-header">
-        <span class="comment-author">${escapeHtml(c.author_name || '匿名')}</span>
-        <span class="date">${getRelativeTime(new Date(c.created_at).getTime())}</span>
+  wrap.innerHTML = list.map(c => {
+    // 画像表示
+    const imagesHtml = (Array.isArray(c.images) && c.images.length > 0) 
+      ? `<div class="comment-images">
+           <div class="image-gallery">
+             ${c.images.map((imageUrl, index) => `
+               <img src="${imageUrl}" alt="返信画像${index + 1}" class="gallery-image" 
+                    onclick="openImageModal('${imageUrl}')">
+             `).join('')}
+           </div>
+         </div>`
+      : '';
+
+    return `
+      <div class="reply-item" data-comment-id="${c.id}">
+        <div class="comment-header">
+          <span class="comment-author">${escapeHtml(c.author_name || '匿名')}</span>
+          <span class="date">${getRelativeTime(new Date(c.created_at).getTime())}</span>
+        </div>
+        <div class="comment-content">${escapeHtml(c.content || '')}</div>
+        ${imagesHtml}
+        <div class="comment-actions">
+          <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
+            <i class="fas fa-heart"></i> <span class="comment-like-count">${c.like_count || 0}</span>
+          </button>
+        </div>
       </div>
-      <div class="comment-content">${escapeHtml(c.content || '')}</div>
-      <div class="comment-actions">
-        <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
-          <i class="fas fa-heart"></i> <span class="comment-like-count">${c.like_count || 0}</span>
-        </button>
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 // 返信投稿
 async function handleReplySubmit(e) {
   e.preventDefault();
   const content = document.getElementById('replyContent').value.trim();
-  if (!content) return showMessage('返信を入力してください', 'error');
+  
+  // 画像データを取得してバリデーション
+  const images = (typeof uploadedImages !== 'undefined' && Array.isArray(uploadedImages.reply)) 
+    ? uploadedImages.reply 
+    : [];
+  
+  if (!content && images.length === 0) {
+    return showMessage('返信内容または画像を入力してください', 'error');
+  }
 
   const authorRadio = document.querySelector('input[name="commentAuthorType"]:checked');
   const authorName = authorRadio?.value === 'custom'
@@ -170,6 +207,7 @@ async function handleReplySubmit(e) {
         thread_id: currentThreadId,
         parent_comment_id: parentCommentId,
         content,
+        images: images,
         author_name: authorName,
         user_fingerprint: userFingerprint
       })
@@ -183,6 +221,15 @@ async function handleReplySubmit(e) {
     }
     
     document.getElementById('replyContent').value = '';
+    
+    // 画像データをクリア（reply用）
+    if (typeof uploadedImages !== 'undefined') {
+      uploadedImages.reply = [];
+      if (typeof updateImagePreview === 'function') {
+        updateImagePreview('reply');
+      }
+    }
+    
     showMessage('返信を投稿しました！', 'success');
     
     // 返信一覧を再読み込み

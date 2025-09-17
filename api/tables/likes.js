@@ -97,6 +97,48 @@ export default async function handler(req, res) {
       }
     }
 
+    if (req.method === 'DELETE') {
+      try {
+        const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+        
+        console.log('Deleting like:', body);
+        
+        if (!body.target_type || !body.target_id || !body.user_fingerprint) {
+          return res.status(400).json({ 
+            error: 'missing fields: target_type, target_id, user_fingerprint required' 
+          });
+        }
+        
+        const { data, error } = await db
+          .from('likes')
+          .delete()
+          .eq('target_type', body.target_type)
+          .eq('target_id', body.target_id)
+          .eq('user_fingerprint', body.user_fingerprint)
+          .select();
+        
+        if (error) {
+          console.error('Supabase like delete error:', error);
+          throw error;
+        }
+        
+        console.log('Successfully deleted like from Supabase:', data?.length || 0, 'rows');
+        return res.status(200).json({ 
+          data: data || [], 
+          message: 'Like removed successfully'
+        });
+        
+      } catch (supabaseError) {
+        console.error('Supabase like deletion error:', supabaseError);
+        
+        return res.status(500).json({ 
+          error: 'Failed to delete like',
+          message: supabaseError.message,
+          need_config: !process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY
+        });
+      }
+    }
+
     return res.status(405).json({ error: 'method not allowed' });
     
   } catch (error) {

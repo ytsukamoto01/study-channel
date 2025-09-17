@@ -115,6 +115,47 @@ export default async function handler(req, res) {
       }
     }
 
+    if (req.method === 'DELETE') {
+      try {
+        const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
+        
+        console.log('Deleting favorite:', body);
+        
+        if (!body.thread_id || !body.user_fingerprint) {
+          return res.status(400).json({ 
+            error: 'missing fields: thread_id and user_fingerprint required' 
+          });
+        }
+        
+        const { data, error } = await db
+          .from('favorites')
+          .delete()
+          .eq('thread_id', body.thread_id)
+          .eq('user_fingerprint', body.user_fingerprint)
+          .select();
+        
+        if (error) {
+          console.error('Supabase favorite delete error:', error);
+          throw error;
+        }
+        
+        console.log('Successfully deleted favorite from Supabase:', data?.length || 0, 'rows');
+        return res.status(200).json({ 
+          data: data || [], 
+          message: 'Favorite removed successfully'
+        });
+        
+      } catch (supabaseError) {
+        console.error('Supabase favorite deletion error:', supabaseError);
+        
+        return res.status(500).json({ 
+          error: 'Failed to delete favorite',
+          message: supabaseError.message,
+          need_config: !process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY
+        });
+      }
+    }
+
     return res.status(405).json({ error: 'method not allowed' });
 
   } catch (error) {

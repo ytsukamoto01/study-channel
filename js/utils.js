@@ -153,12 +153,20 @@ function validateThreadData(data) {
 function validateCommentData(data) {
     const errors = [];
     
-    if (!data.content || data.content.trim().length === 0) {
-        errors.push('返信内容を入力してください');
+    // コメント内容または画像のどちらかが必要
+    const hasContent = data.content && data.content.trim().length > 0;
+    const hasImages = Array.isArray(data.images) && data.images.length > 0;
+    
+    if (!hasContent && !hasImages) {
+        errors.push('コメント内容または画像を入力してください');
     }
     
     if (data.content && data.content.length > 1000) {
-        errors.push('返信は1000文字以内で入力してください');
+        errors.push('コメントは1000文字以内で入力してください');
+    }
+    
+    if (data.images && data.images.length > 5) {
+        errors.push('画像は最大5枚までです');
     }
     
     return errors;
@@ -248,7 +256,8 @@ function showMessage(message, type = 'info') {
 // 画像アップロード管理
 let uploadedImages = {
     thread: [],
-    comment: []
+    comment: [],
+    reply: []
 };
 
 // 画像アップロード処理
@@ -337,29 +346,38 @@ function displayImageGallery(images, containerId) {
 
 // 画像モーダルを開く
 function openImageModal(imageUrl) {
-    const modal = document.createElement('div');
-    modal.className = 'image-modal';
-    modal.innerHTML = `
-        <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
-        <img src="${imageUrl}" alt="拡大画像">
-    `;
+    const modal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
     
-    document.body.appendChild(modal);
-    modal.style.display = 'block';
-    
-    // モーダル外クリックで閉じる
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeImageModal();
-        }
-    });
+    if (modal && modalImage) {
+        modalImage.src = imageUrl;
+        modal.classList.add('active');
+        
+        // ESCキーで閉じる
+        document.addEventListener('keydown', handleEscapeKey);
+        
+        // モーダル外クリックで閉じる
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeImageModal();
+            }
+        });
+    }
 }
 
 // 画像モーダルを閉じる
 function closeImageModal() {
-    const modal = document.querySelector('.image-modal');
+    const modal = document.getElementById('imageModal');
     if (modal) {
-        modal.remove();
+        modal.classList.remove('active');
+        document.removeEventListener('keydown', handleEscapeKey);
+    }
+}
+
+// ESCキーハンドラー
+function handleEscapeKey(e) {
+    if (e.key === 'Escape') {
+        closeImageModal();
     }
 }
 
