@@ -675,47 +675,95 @@ function performSearch() {
     currentSearchTerm = searchInput ? searchInput.value.trim() : '';
     currentSearchType = searchTypeSelect ? searchTypeSelect.value : 'all';
     
-    displayThreads(currentFilter);
+    // フィルタされたスレッドを検索で絞り込み
+    let threadsToDisplay = currentThreads;
+    
+    // カテゴリフィルタ
+    if (currentFilter && currentFilter !== 'all') {
+        threadsToDisplay = threadsToDisplay.filter(thread => thread.category === currentFilter);
+    }
+    
+    // 検索フィルタ
+    if (currentSearchTerm) {
+        threadsToDisplay = filterThreadsBySearch(threadsToDisplay, currentSearchTerm, currentSearchType);
+    }
+    
+    // 日付フィルタ
+    const dateFilter = document.getElementById('dateFilter');
+    if (dateFilter && dateFilter.value !== 'all') {
+        threadsToDisplay = filterThreadsByDate(threadsToDisplay, dateFilter.value);
+    }
+    
+    // ソート
+    const sortOrder = document.getElementById('sortOrder');
+    if (sortOrder) {
+        threadsToDisplay = sortThreads(threadsToDisplay, sortOrder.value);
+    }
+    
+    // 検索結果を表示
+    displaySearchResults(threadsToDisplay);
+    
+    // 検索結果情報を更新
+    updateSearchResultsInfo(threadsToDisplay);
+}
+
+// 検索実行関数（ボタン用）
+function executeSearch() {
+    performSearch();
+}
+
+// Enterキー押下時の検索実行
+function handleSearchKeyPress(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        executeSearch();
+    }
 }
 
 // 検索をクリア
 function clearSearch() {
     const searchInput = document.getElementById('searchInput');
     const searchClearBtn = document.getElementById('searchClearBtn');
-    const searchResultsInfo = document.getElementById('searchResultsInfo');
+    const searchTypeSelect = document.getElementById('searchType');
+    const dateFilter = document.getElementById('dateFilter');
+    const sortOrder = document.getElementById('sortOrder');
     
+    // 検索入力をクリア
     if (searchInput) {
         searchInput.value = '';
     }
     
+    // 検索クリアボタンを非表示
     if (searchClearBtn) {
         searchClearBtn.classList.remove('visible');
     }
     
-    if (searchResultsInfo) {
-        searchResultsInfo.style.display = 'none';
+    // 検索フィルターをリセット
+    if (searchTypeSelect) {
+        searchTypeSelect.value = 'all';
     }
     
+    // 期間フィルターをリセット
+    if (dateFilter) {
+        dateFilter.value = 'all';
+    }
+    
+    // ソート順をリセット
+    if (sortOrder) {
+        sortOrder.value = 'newest';
+    }
+    
+    // グローバル変数をクリア
     currentSearchTerm = '';
+    currentSearchType = 'all';
+    
+    // 通常のスレッド表示に戻す
     displayThreads(currentFilter);
+    
+    console.log('検索をクリアしました');
 }
 
-// 詳細検索パネルの切り替え
-function toggleAdvancedSearch() {
-    const panel = document.getElementById('advancedSearchPanel');
-    const button = document.querySelector('.advanced-search-btn');
-    
-    if (panel && button) {
-        panel.classList.toggle('active');
-        button.classList.toggle('active');
-        
-        if (panel.classList.contains('active')) {
-            button.innerHTML = '<i class="fas fa-filter"></i> 詳細検索を閉じる';
-        } else {
-            button.innerHTML = '<i class="fas fa-filter"></i> 詳細検索';
-        }
-    }
-}
+// 詳細検索パネルの切り替え関数は削除されました（フィルターが常時表示のため不要）
 
 // ハッシュタグで検索
 function searchByHashtag(hashtag) {
@@ -733,19 +781,98 @@ function searchByHashtag(hashtag) {
     performSearch();
 }
 
+// 検索結果を表示
+function displaySearchResults(threads) {
+    const threadsList = document.getElementById('threadsList');
+    if (!threadsList) {
+        console.error('threadsListエレメントが見つかりません');
+        return;
+    }
+    
+    console.log('検索結果表示:', threads.length, '件');
+    
+    if (threads.length === 0) {
+        threadsList.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-search"></i>
+                <h3>検索結果がありません</h3>
+                <p>${currentSearchTerm ? `「${currentSearchTerm}」` : '条件'}に一致するスレッドが見つかりませんでした</p>
+                <button class="clear-search-btn" onclick="clearSearch()">
+                    <i class="fas fa-times"></i> 検索をクリア
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    // スレッド一覧を表示
+    threadsList.innerHTML = threads.map(thread => {
+        // 検索語をハイライト
+        const titleHtml = currentSearchTerm ? 
+            highlightSearchText(thread.title, currentSearchTerm) : 
+            escapeHtml(thread.title);
+        const contentHtml = currentSearchTerm ? 
+            highlightSearchText(createPreview(thread.content, 120), currentSearchTerm) : 
+            escapeHtml(createPreview(thread.content, 120));
+        
+        return `
+        <div class="thread-item category-${thread.category} fade-in" 
+             onclick="openThreadPage('${thread.id}')">
+            <button class="favorite-btn favorite-btn-top" data-thread-id="${thread.id}" onclick="event.stopPropagation(); toggleFavoriteFromList('${thread.id}', this)">
+                <i class="far fa-star"></i>
+            </button>
+            <h3 class="thread-title">${titleHtml}</h3>
+            <div class="thread-meta">
+                <span class="category">${escapeHtml(thread.category)}</span>
+                <span class="author">${escapeHtml(thread.author_name)}</span>
+                <span class="date">${getRelativeTime(new Date(thread.created_at).getTime())}</span>
+            </div>
+            <div class="thread-preview">
+                ${contentHtml}
+            </div>
+            ${Array.isArray(thread.images) && thread.images.length > 0 ? `
+            <div class="thread-images">
+                <div class="image-gallery">
+                    ${thread.images.slice(0, 3).map((imageUrl, index) => `
+                        <img src="${imageUrl}" alt="画像${index + 1}" class="gallery-image" 
+                             onclick="event.stopPropagation(); openImageModal('${imageUrl}')">
+                    `).join('')}
+                    ${thread.images.length > 3 ? `<div class="more-images">+${thread.images.length - 3}</div>` : ''}
+                </div>
+            </div>
+            ` : ''}
+            ${Array.isArray(thread.hashtags) && thread.hashtags.length > 0 ? `
+            <div class="thread-hashtags">
+                ${thread.hashtags.map(tag => {
+                    const tagHtml = currentSearchTerm && currentSearchType === 'hashtag' ? 
+                        highlightSearchText(tag, currentSearchTerm.replace(/^#/, '')) : 
+                        escapeHtml(tag);
+                    return `<span class="thread-hashtag" onclick="event.stopPropagation(); searchByHashtag('${escapeHtml(tag)}')">#${tagHtml}</span>`;
+                }).join('')}
+            </div>
+            ` : ''}
+            <div class="thread-stats">
+                <span><i class="fas fa-comments"></i> ${thread.reply_count || 0}</span>
+                <span><i class="fas fa-heart"></i> ${thread.like_count || 0}</span>
+            </div>
+        </div>
+        `;
+    }).join('');
+    
+    // お気に入り状態を更新
+    updateFavoriteStatus();
+}
+
 // 検索結果情報の更新
-function updateSearchResultsInfo() {
-    const searchResultsInfo = document.getElementById('searchResultsInfo');
-    const resultsCount = searchResultsInfo ? searchResultsInfo.querySelector('.results-count') : null;
+function updateSearchResultsInfo(threads) {
+    // 検索結果の統計情報を表示したい場合は、ここに検索情報エリアの表示ロジックを追加
+    console.log(`検索完了: ${threads.length}件の結果`);
     
-    if (!searchResultsInfo || !resultsCount) return;
-    
-    if (currentSearchTerm) {
-        const count = filteredThreads.length;
-        resultsCount.textContent = `「${currentSearchTerm}」の検索結果: ${count}件`;
-        searchResultsInfo.style.display = 'flex';
-    } else {
-        searchResultsInfo.style.display = 'none';
+    // 検索クリアボタンの表示状態を更新
+    const searchClearBtn = document.getElementById('searchClearBtn');
+    if (searchClearBtn) {
+        const hasSearchTerm = currentSearchTerm && currentSearchTerm.length > 0;
+        searchClearBtn.classList.toggle('visible', hasSearchTerm);
     }
 }
 
