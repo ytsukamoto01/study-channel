@@ -79,45 +79,75 @@ function setupEventListeners() {
     });
 }
 
-// スレッド一覧を読み込み
-async function loadThreads(category = 'all', retryCount = 0) {
+// パフォーマンス最適化：キャッシュ
+let threadsCache = null;
+let favoritesCache = null;
+let cacheTimestamp = 0;
+const CACHE_DURATION = 30000; // 30秒キャッシュ
+
+// スレッド一覧を読み込み（最適化版）
+async function loadThreads(category = 'all', retryCount = 0, useCache = true) {
     try {
         showLoading();
         
         console.log('スレッド読み込み開始...', retryCount > 0 ? `(リトライ ${retryCount})` : '');
-        console.log('現在のURL:', window.location.href);
-        console.log('ベースURL確認:', window.location.origin);
         
-        // API接続テスト
-        const testUrl = '/api/tables/threads';
-        console.log('API URL:', testUrl);
+        const now = Date.now();
+        const cacheValid = useCache && threadsCache && favoritesCache && (now - cacheTimestamp < CACHE_DURATION);
         
-        let result;
-        try {
-            result = await apiCall('/api/tables/threads');
-        } catch (error) {
-            // 500エラーの場合はリトライ
-            if (error.message.includes('500') && retryCount < 2) {
-                console.log('500エラーのためリトライします...');
-                await new Promise(resolve => setTimeout(resolve, 1000)); // 1秒待機
-                return loadThreads(category, retryCount + 1);
-            }
-            throw error;
+        if (cacheValid) {
+            console.log('キャッシュからデータを読み込み');
+            currentThreads = threadsCache;
+            displayThreads(category);
+            updateFavoriteStatusFromCache(favoritesCache);
+            hideLoading(); // キャッシュ使用時も必ずローディングを非表示
+            return;
         }
-        console.log('取得データ:', result);
         
-        if (!result || !result.data) {
+        // 並列でスレッドとお気に入りデータを取得（パフォーマンス改善）
+        console.log('API並列呼び出し開始...');
+        const startTime = performance.now();
+        
+        const [threadsResult, favoritesResult] = await Promise.all([
+            apiCall('/api/tables/threads').catch(error => {
+                if (error.message.includes('500') && retryCount < 2) {
+                    console.log('500エラーのためリトライします...');
+                    return new Promise(resolve => {
+                        setTimeout(async () => {
+                            resolve(await apiCall('/api/tables/threads'));
+                        }, 1000);
+                    });
+                }
+                throw error;
+            }),
+            apiCall('/api/tables/favorites').catch(error => {
+                console.warn('お気に入りデータ取得エラー (続行):', error);
+                return { data: [] }; // エラー時は空配列で続行
+            })
+        ]);
+        
+        const endTime = performance.now();
+        console.log(`並列API呼び出し完了: ${(endTime - startTime).toFixed(2)}ms`);
+        
+        if (!threadsResult || !threadsResult.data) {
             throw new Error('無効なデータ形式です');
         }
         
-        currentThreads = result.data.map(thread => ({
+        // データを正規化してキャッシュ
+        currentThreads = threadsResult.data.map(thread => ({
             ...thread,
             hashtags: normalizeHashtags(thread.hashtags),
             images: Array.isArray(thread.images) ? thread.images : []
         }));
         
-        console.log('正規化後のスレッド:', currentThreads);
+        // キャッシュに保存
+        threadsCache = currentThreads;
+        favoritesCache = favoritesResult.data || [];
+        cacheTimestamp = now;
+        
+        console.log('正規化後のスレッド:', currentThreads.length, '件');
         displayThreads(category);
+        updateFavoriteStatusFromCache(favoritesCache);
         
     } catch (error) {
         console.error('スレッド読み込みエラー:', error);
@@ -212,8 +242,10 @@ function displayThreads(category = 'all') {
         
         console.log('スレッド表示完了');
         
-        // お気に入り状態を更新
-        updateFavoriteStatus();
+        // お気に入り状態を更新（キャッシュから）
+        if (favoritesCache) {
+            updateFavoriteStatusFromCache(favoritesCache);
+        }
         
     } catch (error) {
         console.error('スレッド表示エラー:', error);
@@ -474,8 +506,9 @@ async function handleNewThreadSubmit(event) {
         uploadedImages.thread = [];
         updateImagePreview('thread');
         
-        // モーダルを閉じて一覧を更新
+        // モーダルを閉じて一覧を更新（キャッシュクリア）
         hideNewThreadModal();
+        clearCache(); // 新規投稿時はキャッシュクリア
         await loadThreads(currentFilter);
         
     } catch (error) {
@@ -859,8 +892,10 @@ function displaySearchResults(threads) {
         `;
     }).join('');
     
-    // お気に入り状態を更新
-    updateFavoriteStatus();
+    // お気に入り状態を更新（キャッシュから）
+    if (favoritesCache) {
+        updateFavoriteStatusFromCache(favoritesCache);
+    }
 }
 
 // 検索結果情報の更新
@@ -1074,8 +1109,10 @@ function displayFilteredThreads() {
         `;
     }).join('');
     
-    // お気に入り状態を更新
-    updateFavoriteStatus();
+    // お気に入り状態を更新（キャッシュから）
+    if (favoritesCache) {
+        updateFavoriteStatusFromCache(favoritesCache);
+    }
 }
 
 // 匿名/記名選択の切り替え（スレッド作成）
@@ -1216,6 +1253,11 @@ async function toggleFavoriteFromList(threadId, button) {
                 icon.classList.add('fas');
             }
             showMessage('お気に入りに追加しました', 'success');
+            
+            // キャッシュを更新（API呼び出しを避ける）
+            if (favoritesCache) {
+                favoritesCache.push({ thread_id: threadId, user_fingerprint: userFingerprint });
+            }
         } else if (result.action === 'unfavorited') {
             // お気に入りから削除された
             button.classList.remove('favorited');
@@ -1225,6 +1267,13 @@ async function toggleFavoriteFromList(threadId, button) {
                 icon.classList.add('far');
             }
             showMessage('お気に入りから削除しました', 'success');
+            
+            // キャッシュからも削除（API呼び出しを避ける）
+            if (favoritesCache) {
+                favoritesCache = favoritesCache.filter(fav => 
+                    !(fav.thread_id === threadId && fav.user_fingerprint === userFingerprint)
+                );
+            }
         }
         
         // アニメーション効果
@@ -1244,45 +1293,65 @@ async function toggleFavoriteFromList(threadId, button) {
 
 
 
-// お気に入り状態を更新
+// お気に入り状態を更新（最適化版 - 既存データから更新）
 async function updateFavoriteStatus() {
+    // この関数は非推奨 - loadThreadsで並列取得するため
+    console.warn('updateFavoriteStatus()は非推奨です。loadThreads()で並列取得されます。');
+    
+    // キャッシュがある場合は使用
+    if (favoritesCache) {
+        updateFavoriteStatusFromCache(favoritesCache);
+        return;
+    }
+    
+    // キャッシュがない場合のみAPI呼び出し
     try {
-        const userFingerprint = generateUserFingerprint();
         const favoritesResponse = await fetch('/api/tables/favorites');
         
         if (!favoritesResponse.ok) {
             console.warn('お気に入りデータの取得に失敗:', favoritesResponse.status);
-            return; // エラー時は静かに終了
-        }
-        
-        const favoritesData = await favoritesResponse.json();
-        
-        // データ構造を確認
-        if (!favoritesData || !Array.isArray(favoritesData.data)) {
-            console.warn('お気に入りデータが無効な形式:', favoritesData);
             return;
         }
         
-        const favoriteThreadIds = favoritesData.data.map(fav => fav.thread_id);
-        
-        // 全てのお気に入りボタンの状態を更新
-        document.querySelectorAll('.favorite-btn').forEach(button => {
-            const threadId = button.getAttribute('data-thread-id');
-            const isFavorited = favoriteThreadIds.includes(threadId);
-            
-            if (isFavorited) {
-                button.classList.add('favorited');
-                button.querySelector('i').classList.remove('far');
-                button.querySelector('i').classList.add('fas');
-            } else {
-                button.classList.remove('favorited');
-                button.querySelector('i').classList.remove('fas');
-                button.querySelector('i').classList.add('far');
-            }
-        });
+        const favoritesData = await favoritesResponse.json();
+        updateFavoriteStatusFromCache(favoritesData.data || []);
     } catch (error) {
         console.error('お気に入り状態の更新エラー:', error);
     }
+}
+
+// キャッシュからお気に入り状態を更新（高速化）
+function updateFavoriteStatusFromCache(favoritesData) {
+    if (!Array.isArray(favoritesData)) {
+        console.warn('お気に入りデータが無効な形式:', favoritesData);
+        return;
+    }
+    
+    const favoriteThreadIds = favoritesData.map(fav => fav.thread_id);
+    
+    // 全てのお気に入りボタンの状態を更新
+    document.querySelectorAll('.favorite-btn').forEach(button => {
+        const threadId = button.getAttribute('data-thread-id');
+        const isFavorited = favoriteThreadIds.includes(threadId);
+        
+        if (isFavorited) {
+            button.classList.add('favorited');
+            button.querySelector('i')?.classList.remove('far');
+            button.querySelector('i')?.classList.add('fas');
+        } else {
+            button.classList.remove('favorited');
+            button.querySelector('i')?.classList.remove('fas');
+            button.querySelector('i')?.classList.add('far');
+        }
+    });
+}
+
+// キャッシュクリア関数
+function clearCache() {
+    threadsCache = null;
+    favoritesCache = null;
+    cacheTimestamp = 0;
+    console.log('キャッシュをクリアしました');
 }
 
 // 検索機能の設定
