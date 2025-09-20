@@ -211,8 +211,8 @@ function displayThreads(category = 'all') {
             <div class="thread-meta"> 
               <span class="category">${escapeHtml(thread.category)}</span>
               <span class="author">${
-                thread.author_name === '管理人'
-                  ? '<span class="badge-admin">管理人</span>'
+                thread.author_name === '🛡️ 管理人'
+                  ? '<span class="badge-admin">🛡️ 管理人</span>'
                   : escapeHtml(thread.author_name || '匿名')
               }</span>
               <span class="date">${getRelativeTime(new Date(thread.created_at).getTime())}</span>
