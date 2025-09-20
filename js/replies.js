@@ -313,7 +313,7 @@ function renderReplies(list) {
         ${imagesHtml}
         <div class="comment-actions">
           <button class="comment-reply-btn" onclick="location.href='${replyLink}'">
-            <i class="fas fa-reply"></i> 返信
+            <i class="fas fa-reply"></i> 返信する
           </button>
           <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
             <i class="fas fa-heart"></i> <span class="comment-like-count">${c.like_count || 0}</span>
