@@ -462,7 +462,7 @@ export default async function handler(req, res) {
         images: images,
         author_name: "管理人",
         user_fingerprint: null,
-        admin_mark: true,
+        //admin_mark: true,
         is_deleted: false
       };
 
