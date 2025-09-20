@@ -201,6 +201,11 @@ function displayThreads(category = 'all') {
                 </button>
             </div>
         `;
+        
+        // 空状態では広告をクリア
+        if (window.adsenseHelpers && window.adsenseHelpers.clearThreadAds) {
+            window.adsenseHelpers.clearThreadAds();
+        }
         return;
     }
     
@@ -263,10 +268,11 @@ function displayThreads(category = 'all') {
             updateFavoriteStatusFromCache(favoritesCache);
         }
         
-        // 広告レイアウトを確保
-        if (window.adsenseHelpers && window.adsenseHelpers.ensureSideAds) {
+        // スレッド間広告を挿入
+        if (window.adsenseHelpers && window.adsenseHelpers.insertThreadAds) {
             setTimeout(() => {
-                window.adsenseHelpers.ensureSideAds();
+                window.adsenseHelpers.clearThreadAds(); // 既存広告をクリア
+                window.adsenseHelpers.insertThreadAds(); // 新しい広告を挿入
             }, 100);
         }
         
@@ -280,6 +286,11 @@ function displayThreads(category = 'all') {
                 <button onclick="location.reload()" class="retry-btn">再読み込み</button>
             </div>
         `;
+        
+        // エラー状態では広告をクリア
+        if (window.adsenseHelpers && window.adsenseHelpers.clearThreadAds) {
+            window.adsenseHelpers.clearThreadAds();
+        }
     }
 }
 

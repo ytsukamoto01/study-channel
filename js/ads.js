@@ -23,84 +23,68 @@
     return window.innerWidth >= SIDE_AD_MIN_WIDTH;
   }
 
+  // 非使用（サイド広告は無効化）
   function createSideAd(position) {
-    const slotKey = position === 'left' ? 'desktopLeft' : 'desktopRight';
-    const slotId = getSlotId(slotKey);
-    if (!slotId) return null;
-
-    const aside = document.createElement('aside');
-    aside.className = `side-ad side-ad-${position}`;
-
-    const inner = document.createElement('div');
-    inner.className = 'side-ad-inner';
-
-    // 複数の広告ユニットを作成（縦に並べる）
-    for (let i = 0; i < 3; i++) {
-      const ins = document.createElement('ins');
-      ins.className = 'adsbygoogle';
-      ins.style.display = 'block';
-      ins.style.width = '160px';
-      ins.style.height = '250px';
-      ins.style.marginBottom = '20px';
-      ins.setAttribute('data-ad-client', ADSENSE_CLIENT_ID);
-      ins.setAttribute('data-ad-slot', slotId);
-      ins.setAttribute('data-ad-format', 'rectangle');
-      ins.setAttribute('data-adtest', 'on');
-      
-      inner.appendChild(ins);
-    }
-
-    aside.appendChild(inner);
-    return aside;
+    return null;
   }
 
-  function ensureSideAds() {
-    const threadsListContainer = document.getElementById('threadsList');
-    if (!threadsListContainer) return;
+  // スレッド間広告を生成する関数
+  function createThreadInlineAd() {
+    const slotId = getSlotId('mobileInline'); // PCでもモバイル用スロットを使用
+    if (!slotId) return '';
 
-    const showSideAds = shouldShowSideAds();
-    console.log('Should show side ads:', showSideAds, 'Window width:', window.innerWidth);
+    return `
+      <div class="thread-inline-ad">
+        <ins class="adsbygoogle"
+             style="display:block; width:100%; height:280px;"
+             data-ad-client="${ADSENSE_CLIENT_ID}"
+             data-ad-slot="${slotId}"
+             data-ad-format="rectangle"
+             data-adtest="on"></ins>
+      </div>
+    `;
+  }
+  
+  // スレッドリストに広告を挿入する関数
+  function insertThreadAds() {
+    const threadsList = document.getElementById('threadsList');
+    if (!threadsList) return;
     
-    const wrapper = threadsListContainer.parentElement;
-    let threadsWrapper = wrapper.querySelector('.threads-list-wrapper');
+    console.log('Inserting thread ads every 5 items');
     
-    if (!showSideAds) {
-      // 幅が狭い場合は通常のレイアウトに戻す
-      if (threadsWrapper) {
-        wrapper.appendChild(threadsListContainer);
-        threadsWrapper.remove();
+    const threadItems = threadsList.querySelectorAll('.thread-item');
+    let insertedCount = 0;
+    
+    // 後ろから挿入していく（インデックスがずれるのを防ぐ）
+    for (let i = threadItems.length - 1; i >= 0; i--) {
+      // 5の倍数番目のスレッドの後に広告を挿入
+      if ((i + 1) % 5 === 0 && i < threadItems.length - 1) {
+        const adHtml = createThreadInlineAd();
+        if (adHtml) {
+          const adElement = document.createElement('div');
+          adElement.innerHTML = adHtml;
+          threadItems[i].insertAdjacentElement('afterend', adElement.firstElementChild);
+          insertedCount++;
+          console.log(`Inserted ad after thread ${i + 1}`);
+        }
       }
-      return;
     }
-
-    if (!threadsWrapper) {
-      console.log('Creating threads wrapper with side ads');
-      
-      // 新しいラッパーを作成
-      threadsWrapper = document.createElement('div');
-      threadsWrapper.className = 'threads-list-wrapper';
-      
-      // 左側広告を作成
-      const leftAd = createSideAd('left');
-      if (leftAd) {
-        threadsWrapper.appendChild(leftAd);
-      }
-      
-      // スレッドリストを中央に配置
-      threadsWrapper.appendChild(threadsListContainer);
-      
-      // 右側広告を作成
-      const rightAd = createSideAd('right');
-      if (rightAd) {
-        threadsWrapper.appendChild(rightAd);
-      }
-      
-      // ラッパーをコンテナに追加
-      wrapper.appendChild(threadsWrapper);
-      
-      // 広告をリクエスト
-      requestAds(threadsWrapper);
+    
+    console.log(`Total ads inserted: ${insertedCount}`);
+    
+    // 広告をリクエスト
+    if (insertedCount > 0) {
+      setTimeout(() => {
+        requestAds(threadsList);
+      }, 100);
     }
+  }
+  
+  // 既存の広告をクリアする関数
+  function clearThreadAds() {
+    const existingAds = document.querySelectorAll('.thread-inline-ad');
+    existingAds.forEach(ad => ad.remove());
+    console.log(`Cleared ${existingAds.length} existing thread ads`);
   }
 
   function requestAds(context = document) {
@@ -224,6 +208,7 @@
     requestAds,
     renderInlineAdMarkup,
     shouldShowInlineAds,
-    ensureSideAds
+    insertThreadAds,
+    clearThreadAds
   };
 })();

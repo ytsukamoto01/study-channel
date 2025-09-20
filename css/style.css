@@ -18,10 +18,7 @@ body {
     padding: 0 20px;
 }
 
-/* メインページ用のコンテナオーバーライド */
-.main .container {
-    max-width: 1400px;
-}
+
 
 /* ヘッダー全体 */
 .header {
@@ -125,74 +122,41 @@ body {
     padding: 30px 0;
 }
 
-/* コンテンツエリアの広告対応レイアウト */
+/* メインコンテンツ */
 .main {
-    position: relative;
+    padding: 30px 0;
 }
 
-.container {
-    position: relative;
-}
-
-/* スレッドリスト用の広告配置 */
-.threads-list-wrapper {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
-    justify-content: center;
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
-.threads-list {
-    flex: 1;
-    max-width: 1000px;
-}
-
-/* サイド広告（スレッドカード横に配置） */
-.side-ad {
-    width: 160px;
-    min-height: 600px;
-    position: sticky;
-    top: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.side-ad-inner {
-    width: 100%;
-}
-
-.side-ad .adsbygoogle {
-    display: block !important;
-    width: 100% !important;
-    min-height: 250px;
-}
-
-@media (max-width: 1200px) {
-    .threads-list-wrapper {
-        flex-direction: column;
-    }
-    
-    .side-ad {
-        display: none;
-    }
-}
-
-/* インライン広告のスタイル */
+/* インライン広告のスタイル（コメント用とスレッド間用） */
 .inline-ad-container {
     margin: 20px 0;
-    padding: 10px;
+    padding: 15px;
     text-align: center;
     border-top: 1px solid #e5e7eb;
     border-bottom: 1px solid #e5e7eb;
     background-color: #f9fafb;
+    border-radius: 8px;
 }
 
 .inline-ad-container .adsbygoogle {
     display: block !important;
     margin: 0 auto !important;
+}
+
+/* スレッド間広告専用スタイル */
+.thread-inline-ad {
+    margin: 30px 0;
+    padding: 20px;
+    background: linear-gradient(135deg, #f8faff 0%, #f1f5ff 100%);
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.thread-inline-ad .adsbygoogle {
+    display: block !important;
+    margin: 0 auto !important;
+    max-width: 100%;
 }
 
 .loading {
