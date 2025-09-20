@@ -13,6 +13,15 @@
     return body.dataset?.[datasetKey] || DEFAULT_SLOT_IDS[name];
   }
 
+  const SIDE_AD_MIN_WIDTH = 1441;
+
+  function shouldShowSideAds() {
+    if (window.matchMedia) {
+      return window.matchMedia(`(min-width: ${SIDE_AD_MIN_WIDTH}px)`).matches;
+    }
+    return window.innerWidth >= SIDE_AD_MIN_WIDTH;
+  }
+
   function createSideAd(position) {
     const slotKey = position === 'left' ? 'desktopLeft' : 'desktopRight';
     const slotId = getSlotId(slotKey);
@@ -41,20 +50,43 @@
   function ensureSideAds() {
     if (!document.body) return;
 
-    if (!document.querySelector('.side-ad.side-ad-left')) {
-      const left = createSideAd('left');
-      if (left) document.body.appendChild(left);
+    const showSideAds = shouldShowSideAds();
+    const leftSelector = '.side-ad.side-ad-left';
+    const rightSelector = '.side-ad.side-ad-right';
+    const existingLeft = document.querySelector(leftSelector);
+    const existingRight = document.querySelector(rightSelector);
+
+    if (!showSideAds) {
+      if (existingLeft) existingLeft.remove();
+      if (existingRight) existingRight.remove();
+      return;
     }
 
-    if (!document.querySelector('.side-ad.side-ad-right')) {
+    if (!existingLeft) {
+      const left = createSideAd('left');
+      if (left) {
+        document.body.appendChild(left);
+        requestAds(left);
+      }
+    }
+
+    if (!existingRight) {
       const right = createSideAd('right');
-      if (right) document.body.appendChild(right);
+      if (right) {
+        document.body.appendChild(right);
+        requestAds(right);
+      }
     }
   }
 
   function requestAds(context = document) {
     const ads = context.querySelectorAll('ins.adsbygoogle:not([data-adsense-loaded])');
     ads.forEach(ad => {
+      const rect = ad.getBoundingClientRect();
+      if (!rect.width || !rect.height) {
+        return;
+      }
+
       ad.setAttribute('data-adsense-loaded', 'true');
       (adsbygoogle = window.adsbygoogle || []).push({});
     });
@@ -83,9 +115,27 @@
     return window.innerWidth <= 767;
   }
 
+  function debounce(fn, delay = 200) {
+    let timerId;
+    return (...args) => {
+      if (timerId) {
+        clearTimeout(timerId);
+      }
+      timerId = setTimeout(() => {
+        fn(...args);
+      }, delay);
+    };
+  }
+
+  const handleResize = debounce(() => {
+    ensureSideAds();
+    requestAds();
+  }, 250);
+
   document.addEventListener('DOMContentLoaded', () => {
     ensureSideAds();
     requestAds();
+    window.addEventListener('resize', handleResize);
   });
 
   window.adsenseHelpers = {
