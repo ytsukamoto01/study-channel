@@ -224,6 +224,8 @@ function renderParent(c) {
       </button>
     </div>
   `;
+
+    console.log(c.author_name)
 }
 
 // 子（返信）一覧
