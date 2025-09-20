@@ -735,16 +735,25 @@ function fadeInElement(element) {
 }
 
 // 投稿者名を表示用にHTML化
-function formatAuthorName(authorName) {
-    if (authorName === '管理人') {
-        // 管理人専用の黒カプセルバッジを表示
-        return `<span class="badge-admin">🛡️ 管理人</span>`;
-    } else if (authorName === '匿名' || !authorName) {
-        return `<span class="anonymous-author">匿名</span>`;
-    } else {
-        return `<span class="named-author">${escapeHtml(authorName)}</span>`;
-    }
+function formatAuthorName(authorName, isAdmin = false) {
+  // 文字列正規化（前後空白、全角/半角の統一）
+  const raw = (authorName ?? '').toString();
+  const name = raw.normalize('NFKC').trim();
+
+  // 管理人判定は isAdmin（DBの admin_mark）を最優先
+  if (isAdmin || name === '管理人') {
+    return `<span class="badge-admin">🛡️ 管理人</span>`;
+  }
+
+  // 匿名扱い
+  if (!name || name === '匿名') {
+    return `<span class="anonymous-author">匿名</span>`;
+  }
+
+  // 通常の記名
+  return `<span class="named-author">${escapeHtml(name)}</span>`;
 }
+
 
 
 // API呼び出し用のヘルパー関数
