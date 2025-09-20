@@ -326,7 +326,7 @@ async function requestDeleteComment(commentId) {
   }
 }
 
-// コメント読み込み（親のみ表示・古い順、件数は親＋返信の合計）
+// コメント読み込み（無限階層表示）
 async function loadComments(threadId) {
   try {
     console.log('Loading comments for thread:', threadId);
@@ -338,57 +338,78 @@ async function loadComments(threadId) {
     const all = json?.data || [];
     console.log('Total comments loaded:', all.length);
 
-    const parents = all.filter(c => !c.parent_comment_id);
-    const children = all.filter(c => c.parent_comment_id);
-    
-    console.log('Parent comments:', parents.length);
-    console.log('Reply comments:', children.length);
-
-    // 親に返信件数を紐付け（表示上は件数のみ。本文は別ページ）
-    const repliesByParent = {};
-    for (const r of children) {
-      repliesByParent[r.parent_comment_id] = (repliesByParent[r.parent_comment_id] || 0) + 1;
-    }
-    parents.forEach(p => { p.reply_count_local = repliesByParent[p.id] || 0; });
-
-    // コメント総数（親＋返信）
+    // コメント総数
     const totalCount = all.length;
     const countEl = document.getElementById('commentCount');
     if (countEl) countEl.textContent = String(totalCount);
 
-    // 親のみ表示（古い順）
+    // 親コメントのみ抽出（古い順）
+    const parents = all.filter(c => !c.parent_comment_id);
     parents.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    displayComments(parents);
+    
+    // 階層構造を構築
+    const commentHierarchy = buildCommentHierarchy(all);
+    
+    // 階層表示
+    displayCommentsWithReplies(parents, commentHierarchy);
     
     console.log('Comments display completed');
   } catch (e) {
     console.error('コメントの読み込みエラー:', e);
     // エラー時は空のコメントリストを表示
-    displayComments([]);
+    displayCommentsWithReplies([]);
   }
 }
 
-// 親コメント一覧（返信は別ページリンク）
-function displayComments(parents) {
+// コメント階層構造を構築
+function buildCommentHierarchy(allComments) {
+  const hierarchy = new Map();
+  
+  // 各コメントIDをキーとした返信リストを作成
+  allComments.forEach(comment => {
+    if (comment.parent_comment_id) {
+      if (!hierarchy.has(comment.parent_comment_id)) {
+        hierarchy.set(comment.parent_comment_id, []);
+      }
+      hierarchy.get(comment.parent_comment_id).push(comment);
+    }
+  });
+  
+  // 各親の返信を時間順でソート
+  hierarchy.forEach((replies, parentId) => {
+    replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  });
+  
+  return hierarchy;
+}
+
+// 階層表示（無限ネスト対応）
+function displayCommentsWithReplies(parents, hierarchy = new Map()) {
   const list = document.getElementById('commentsList');
   if (!list) return;
 
-  list.innerHTML = parents.map(p => renderParentItem(p)).join('');
+  let html = '';
+  parents.forEach(parent => {
+    html += renderCommentWithReplies(parent, hierarchy, 0);
+  });
+  
+  list.innerHTML = html;
 }
 
-function renderParentItem(c) {
-  const numberHtml = c.comment_number != null ? `${c.comment_number}.` : '';
-  const authorHtml = escapeHtml(c.author_name || '匿名');
-  const dateHtml = getRelativeTime(new Date(c.created_at).getTime());
-  const contentHtml = escapeHtml(c.content || '');
-  const likeCount = c.like_count || 0;
-  const repliesCount = c.reply_count_local || 0;
-
+// 無限階層レンダリング（再帰）
+function renderCommentWithReplies(comment, hierarchy, depth) {
+  const indent = depth * 20; // 20px per level
+  const numberHtml = comment.comment_number != null ? `${comment.comment_number}.` : '';
+  const authorHtml = escapeHtml(comment.author_name || '匿名');
+  const dateHtml = getRelativeTime(new Date(comment.created_at).getTime());
+  const contentHtml = escapeHtml(comment.content || '');
+  const likeCount = comment.like_count || 0;
+  
   // 画像表示
-  const imagesHtml = (Array.isArray(c.images) && c.images.length > 0) 
+  const imagesHtml = (Array.isArray(comment.images) && comment.images.length > 0) 
     ? `<div class="comment-images">
          <div class="image-gallery">
-           ${c.images.map((imageUrl, index) => `
+           ${comment.images.map((imageUrl, index) => `
              <img src="${imageUrl}" alt="コメント画像${index + 1}" class="gallery-image" 
                   onclick="openImageModal('${imageUrl}')">
            `).join('')}
@@ -396,20 +417,11 @@ function renderParentItem(c) {
        </div>`
     : '';
 
-  // 「返信する」→ replies.html へ遷移＆フォームへスクロール
-  const replyLink = `replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}#replyFormSection`;
-
-  // 「x件の返信」リンク（返信がある場合のみ）
-  const repliesBlock = repliesCount > 0
-    ? `<div class="replies-link">
-         <a href="replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}">
-           ${repliesCount}件の返信
-         </a>
-       </div>`
-    : '';
-
-  return `
-    <div class="comment-item" data-comment-id="${c.id}">
+  // 返信フォーム表示/非表示の状態管理
+  const replyFormId = `reply-form-${comment.id}`;
+  
+  let html = `
+    <div class="comment-item" data-comment-id="${comment.id}" style="margin-left: ${indent}px;">
       <div class="comment-header">
         <div class="comment-header-left">
           <span class="comment-number">${numberHtml}</span>
@@ -417,26 +429,60 @@ function renderParentItem(c) {
           <span class="date">${dateHtml}</span>
         </div>
         <div class="comment-moderation-links">
-          ${isMyComment(c) ? `
-          <a href="#" onclick="requestDeleteComment('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
+          ${isMyComment(comment) ? `
+          <a href="#" onclick="requestDeleteComment('${comment.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
           ` : `
-          <a href="#" onclick="reportContent('comment', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
+          <a href="#" onclick="reportContent('comment', '${comment.id}'); return false;" class="report-link" title="通報">[通報]</a>
           `}
         </div>
       </div>
       <div class="comment-content">${contentHtml}</div>
       ${imagesHtml}
       <div class="comment-actions">
-        <button class="comment-reply-btn" onclick="location.href='${replyLink}'">
-          <i class="fas fa-reply"></i> 返信
+        <button class="comment-reply-btn" onclick="toggleReplyForm('${comment.id}')">
+          <i class="fas fa-reply"></i> 返信する
         </button>
-        <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
+        <button class="comment-like-btn" onclick="likeThisComment('${comment.id}')">
           <i class="fas fa-heart"></i> <span class="comment-like-count">${likeCount}</span>
         </button>
       </div>
-      ${repliesBlock}
+      
+      <!-- 返信フォーム（初期は非表示） -->
+      <div id="${replyFormId}" class="reply-form" style="display: none; margin-top: 12px; padding: 16px; background: #f8f9fa; border-radius: 8px; border-left: 3px solid #3b82f6;">
+        <textarea class="reply-textarea" placeholder="返信を入力..." rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+        <div class="reply-author-selection" style="margin: 8px 0; font-size: 14px;">
+          <label><input type="radio" name="replyAuthorType_${comment.id}" value="anonymous" checked> 匿名</label>
+          <label style="margin-left: 12px;"><input type="radio" name="replyAuthorType_${comment.id}" value="custom"> 名前を入力</label>
+          <span class="reply-custom-name" style="display: none; margin-left: 8px;">
+            <input type="text" class="reply-custom-author" placeholder="表示名（任意）" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px; width: 120px;">
+          </span>
+        </div>
+        <div class="reply-form-buttons" style="margin-top: 10px;">
+          <button onclick="submitReply('${comment.id}')" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 8px;">投稿</button>
+          <button onclick="toggleReplyForm('${comment.id}')" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">キャンセル</button>
+        </div>
+      </div>
     </div>
   `;
+  
+  // 返信があれば再帰的に追加
+  const replies = hierarchy.get(comment.id) || [];
+  if (replies.length > 0) {
+    html += `<div class="replies-container" style="margin-left: ${indent + 20}px;">`;
+    
+    // 返信件数の表示
+    if (replies.length > 0) {
+      html += `<div class="replies-count" style="margin: 8px 0; color: #6b7280; font-size: 13px;">${replies.length}件の返信</div>`;
+    }
+    
+    replies.forEach(reply => {
+      html += renderCommentWithReplies(reply, hierarchy, depth + 1);
+    });
+    
+    html += `</div>`;
+  }
+  
+  return html;
 }
 
 // 親コメントに対する「いいね」
@@ -707,6 +753,117 @@ async function toggleFavorite() {
   } catch (e) {
     console.error('お気に入り操作エラー:', e);
     handleApiError(e, 'お気に入りの更新に失敗しました');
+  }
+}
+
+// ====== 返信機能 ======
+// 返信フォームの表示/非表示を切り替え
+function toggleReplyForm(commentId) {
+  const replyForm = document.getElementById(`reply-form-${commentId}`);
+  if (!replyForm) return;
+  
+  const isVisible = replyForm.style.display !== 'none';
+  
+  if (isVisible) {
+    replyForm.style.display = 'none';
+  } else {
+    // 他の返信フォームを非表示にする
+    document.querySelectorAll('.reply-form').forEach(form => {
+      if (form.id !== `reply-form-${commentId}`) {
+        form.style.display = 'none';
+      }
+    });
+    
+    replyForm.style.display = 'block';
+    
+    // テキストエリアにフォーカス
+    const textarea = replyForm.querySelector('.reply-textarea');
+    if (textarea) textarea.focus();
+    
+    // 記名/匿名ラジオボタンのイベントリスナーを設定
+    setupReplyAuthorToggle(commentId);
+  }
+}
+
+// 返信の記名/匿名切り替えイベント設定
+function setupReplyAuthorToggle(commentId) {
+  const radios = document.querySelectorAll(`input[name="replyAuthorType_${commentId}"]`);
+  const customNameSpan = document.querySelector(`#reply-form-${commentId} .reply-custom-name`);
+  
+  const applyToggle = () => {
+    const anonymousRadio = document.querySelector(`input[name="replyAuthorType_${commentId}"][value="anonymous"]`);
+    if (anonymousRadio && anonymousRadio.checked) {
+      if (customNameSpan) customNameSpan.style.display = 'none';
+    } else {
+      if (customNameSpan) {
+        customNameSpan.style.display = 'inline-block';
+        const customInput = customNameSpan.querySelector('.reply-custom-author');
+        if (customInput) customInput.focus();
+      }
+    }
+  };
+  
+  radios.forEach(radio => {
+    radio.removeEventListener('change', applyToggle);
+    radio.addEventListener('change', applyToggle);
+  });
+  applyToggle();
+}
+
+// 返信を投稿
+async function submitReply(parentCommentId) {
+  const replyForm = document.getElementById(`reply-form-${parentCommentId}`);
+  if (!replyForm) return;
+  
+  const textarea = replyForm.querySelector('.reply-textarea');
+  const content = textarea?.value?.trim();
+  
+  if (!content) {
+    showErrorMessage('返信内容を入力してください');
+    return;
+  }
+  
+  // 投稿者名を取得
+  const anonymousRadio = replyForm.querySelector(`input[name="replyAuthorType_${parentCommentId}"][value="anonymous"]`);
+  let authorName = '匿名';
+  
+  if (!anonymousRadio || !anonymousRadio.checked) {
+    const customAuthorInput = replyForm.querySelector('.reply-custom-author');
+    authorName = customAuthorInput?.value?.trim() || '匿名';
+  }
+  
+  try {
+    const response = await apiCall('/api/tables/comments', {
+      method: 'POST',
+      body: JSON.stringify({
+        thread_id: currentThreadId,
+        parent_comment_id: parentCommentId,
+        content: content,
+        author_name: authorName,
+        user_fingerprint: userFingerprint,
+        images: [] // 返信には画像は含めない（必要に応じて後で追加）
+      })
+    });
+    
+    showSuccessMessage('返信を投稿しました！');
+    
+    // フォームをリセット
+    if (textarea) textarea.value = '';
+    toggleReplyForm(parentCommentId);
+    
+    // コメント数を更新
+    const commentCountElement = document.getElementById('commentCount');
+    if (commentCountElement) {
+      const currentCount = parseInt(commentCountElement.textContent || '0');
+      commentCountElement.textContent = currentCount + 1;
+    }
+    
+    // コメントリストを再読み込み
+    await loadComments(currentThreadId);
+    
+  } catch (error) {
+    console.error('返信投稿エラー:', error);
+    handleApiError(error, '返信の投稿に失敗しました');
   }
 }
 

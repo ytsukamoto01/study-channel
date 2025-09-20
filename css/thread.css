@@ -362,6 +362,188 @@ body {
 }
 
 
+/* ---------------------------
+   無限返信機能のスタイル
+--------------------------- */
+
+/* 返信の階層インデント */
+.comment-item {
+  margin-bottom: 8px;
+}
+
+/* 返信数表示 */
+.replies-count {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 8px 0;
+  font-weight: 500;
+}
+
+/* 返信フォーム */
+.reply-form {
+  margin-top: 12px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #3b82f6;
+}
+
+.reply-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.reply-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* 返信の投稿者選択 */
+.reply-author-selection {
+  margin: 8px 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.reply-author-selection label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.reply-custom-name {
+  display: none;
+  margin-left: 8px;
+}
+
+.reply-custom-author {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  width: 120px;
+  font-size: 13px;
+}
+
+.reply-custom-author:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+/* 返信フォームのボタン */
+.reply-form-buttons {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.reply-form-buttons button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.reply-form-buttons button:first-child {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.reply-form-buttons button:first-child:hover {
+  background-color: #2563eb;
+}
+
+.reply-form-buttons button:last-child {
+  background-color: #6c757d;
+  color: white;
+}
+
+.reply-form-buttons button:last-child:hover {
+  background-color: #5a6268;
+}
+
+/* 深い階層の返信の背景色を調整 */
+.comment-item[style*="margin-left: 40px"] {
+  background-color: rgba(59, 130, 246, 0.02);
+}
+
+.comment-item[style*="margin-left: 60px"] {
+  background-color: rgba(59, 130, 246, 0.04);
+}
+
+.comment-item[style*="margin-left: 80px"] {
+  background-color: rgba(59, 130, 246, 0.06);
+}
+
+/* 階層が深くなるにつれて左のボーダーを追加 */
+.comment-item[style*="margin-left: 20px"] {
+  border-left: 2px solid #e5e7eb;
+  padding-left: 12px;
+}
+
+.comment-item[style*="margin-left: 40px"] {
+  border-left: 2px solid #d1d5db;
+}
+
+.comment-item[style*="margin-left: 60px"] {
+  border-left: 2px solid #9ca3af;
+}
+
+/* 返信ボタンのスタイル調整 */
+.comment-reply-btn {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+.comment-reply-btn:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.comment-reply-btn i {
+  color: #3b82f6;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  /* モバイルでは階層インデントを少し狭く */
+  .comment-item[style*="margin-left"] {
+    margin-left: 10px !important;
+  }
+  
+  .replies-container[style*="margin-left"] {
+    margin-left: 15px !important;
+  }
+  
+  .reply-form {
+    padding: 12px;
+  }
+  
+  .reply-author-selection {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .reply-custom-name {
+    margin-left: 0;
+    margin-top: 4px;
+  }
+}
+
 /* 成功/エラーのトースト（既存JS用） */
 .success-message, .error-message {
   font-size: 14px;
