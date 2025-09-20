@@ -213,13 +213,13 @@ function renderParent(c) {
       <button class="comment-reply-btn" onclick="document.getElementById('replyFormSection').scrollIntoView({behavior:'smooth'})">
         <i class="fas fa-reply"></i> 返信する
       </button>
-      <div class="comment-moderation-links">
-        ${isMyComment(c) ? `
-        <a href="#" onclick="requestDeleteComment('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
-        ` : `
-        <a href="#" onclick="reportContent('comment', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
-        `}
-      </div>
+    </div>
+    <div class="comment-moderation-links">
+      ${isMyComment(c) ? `
+      <a href="#" onclick="requestDeleteComment('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
+      ` : `
+      <a href="#" onclick="reportContent('comment', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
+      `}
     </div>
   `;
 }
@@ -276,13 +276,13 @@ function renderReplies(list) {
           <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
             <i class="fas fa-heart"></i> <span class="comment-like-count">${c.like_count || 0}</span>
           </button>
-          <div class="comment-moderation-links">
-            ${isMyComment(c) ? `
-            <a href="#" onclick="requestDeleteReply('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
-            ` : `
-            <a href="#" onclick="reportContent('reply', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
-            `}
-          </div>
+        </div>
+        <div class="comment-moderation-links">
+          ${isMyComment(c) ? `
+          <a href="#" onclick="requestDeleteReply('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
+          ` : `
+          <a href="#" onclick="reportContent('reply', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
+          `}
         </div>
       </div>
     `;

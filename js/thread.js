@@ -424,13 +424,13 @@ function renderParentItem(c) {
         <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
           <i class="fas fa-heart"></i> <span class="comment-like-count">${likeCount}</span>
         </button>
-        <div class="comment-moderation-links">
-          ${isMyComment(c) ? `
-          <a href="#" onclick="requestDeleteComment('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
-          ` : `
-          <a href="#" onclick="reportContent('comment', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
-          `}
-        </div>
+      </div>
+      <div class="comment-moderation-links">
+        ${isMyComment(c) ? `
+        <a href="#" onclick="requestDeleteComment('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
+        ` : `
+        <a href="#" onclick="reportContent('comment', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
+        `}
       </div>
       ${repliesBlock}
     </div>

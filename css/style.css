@@ -1907,17 +1907,13 @@ body {
 }
 
 /* コメント・返信での通報・削除依頼リンク */
-.comment-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-}
-
 .comment-moderation-links {
     display: flex;
+    justify-content: flex-end;
     gap: 8px;
     font-size: 11px;
+    margin-top: 4px;
+    padding-top: 4px;
 }
 
 .comment-moderation-links a,
