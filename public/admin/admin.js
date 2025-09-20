@@ -99,25 +99,31 @@ async function loadThreads() {
 function renderThreadCard(th) {
   const wrap = document.createElement("div");
   wrap.className = "card";
+  const createdAt = new Date(th.created_at).toLocaleString('ja-JP');
+  
   wrap.innerHTML = `
     <div class="row" style="justify-content:space-between">
-      <div>
-        <strong>${escapeHtml(th.title)}</strong>
-        ${th.admin_mark ? `<span class="badge">🛡️ 管理人</span>` : ""}
-        <div class="muted">${escapeHtml(th.category)} / ${escapeHtml(th.subcategory || "")}</div>
+      <div style="flex:1;">
+        <h4 style="margin: 0 0 8px 0; color: #333;">${escapeHtml(th.title)}</h4>
+        <div class="row" style="gap: 8px; margin-bottom: 8px;">
+          ${th.admin_mark ? `<span class="badge">🛡️ 管理人</span>` : ""}
+          <span class="muted">📁 ${escapeHtml(th.category)}</span>
+          ${th.subcategory ? `<span class="muted">/ ${escapeHtml(th.subcategory)}</span>` : ""}
+          <span class="muted">📅 ${createdAt}</span>
+        </div>
       </div>
       <div class="actions">
-        <button data-act="toggle-comments">コメントを見る</button>
-        <button data-act="edit">編集</button>
-        <button class="danger" data-act="del">削除</button>
+        <button class="primary" data-act="toggle-comments">💬 コメント管理</button>
+        <button class="warning" data-act="edit">✏️ 編集</button>
+        <button class="danger" data-act="del">🗑️ 削除</button>
       </div>
     </div>
-    <div style="margin-top:8px; white-space:pre-wrap">${escapeHtml(th.content || "")}</div>
-    <div class="muted" style="margin-top:6px">#${(th.hashtags||[]).join(" #")}</div>
+    <div style="margin-top:12px; white-space:pre-wrap; line-height:1.6;">${escapeHtml(th.content || "")}</div>
+    ${(th.hashtags && th.hashtags.length) ? `<div class="muted" style="margin-top:12px;">${th.hashtags.map(tag => `<span style="background: rgba(102, 126, 234, 0.1); padding: 2px 8px; border-radius: 12px; margin-right: 4px; font-size: 12px;">#${tag}</span>`).join('')}</div>` : ""}
 
     <div id="cmt-${th.id}" style="display:none; margin-top:12px;">
       <div class="row" style="justify-content:space-between;">
-        <div class="muted">コメントツリー</div>
+        <div class="muted">💬 コメントツリー</div>
         <div class="row">
           <label class="row" style="gap:6px;">
             <input type="checkbox" id="cmt-incdel-${th.id}" checked> 削除済みも表示
@@ -126,7 +132,16 @@ function renderThreadCard(th) {
             <option value="oldest" selected>親は古い順</option>
             <option value="newest">親は新しい順</option>
           </select>
-          <button data-act="reload-comments">更新</button>
+          <button data-act="reload-comments" class="primary">🔄 更新</button>
+          <button data-act="add-root-comment" class="success">✍️ コメント投稿</button>
+        </div>
+      </div>
+      <div id="root-comment-form-${th.id}" class="reply-form" style="display:none; margin-top:12px;">
+        <h4 style="margin: 0 0 12px 0; color: #333;">✍️ 管理人としてコメントを投稿</h4>
+        <textarea id="root-comment-content-${th.id}" rows="4" placeholder="コメント内容を入力してください..." style="width:100%; margin-bottom:12px;"></textarea>
+        <div class="row" style="justify-content:flex-end; gap:8px;">
+          <button data-act="root-comment-cancel">キャンセル</button>
+          <button class="success" data-act="root-comment-submit">📤 コメント投稿</button>
         </div>
       </div>
       <div id="cmt-list-${th.id}" style="margin-top:8px;"></div>
@@ -151,6 +166,48 @@ function renderThreadCard(th) {
   };
   wrap.querySelector("[data-act='reload-comments']").onclick = async () => {
     await loadCommentsForThread(th.id);
+  };
+
+  // ルートコメント投稿機能
+  wrap.querySelector("[data-act='add-root-comment']").onclick = () => {
+    const form = document.getElementById(`root-comment-form-${th.id}`);
+    const isVisible = form.style.display !== "none";
+    form.style.display = isVisible ? "none" : "block";
+    if (!isVisible) {
+      document.getElementById(`root-comment-content-${th.id}`).focus();
+    }
+  };
+
+  const rootCancelBtn = wrap.querySelector("[data-act='root-comment-cancel']");
+  if (rootCancelBtn) rootCancelBtn.onclick = () => {
+    document.getElementById(`root-comment-form-${th.id}`).style.display = "none";
+  };
+
+  const rootSubmitBtn = wrap.querySelector("[data-act='root-comment-submit']");
+  if (rootSubmitBtn) rootSubmitBtn.onclick = async () => {
+    const content = document.getElementById(`root-comment-content-${th.id}`).value.trim();
+    if (!content) return alert("コメント内容を入力してください。");
+
+    try {
+      const r = await callAdmin("comment_create", {
+        payload: {
+          thread_id: th.id,
+          parent_id: null, // ルートコメント
+          content: content,
+          images: []
+        }
+      });
+      if (!r.ok) throw new Error(await r.text());
+      
+      // フォームをリセットして非表示に
+      document.getElementById(`root-comment-content-${th.id}`).value = "";
+      document.getElementById(`root-comment-form-${th.id}`).style.display = "none";
+      
+      // コメント一覧を再読み込み
+      await loadCommentsForThread(th.id);
+    } catch (e) {
+      alert("コメントの投稿に失敗しました: " + (e?.message || e));
+    }
   };
 
   return wrap;
@@ -497,58 +554,116 @@ function renderCommentLine(c, threadId) {
   const deletedCls = c.is_deleted ? "cmt-deleted" : "";
   const content = (c.content && c.content.trim().length) ? escapeHtml(c.content) : "(本文なし)";
   const imgInfo = (Array.isArray(c.images) && c.images.length) ? `<div class="muted mono">${c.images.length}枚の画像URL</div>` : "";
+  const adminBadge = c.admin_mark ? `<span class="badge">🛡️ 管理人</span>` : "";
 
   line.innerHTML = `
     <div class="${deletedCls}">
       <div class="row" style="justify-content:space-between;">
         <div>
           <strong>${escapeHtml(c.author_name || "匿名")}</strong>
+          ${adminBadge}
           <span class="muted mono">#${c.id.slice(0,8)} depth:${c.depth} replies:${c.reply_count}</span>
         </div>
         <div class="actions">
-          <button data-act="c-edit">編集</button>
+          <button class="reply-toggle" data-act="c-reply">💬 返信</button>
+          <button data-act="c-edit">✏️ 編集</button>
           ${c.is_deleted
-            ? `<button data-act="c-restore">復元</button>`
-            : `<button class="danger" data-act="c-softdel">ソフト削除</button>`
+            ? `<button class="success" data-act="c-restore">↩️ 復元</button>`
+            : `<button class="danger" data-act="c-softdel">🗑️ ソフト削除</button>`
           }
-          <button class="danger" data-act="c-harddel">ハード削除</button>
+          <button class="danger" data-act="c-harddel">💀 ハード削除</button>
         </div>
       </div>
-      <div style="white-space:pre-wrap; margin-top:4px;">${content}</div>
+      <div style="white-space:pre-wrap; margin-top:8px;">${content}</div>
       ${imgInfo}
-      <div class="row" style="gap:6px; margin-top:6px;">
+      <div class="row" style="gap:8px; margin-top:8px;">
         <input class="mono" id="reparent-${c.id}" placeholder="新しい親コメントID（空でルート）" style="flex:1; min-width:260px;">
-        <button data-act="c-reparent">親を付け替え</button>
+        <button data-act="c-reparent">🔄 親を付け替え</button>
+      </div>
+      <div id="reply-form-${c.id}" class="reply-form" style="display:none; margin-top:12px;">
+        <h4 style="margin: 0 0 12px 0; color: #333;">💬 ${escapeHtml(c.author_name || "匿名")}さんに返信</h4>
+        <textarea id="reply-content-${c.id}" rows="4" placeholder="返信内容を入力してください..." style="width:100%; margin-bottom:12px;"></textarea>
+        <div class="row" style="justify-content:flex-end; gap:8px;">
+          <button data-act="reply-cancel">キャンセル</button>
+          <button class="success" data-act="reply-submit">📤 返信送信</button>
+        </div>
       </div>
     </div>
   `;
 
   // ボタン動作
+  line.querySelector("[data-act='c-reply']").onclick = () => {
+    const form = document.getElementById(`reply-form-${c.id}`);
+    const isVisible = form.style.display !== "none";
+    form.style.display = isVisible ? "none" : "block";
+    if (!isVisible) {
+      document.getElementById(`reply-content-${c.id}`).focus();
+    }
+  };
+
   line.querySelector("[data-act='c-edit']").onclick = () => openCommentEditModal(c, threadId);
-  line.querySelector("[data-act='c-softdel']").onclick = async () => {
+  
+  const softDelBtn = line.querySelector("[data-act='c-softdel']");
+  if (softDelBtn) softDelBtn.onclick = async () => {
     if (!confirm("このコメントをソフト削除しますか？")) return;
     const r = await callAdmin("comment_soft_delete", { payload: { id: c.id } });
     if (!r.ok) return alert("失敗: " + (await r.text()));
     await loadCommentsForThread(threadId);
   };
+  
   const restoreBtn = line.querySelector("[data-act='c-restore']");
   if (restoreBtn) restoreBtn.onclick = async () => {
     const r = await callAdmin("comment_restore", { payload: { id: c.id } });
     if (!r.ok) return alert("失敗: " + (await r.text()));
     await loadCommentsForThread(threadId);
   };
+  
   line.querySelector("[data-act='c-harddel']").onclick = async () => {
     if (!confirm("このコメントを完全削除します。よろしいですか？")) return;
     const r = await callAdmin("comment_hard_delete", { payload: { id: c.id } });
     if (!r.ok) return alert("失敗: " + (await r.text()));
     await loadCommentsForThread(threadId);
   };
+  
   line.querySelector("[data-act='c-reparent']").onclick = async () => {
     const newParent = (document.getElementById(`reparent-${c.id}`)?.value || "").trim() || null;
     if (newParent === c.id) return alert("自分自身は親にできません。");
     const r = await callAdmin("comment_reparent", { payload: { id: c.id, new_parent_id: newParent } });
     if (!r.ok) return alert("付け替え失敗: " + (await r.text()));
     await loadCommentsForThread(threadId);
+  };
+
+  // 返信フォーム関連
+  const replyCancelBtn = line.querySelector("[data-act='reply-cancel']");
+  if (replyCancelBtn) replyCancelBtn.onclick = () => {
+    document.getElementById(`reply-form-${c.id}`).style.display = "none";
+  };
+
+  const replySubmitBtn = line.querySelector("[data-act='reply-submit']");
+  if (replySubmitBtn) replySubmitBtn.onclick = async () => {
+    const content = document.getElementById(`reply-content-${c.id}`).value.trim();
+    if (!content) return alert("返信内容を入力してください。");
+
+    try {
+      const r = await callAdmin("comment_create", {
+        payload: {
+          thread_id: threadId,
+          parent_id: c.id,
+          content: content,
+          images: []
+        }
+      });
+      if (!r.ok) throw new Error(await r.text());
+      
+      // フォームをリセットして非表示に
+      document.getElementById(`reply-content-${c.id}`).value = "";
+      document.getElementById(`reply-form-${c.id}`).style.display = "none";
+      
+      // コメント一覧を再読み込み
+      await loadCommentsForThread(threadId);
+    } catch (e) {
+      alert("返信の投稿に失敗しました: " + (e?.message || e));
+    }
   };
 
   return line;

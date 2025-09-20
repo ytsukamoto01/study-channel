@@ -444,6 +444,43 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok:true, moved: data });
     }
 
+    // ---- 管理者コメント作成 ----
+    if (action === "comment_create") {
+      const threadId = payload?.thread_id;
+      const parentId = payload?.parent_id || null;
+      const content = payload?.content || "";
+      const images = payload?.images || [];
+
+      if (!threadId) return res.status(400).json({ ok:false, error:"missing thread_id" });
+      if (!content.trim()) return res.status(400).json({ ok:false, error:"content is required" });
+
+      // commentsテーブルに直接挿入
+      const ins = {
+        thread_id: threadId,
+        parent_id: parentId,
+        content: content.trim(),
+        images: images,
+        author_name: "管理人",
+        user_fingerprint: null,
+        admin_mark: true,
+        is_deleted: false
+      };
+
+      const { data, error } = await sb.from("comments").insert(ins).select("*").single();
+      if (error) { 
+        console.error("comment_create error", error); 
+        return res.status(500).json({ ok:false, error: error.message }); 
+      }
+
+      // スレッドのcomment_countを更新
+      const { error: updateError } = await sb.rpc("increment_comment_count", { thread_id: threadId });
+      if (updateError) {
+        console.error("increment_comment_count error", updateError);
+        // エラーがあってもコメント作成は成功とみなす
+      }
+
+      return res.status(200).json({ ok:true, data });
+    }
 
     return res.status(400).json({ ok: false, error: "unknown action" });
   } catch (e) {
