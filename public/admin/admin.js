@@ -32,14 +32,42 @@ async function logout() {
 function parseTags(s) { return s.split(",").map(t=>t.trim()).filter(Boolean); }
 function parseImages(s){ return s.split(",").map(u=>u.trim()).filter(Boolean); }
 
+async function uploadImages(files) {
+  const urls = [];
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append("file", file);
+    // multipart は body だけでは action を渡しにくいのでクエリで指定
+    const res = await fetch("/api/admin?action=upload_image", {
+      method: "POST",
+      body: fd,
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error("画像アップロード失敗: " + t);
+    }
+    const json = await res.json();
+    // files: [{path, url}] で複数返るが、1件ずつ送ってるので先頭を採用
+    if (json?.files?.[0]?.url) urls.push(json.files[0].url);
+  }
+  return urls;
+}
+
 async function createThread() {
+  const fileInput = document.getElementById("new-images-file");
+  let imageUrls = [];
+  if (fileInput?.files?.length) {
+    imageUrls = await uploadImages(fileInput.files);
+  }
+
   const payload = {
     title: document.getElementById("new-title").value,
     content: document.getElementById("new-content").value,
     category: document.getElementById("new-category").value || "未分類",
     subcategory: document.getElementById("new-subcategory").value || null,
     hashtags: parseTags(document.getElementById("new-hashtags").value),
-    images: parseImages(document.getElementById("new-images").value),
+    images: imageUrls, // ← アップロードしたURLを保存
   };
   const res = await callAdmin("thread_create", { payload });
   if (!res.ok) return alert("作成失敗: " + (await res.text()));
@@ -48,9 +76,11 @@ async function createThread() {
 }
 
 function clearNewForm() {
-  ["new-title","new-content","new-category","new-subcategory","new-hashtags","new-images"]
-    .forEach(id => (document.getElementById(id).value = ""));
+  ["new-title","new-content","new-category","new-subcategory","new-hashtags"].forEach(id => (document.getElementById(id).value = ""));
+  const fi = document.getElementById("new-images-file");
+  if (fi) fi.value = "";
 }
+
 
 async function loadThreads() {
   const res = await callAdmin("threads_list");
