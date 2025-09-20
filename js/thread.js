@@ -449,18 +449,22 @@ function renderCommentWithReplies(comment, hierarchy, depth) {
       </div>
       <div class="comment-content">${contentHtml}</div>
       ${imagesHtml}
-      <div class="comment-actions">
-        ${(hierarchy.get(comment.id) || []).length > 0 ? `
-        <button class="replies-toggle-btn" onclick="toggleRepliesVisibility('${comment.id}')">
-          <span id="replies-toggle-text-${comment.id}">▶ ${(hierarchy.get(comment.id) || []).length}件の返信を表示</span>
-        </button>
-        ` : ''}
-        <button class="comment-reply-btn" onclick="toggleReplyForm('${comment.id}')">
-          <i class="fas fa-reply"></i> 返信する
-        </button>
-        <button class="comment-like-btn" onclick="likeThisComment('${comment.id}')">
-          <i class="fas fa-heart"></i> <span class="comment-like-count">${likeCount}</span>
-        </button>
+      <div class="comment-actions" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="comment-actions-left">
+          ${(hierarchy.get(comment.id) || []).length > 0 ? `
+          <button class="replies-toggle-btn" onclick="toggleRepliesVisibility('${comment.id}')">
+            <span id="replies-toggle-text-${comment.id}">▶ ${(hierarchy.get(comment.id) || []).length}件の返信を表示</span>
+          </button>
+          ` : ''}
+        </div>
+        <div class="comment-actions-right">
+          <button class="comment-reply-btn" onclick="toggleReplyForm('${comment.id}')">
+            <i class="fas fa-reply"></i> 返信する
+          </button>
+          <button class="comment-like-btn" onclick="likeThisComment('${comment.id}')">
+            <i class="fas fa-heart"></i> <span class="comment-like-count">${likeCount}</span>
+          </button>
+        </div>
       </div>
       
       <!-- 返信フォーム（初期は非表示） -->
