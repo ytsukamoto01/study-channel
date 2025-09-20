@@ -6,7 +6,25 @@ import Busboy from "busboy"; // ← 追加
 
 const COOKIE_NAME = "sc_admin_session";
 const MAX_AGE_SEC = 60 * 60 * 12;
-const BUCKET = process.env.SUPABASE_BUCKET || "admin-uploads"; // ← 追加
+// 先頭の定数の下あたりに追加
+const BUCKET = process.env.SUPABASE_BUCKET || "admin-uploads";
+
+async function ensureBucket(sb) {
+  // 既存なら何もしない
+  const { data: got } = await sb.storage.getBucket(BUCKET);
+  if (got) return;
+
+  // なければ作成（公開バケット）
+  const { error: createErr } = await sb.storage.createBucket(BUCKET, {
+    public: true,
+    fileSizeLimit: "10MB",         // 任意：サイズ上限
+    allowedMimeTypes: ["image/*"], // 任意：画像のみに制限
+  });
+  if (createErr) {
+    console.error("createBucket error", createErr);
+    throw new Error("cannot create bucket");
+  }
+}
 
 function supabaseAdmin() {
   const url = process.env.SUPABASE_URL;
@@ -126,6 +144,7 @@ export default async function handler(req, res) {
     if (!isAdmin(req)) return res.status(401).json({ ok: false, error: "unauthorized" });
 
     const sb = supabaseAdmin();
+    await ensureBucket(sb); 
 
     // ---- 画像アップロード（新規）----
     if (action === "upload_image") {
