@@ -457,6 +457,10 @@ const server = http.createServer((req, res) => {
       serveFile(res, 'thread.html');
     } else if (pathname === '/test-myposts.html' || pathname === '/test-myposts') {
       serveFile(res, 'test-myposts.html');
+    } else if (pathname === '/test-threads.html' || pathname === '/test-threads') {
+      serveFile(res, 'public/test-threads.html');
+    } else if (pathname === '/create-test-threads.js') {
+      serveFile(res, 'public/create-test-threads.js', 'application/javascript');
     } else if (pathname.startsWith('/js/')) {
       serveFile(res, pathname.substring(1), 'application/javascript');
     } else if (pathname.startsWith('/css/')) {

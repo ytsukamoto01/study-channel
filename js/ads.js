@@ -1,10 +1,10 @@
 (function() {
-  // Google AdSenseテスト用設定（テスト広告が確実に表示されます）
-  const ADSENSE_CLIENT_ID = 'ca-pub-3940256099942544'; // Google公式テストID
+  // Google AdSense本番用設定
+  const ADSENSE_CLIENT_ID = 'ca-pub-5122489446866147'; // 本番用AdSense ID
   const DEFAULT_SLOT_IDS = {
-    desktopLeft: '6300978111',   // テスト用サイドバー広告
-    desktopRight: '6300978111',  // テスト用サイドバー広告
-    mobileInline: '6300978111'   // テスト用インライン広告
+    desktopLeft: '6300978111',   // TODO: AdSense承認後に実際のスロットIDに変更
+    desktopRight: '6300978111',  // TODO: AdSense承認後に実際のスロットIDに変更
+    mobileInline: '6300978111'   // TODO: AdSense承認後に実際のスロットIDに変更
   };
 
   function getSlotId(name) {
@@ -40,7 +40,7 @@
              data-ad-client="${ADSENSE_CLIENT_ID}"
              data-ad-slot="${slotId}"
              data-ad-format="rectangle"
-             data-adtest="on"></ins>
+></ins>
       </div>
     `;
   }
@@ -161,7 +161,7 @@
              data-ad-client="${ADSENSE_CLIENT_ID}"
              data-ad-slot="${slotId}"
              data-ad-format="rectangle"
-             data-adtest="on"></ins>
+></ins>
       </div>
     `;
   }
