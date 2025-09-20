@@ -146,6 +146,23 @@ body {
   background: #fff;
 }
 
+.inline-ad-container {
+  display: none;
+  margin: 24px 0;
+  text-align: center;
+}
+
+.inline-ad-container .adsbygoogle {
+  display: block !important;
+  width: 100% !important;
+}
+
+@media (max-width: 767px) {
+  .inline-ad-container {
+    display: block;
+  }
+}
+
 .comment-header {
   display: flex !important;
   flex-direction: row;
