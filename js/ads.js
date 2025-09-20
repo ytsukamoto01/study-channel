@@ -57,6 +57,9 @@
     const threadsList = document.getElementById('threadsList');
     if (!threadsList) return;
     
+    // 既存の広告を先にクリア
+    clearThreadAds();
+    
     console.log('Inserting thread ads every 5 items');
     
     const threadItems = threadsList.querySelectorAll('.thread-item');
@@ -103,25 +106,49 @@
       return;
     }
 
-    const ads = context.querySelectorAll('ins.adsbygoogle:not([data-adsense-loaded])');
+    // より厳密な重複チェック：data-adsense-loaded属性と実際の広告コンテンツの両方を確認
+    const ads = context.querySelectorAll('ins.adsbygoogle:not([data-adsense-loaded]):not([data-adsbygoogle-status])');
     console.log(`Found ${ads.length} unloaded ads`);
+    
+    if (ads.length === 0) {
+      console.log('No new ads to load');
+      return;
+    }
     
     ads.forEach((ad, index) => {
       try {
+        // 既に処理されている広告をスキップ
+        if (ad.hasAttribute('data-adsense-loaded') || ad.hasAttribute('data-adsbygoogle-status')) {
+          console.log(`Skipping already processed ad ${index + 1}`);
+          return;
+        }
+        
+        // 広告にコンテンツが既に存在する場合もスキップ
+        if (ad.innerHTML.trim() !== '') {
+          console.log(`Skipping ad with existing content ${index + 1}`);
+          ad.setAttribute('data-adsense-loaded', 'true');
+          return;
+        }
+        
+        console.log(`Processing ad ${index + 1}...`);
         ad.setAttribute('data-adsense-loaded', 'true');
+        
+        // AdSenseにプッシュ
         (adsbygoogle = window.adsbygoogle || []).push({});
-        console.log(`Pushed ad ${index + 1} to AdSense`);
+        console.log(`Successfully pushed ad ${index + 1} to AdSense`);
         
         // 3秒後に広告が表示されていない場合はフォールバックを表示
         setTimeout(() => {
           const rect = ad.getBoundingClientRect();
-          if (rect.height < 50) {
-            console.log('Ad not loaded, showing fallback');
+          if (rect.height < 50 && ad.innerHTML.trim() === '') {
+            console.log(`Ad ${index + 1} not loaded, showing fallback`);
             showFallbackAd(ad);
           }
         }, 3000);
       } catch (error) {
-        console.error('Error pushing ad to AdSense:', error);
+        console.error(`Error pushing ad ${index + 1} to AdSense:`, error);
+        // エラーが発生した場合はフォールバック広告を表示
+        showFallbackAd(ad);
       }
     });
   }
@@ -198,8 +225,18 @@
     requestAds();
   }, 250);
 
-  document.addEventListener('DOMContentLoaded', () => {
+  // 初期化フラグで重複実行を防ぐ
+  let adsInitialized = false;
+  
+  function initializeAds() {
+    if (adsInitialized) {
+      console.log('AdSense already initialized, skipping...');
+      return;
+    }
+    
     console.log('AdSense helpers initializing');
+    adsInitialized = true;
+    
     ensureSideAds();
     requestAds();
     window.addEventListener('resize', handleResize);
@@ -209,7 +246,14 @@
       console.log('Delayed ad request');
       requestAds();
     }, 1000);
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeAds);
+  } else {
+    // DOMが既に読み込まれている場合
+    initializeAds();
+  }
 
   window.adsenseHelpers = {
     requestAds,
