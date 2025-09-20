@@ -388,16 +388,11 @@ function displayCommentsWithReplies(parents, hierarchy = new Map()) {
   const list = document.getElementById('commentsList');
   if (!list) return;
 
+  const inlineAdState = createInlineAdState();
   let html = '';
-  parents.forEach((parent, index) => {
-    html += renderCommentWithReplies(parent, hierarchy, 0);
 
-    if (shouldInsertInlineAd(index + 1)) {
-      const inlineAd = renderInlineAdBlock();
-      if (inlineAd) {
-        html += inlineAd;
-      }
-    }
+  parents.forEach(parent => {
+    html += renderCommentWithReplies(parent, hierarchy, 0, inlineAdState);
   });
 
   list.innerHTML = html;
@@ -408,7 +403,7 @@ function displayCommentsWithReplies(parents, hierarchy = new Map()) {
 }
 
 // 無限階層レンダリング（再帰）
-function renderCommentWithReplies(comment, hierarchy, depth) {
+function renderCommentWithReplies(comment, hierarchy, depth, inlineState) {
   const indent = depth * 20; // 20px per level
   const numberHtml = comment.comment_number != null ? `${comment.comment_number}.` : '';
   const authorHtml = escapeHtml(comment.author_name || '匿名');
@@ -475,41 +470,69 @@ function renderCommentWithReplies(comment, hierarchy, depth) {
       </div>
     </div>
   `;
-  
+
+  if (inlineState) {
+    inlineState.count += 1;
+
+    if (inlineState.enabled) {
+      let inlineMarkup = '';
+
+      while (inlineState.count >= inlineState.nextThreshold && inlineState.enabled) {
+        const rendered = inlineState.render({ indent });
+        if (rendered) {
+          inlineMarkup += rendered;
+          inlineState.nextThreshold += inlineState.frequency;
+        } else {
+          inlineState.enabled = false;
+        }
+      }
+
+      if (inlineMarkup) {
+        html += inlineMarkup;
+      }
+    }
+  }
+
   // 返信があれば再帰的に追加
   const replies = hierarchy.get(comment.id) || [];
   if (replies.length > 0) {
     html += `<div class="replies-container" style="margin-left: ${indent + 20}px;">`;
-    
+
     // 返信件数の表示
     if (replies.length > 0) {
       html += `<div class="replies-count" style="margin: 8px 0; color: #6b7280; font-size: 13px;">${replies.length}件の返信</div>`;
     }
     
     replies.forEach(reply => {
-      html += renderCommentWithReplies(reply, hierarchy, depth + 1);
+      html += renderCommentWithReplies(reply, hierarchy, depth + 1, inlineState);
     });
-    
+
     html += `</div>`;
   }
-  
+
   return html;
 }
 
-function shouldInsertInlineAd(renderedCount) {
-  if (!window.adsenseHelpers?.shouldShowInlineAds) {
-    return false;
+const INLINE_AD_FREQUENCY = 5;
+
+function createInlineAdState() {
+  const helpers = window.adsenseHelpers;
+  if (!helpers?.shouldShowInlineAds || !helpers.shouldShowInlineAds()) {
+    return null;
   }
 
-  return renderedCount > 0 && renderedCount % 5 === 0 && window.adsenseHelpers.shouldShowInlineAds();
-}
-
-function renderInlineAdBlock() {
-  if (!window.adsenseHelpers?.renderInlineAdMarkup) {
-    return '';
+  const renderFn = typeof helpers.renderInlineAdMarkup === 'function' ? helpers.renderInlineAdMarkup : null;
+  if (!renderFn) {
+    return null;
   }
 
-  return window.adsenseHelpers.renderInlineAdMarkup();
+  return {
+    enabled: true,
+    count: 0,
+    frequency: INLINE_AD_FREQUENCY,
+    nextThreshold: INLINE_AD_FREQUENCY,
+    render: renderFn
+  };
 }
 
 // 親コメントに対する「いいね」

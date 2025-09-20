@@ -1,26 +1,160 @@
-(function() {
+(function () {
   const ADSENSE_CLIENT_ID = 'ca-pub-5122489446866147';
-  const SIDE_AD_MEDIA_QUERY = '(min-width: 1441px)';
+  const DESKTOP_RAIL_QUERY = '(min-width: 1441px)';
   const AD_RETRY_INTERVAL = 500;
   const MAX_AD_LOAD_ATTEMPTS = 10;
-  const DEFAULT_SLOT_IDS = {
-    desktopLeft: '1234567890',
-    desktopRight: '1234567891',
-    mobileInline: '1234567892'
-  };
-  let sideAdResizeTimer = null;
 
-  function getSlotId(name) {
-    const body = document.body;
-    if (!body) return DEFAULT_SLOT_IDS[name];
-    const datasetKey = `adsenseSlot${name.charAt(0).toUpperCase()}${name.slice(1)}`;
-    return body.dataset?.[datasetKey] || DEFAULT_SLOT_IDS[name];
+  const rails = { left: null, right: null };
+  const pendingAds = new WeakSet();
+  const watcherCleanup = new WeakMap();
+  let resizeTimer = null;
+
+  function normalizeSlotId(value) {
+    if (value == null) {
+      return null;
+    }
+
+    const trimmed = `${value}`.trim();
+    if (!trimmed || trimmed === '0' || trimmed.toLowerCase() === 'null') {
+      return null;
+    }
+
+    return trimmed;
   }
 
-  function createSideAd(position) {
+  function resolveSlotId(slotKey) {
+    const datasetKey = `adsenseSlot${slotKey.charAt(0).toUpperCase()}${slotKey.slice(1)}`;
+    const bodySlot = normalizeSlotId(document.body?.dataset?.[datasetKey]);
+
+    if (bodySlot) {
+      return bodySlot;
+    }
+
+    const globalConfig = window.adsenseSlotConfig || window.adsenseSlots;
+    if (globalConfig) {
+      return normalizeSlotId(globalConfig[slotKey]);
+    }
+
+    return null;
+  }
+
+  function stopWatching(ad) {
+    const cleanup = watcherCleanup.get(ad);
+    if (cleanup) {
+      cleanup();
+    }
+    watcherCleanup.delete(ad);
+  }
+
+  function markAdLoaded(ad) {
+    ad.dataset.adsenseLoaded = 'true';
+    ad.removeAttribute('data-adsense-pending');
+    stopWatching(ad);
+    pendingAds.delete(ad);
+  }
+
+  function abandonAd(ad) {
+    stopWatching(ad);
+    pendingAds.delete(ad);
+    ad.removeAttribute('data-adsense-pending');
+  }
+
+  function tryPushAd(ad) {
+    if (!ad.isConnected) {
+      abandonAd(ad);
+      return false;
+    }
+
+    const width = ad.offsetWidth || ad.clientWidth || Math.round(ad.getBoundingClientRect().width);
+    if (width > 0) {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+      markAdLoaded(ad);
+      return true;
+    }
+
+    return false;
+  }
+
+  function loadAdWhenReady(ad) {
+    if (!ad || ad.dataset.adsenseLoaded === 'true' || pendingAds.has(ad)) {
+      return;
+    }
+
+    pendingAds.add(ad);
+    ad.dataset.adsensePending = 'true';
+
+    if (tryPushAd(ad)) {
+      return;
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(() => {
+        if (!pendingAds.has(ad)) {
+          observer.disconnect();
+          return;
+        }
+
+        tryPushAd(ad);
+      });
+
+      observer.observe(ad);
+      watcherCleanup.set(ad, () => observer.disconnect());
+      return;
+    }
+
+    let attempts = 0;
+
+    const onResize = () => {
+      if (!pendingAds.has(ad)) {
+        return;
+      }
+
+      tryPushAd(ad);
+    };
+
+    const intervalId = window.setInterval(() => {
+      if (!pendingAds.has(ad)) {
+        window.clearInterval(intervalId);
+        return;
+      }
+
+      attempts += 1;
+      if (tryPushAd(ad)) {
+        return;
+      }
+
+      if (attempts >= MAX_AD_LOAD_ATTEMPTS) {
+        abandonAd(ad);
+      }
+    }, AD_RETRY_INTERVAL);
+
+    watcherCleanup.set(ad, () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('resize', onResize);
+    });
+
+    window.addEventListener('resize', onResize);
+  }
+
+  function requestAds(context = document) {
+    if (!context) {
+      return;
+    }
+
+    const ads = context.querySelectorAll('ins.adsbygoogle');
+    ads.forEach(loadAdWhenReady);
+  }
+
+  function createRail(position) {
+    if (!document.body) {
+      return null;
+    }
+
     const slotKey = position === 'left' ? 'desktopLeft' : 'desktopRight';
-    const slotId = getSlotId(slotKey);
-    if (!slotId) return null;
+    const slotId = resolveSlotId(slotKey);
+    if (!slotId) {
+      return null;
+    }
 
     const aside = document.createElement('aside');
     aside.className = `side-ad side-ad-${position}`;
@@ -39,110 +173,58 @@
     inner.appendChild(ins);
     aside.appendChild(inner);
 
+    document.body.appendChild(aside);
+    rails[position] = aside;
+
+    requestAds(aside);
     return aside;
   }
 
-  function canShowSideAds() {
+  function destroyRail(position) {
+    if (rails[position]) {
+      rails[position].remove();
+      rails[position] = null;
+    }
+  }
+
+  function shouldShowDesktopRails() {
     if (window.matchMedia) {
-      return window.matchMedia(SIDE_AD_MEDIA_QUERY).matches;
-    }
-    return window.innerWidth > 1440;
-  }
-
-  function ensureSideAds() {
-    if (!document.body || !canShowSideAds()) return;
-
-    if (!document.querySelector('.side-ad.side-ad-left')) {
-      const left = createSideAd('left');
-      if (left) document.body.appendChild(left);
+      return window.matchMedia(DESKTOP_RAIL_QUERY).matches;
     }
 
-    if (!document.querySelector('.side-ad.side-ad-right')) {
-      const right = createSideAd('right');
-      if (right) document.body.appendChild(right);
+    return window.innerWidth >= 1441;
+  }
+
+  function syncRails() {
+    if (!document.body) {
+      return;
     }
-  }
 
-  function removeSideAds() {
-    document.querySelectorAll('.side-ad').forEach(ad => ad.remove());
-  }
+    if (shouldShowDesktopRails()) {
+      if (!rails.left) {
+        createRail('left');
+      }
 
-  function updateSideAds() {
-    if (!document.body) return;
-
-    if (canShowSideAds()) {
-      ensureSideAds();
-      requestAds(document.body);
+      if (!rails.right) {
+        createRail('right');
+      }
     } else {
-      removeSideAds();
+      destroyRail('left');
+      destroyRail('right');
     }
   }
 
-  function loadAdWhenReady(ad) {
-    if (!ad || ad.getAttribute('data-adsense-loaded') === 'true' || ad.getAttribute('data-adsense-pending') === 'true') {
-      return;
+  function renderInlineAdMarkup(options = {}) {
+    const slotId = resolveSlotId('mobileInline');
+    if (!slotId) {
+      return '';
     }
 
-    ad.setAttribute('data-adsense-pending', 'true');
-
-    let attempts = 0;
-    let intervalId = null;
-
-    const cleanup = () => {
-      ad.removeAttribute('data-adsense-pending');
-      if (intervalId) {
-        window.clearInterval(intervalId);
-        intervalId = null;
-      }
-      window.removeEventListener('resize', onResize);
-    };
-
-    const tryLoad = () => {
-      if (!ad.isConnected) {
-        return false;
-      }
-
-      const width = ad.offsetWidth || ad.clientWidth;
-      if (width > 0) {
-        ad.setAttribute('data-adsense-loaded', 'true');
-        (adsbygoogle = window.adsbygoogle || []).push({});
-        return true;
-      }
-      return false;
-    };
-
-    const onResize = () => {
-      if (tryLoad()) {
-        cleanup();
-      }
-    };
-
-    if (tryLoad()) {
-      cleanup();
-      return;
-    }
-
-    intervalId = window.setInterval(() => {
-      attempts += 1;
-      if (tryLoad() || attempts >= MAX_AD_LOAD_ATTEMPTS) {
-        cleanup();
-      }
-    }, AD_RETRY_INTERVAL);
-
-    window.addEventListener('resize', onResize);
-  }
-
-  function requestAds(context = document) {
-    const ads = context.querySelectorAll('ins.adsbygoogle');
-    ads.forEach(loadAdWhenReady);
-  }
-
-  function renderInlineAdMarkup() {
-    const slotId = getSlotId('mobileInline');
-    if (!slotId) return '';
+    const indent = typeof options.indent === 'number' && options.indent > 0 ? options.indent : 0;
+    const styleAttr = indent ? ` style="--inline-ad-indent: ${indent}px;"` : '';
 
     return `
-      <div class="inline-ad-container">
+      <div class="inline-ad-container"${styleAttr} data-inline-ad="true">
         <ins class="adsbygoogle"
              style="display:block"
              data-ad-client="${ADSENSE_CLIENT_ID}"
@@ -150,31 +232,50 @@
              data-ad-format="auto"
              data-full-width-responsive="true"></ins>
       </div>
-    `;
+    `.trim();
   }
 
   function shouldShowInlineAds() {
     if (window.matchMedia) {
       return window.matchMedia('(max-width: 767px)').matches;
     }
+
     return window.innerWidth <= 767;
   }
 
+  function handleViewportChange() {
+    syncRails();
+    if (document.body) {
+      requestAds(document.body);
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
-    updateSideAds();
+    syncRails();
     requestAds();
   });
 
+  const desktopQuery = window.matchMedia ? window.matchMedia(DESKTOP_RAIL_QUERY) : null;
+  if (desktopQuery) {
+    const onDesktopChange = () => handleViewportChange();
+
+    if (typeof desktopQuery.addEventListener === 'function') {
+      desktopQuery.addEventListener('change', onDesktopChange);
+    } else if (typeof desktopQuery.addListener === 'function') {
+      desktopQuery.addListener(onDesktopChange);
+    }
+  }
+
   window.addEventListener('resize', () => {
-    window.clearTimeout(sideAdResizeTimer);
-    sideAdResizeTimer = window.setTimeout(() => {
-      updateSideAds();
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(() => {
+      handleViewportChange();
     }, 200);
   });
 
-  window.adsenseHelpers = {
+  window.adsenseHelpers = Object.assign({}, window.adsenseHelpers || {}, {
     requestAds,
     renderInlineAdMarkup,
     shouldShowInlineAds
-  };
+  });
 })();

@@ -150,6 +150,7 @@ body {
   display: none;
   margin: 24px 0;
   text-align: center;
+  margin-left: var(--inline-ad-indent, 0);
 }
 
 .inline-ad-container .adsbygoogle {
