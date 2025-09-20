@@ -276,6 +276,13 @@ function displayThreads(category = 'all') {
             }, 100);
         }
         
+        // 通報ステータスを更新
+        if (window.updateReportStatusUI) {
+            setTimeout(() => {
+                window.updateReportStatusUI();
+            }, 200);
+        }
+        
     } catch (error) {
         console.error('スレッド表示エラー:', error);
         threadsList.innerHTML = `

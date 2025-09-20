@@ -54,9 +54,35 @@ export default async function handler(req, res) {
     }
 
     // ===========================
-    // GET: 通報・削除依頼 一覧（管理）
+    // GET: 通報・削除依頼 一覧（管理 or ユーザー自分の分）
     // ===========================
     if (req.method === "GET") {
+      const user_fingerprint = req.query.user_fingerprint ? String(req.query.user_fingerprint) : undefined;
+      
+      // ユーザーが自分の通報ステータスを確認する場合
+      if (user_fingerprint && !adminAllowed) {
+        const { data, error } = await sb
+          .from("reports")
+          .select(`
+            id, type, target_type, target_id, status, reason, description, 
+            admin_notes, created_at, updated_at
+          `)
+          .eq("reporter_fingerprint", user_fingerprint)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.error("User reports fetch error:", error);
+          return res.status(500).json({ ok: false, error: error.message });
+        }
+
+        return res.status(200).json({
+          ok: true,
+          data: data || [],
+          user_mode: true
+        });
+      }
+
+      // 管理者モード
       if (!adminAllowed) return res.status(403).json({ ok: false, error: "Forbidden" });
 
       const type = req.query.type ? String(req.query.type) : undefined;

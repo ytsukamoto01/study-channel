@@ -413,11 +413,10 @@ function displayReports(reports) {
     
     const actions = r.status === 'pending' ? `
       <div class="actions">
-        <button onclick="updateReport('${r.id}', 'approved')">承認</button>
-        <button onclick="updateReport('${r.id}', 'rejected')">拒否</button>
-        <button class="danger" onclick="deleteReportedContent('${r.id}', '${r.target_type}', '${r.target_id}')">
-          コンテンツ削除
+        <button class="success" data-report='${JSON.stringify(r)}' onclick="handleApproval('${r.id}')">
+          承認・削除
         </button>
+        <button class="warning" onclick="updateReport('${r.id}', 'rejected')">拒否</button>
         <button class="danger" onclick="deleteReport('${r.id}')">削除</button>
       </div>
     ` : `
@@ -472,19 +471,48 @@ function getTargetInfo(report) {
   }
 }
 
-async function updateReport(id, status) {
+async function updateReport(id, status, report = null) {
   try {
+    // 承認の場合は、コンテンツ削除も同時に行うかユーザーに確認
+    let deleteContent = false;
+    if (status === 'approved' && report) {
+      const typeText = report.target_type === 'thread' ? 'スレッド' : 
+                       report.target_type === 'comment' ? 'コメント' : '返信';
+      deleteContent = confirm(`この通報・削除依頼を承認し、該当の${typeText}を削除しますか？`);
+      
+      if (!deleteContent) {
+        // 承認のみの場合
+        if (!confirm('コンテンツは削除せずに承認のみを行いますか？')) {
+          return;
+        }
+      }
+    }
+    
     const adminNotes = prompt("管理者メモ (任意):");
-    const payload = { status };
+    const payload = { 
+      status,
+      delete_content: deleteContent
+    };
     if (adminNotes) payload.admin_notes = adminNotes;
     
     const res = await callAdmin("report_update", { id, payload });
     if (!res.ok) throw new Error(await res.text());
     
+    const result = await res.json();
+    if (result.content_deleted) {
+      alert(`通報を承認し、コンテンツを削除しました。`);
+    }
+    
     await loadReports();
   } catch (e) {
     alert("更新に失敗しました: " + (e?.message || e));
   }
+}
+
+async function handleApproval(id) {
+  const button = event.target;
+  const reportData = JSON.parse(button.getAttribute('data-report'));
+  await updateReport(id, 'approved', reportData);
 }
 
 async function deleteReport(id) {

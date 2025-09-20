@@ -1946,6 +1946,62 @@ body {
     background-color: #fffbeb;
 }
 
+/* 通報・削除依頼ステータス表示 */
+.report-status-pending {
+    color: #d97706 !important;
+    background-color: #fffbeb;
+    border: 1px solid #fbbf24;
+    cursor: not-allowed;
+}
+
+.report-status-approved {
+    color: #059669 !important;
+    background-color: #ecfdf5;
+    border: 1px solid #10b981;
+    cursor: not-allowed;
+}
+
+.report-status-rejected {
+    color: #dc2626 !important;
+    background-color: #fef2f2;
+    border: 1px solid #f87171;
+    cursor: pointer;
+}
+
+.report-status-pending:hover,
+.report-status-approved:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.report-status-rejected:hover {
+    background-color: #fecaca;
+}
+
+/* 通報ボタンのベーススタイル調整 */
+.thread-item-report.report-status-pending,
+.thread-item-report.report-status-approved,
+.thread-item-report.report-status-rejected {
+    font-size: 10px;
+    padding: 4px 6px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* コメント内の通報リンクのステータス表示 */
+.comment-moderation-links a.report-status-pending,
+.comment-moderation-links a.report-status-approved,
+.comment-moderation-links a.report-status-rejected {
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    text-decoration: none;
+    display: inline-block;
+    margin: 0 2px;
+}
+
 /* コメント・返信でのヘッダー行レイアウト */
 .comment-header {
     display: flex;

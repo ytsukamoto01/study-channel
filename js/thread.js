@@ -273,6 +273,13 @@ function displayThreadDetail(thread) {
   }
 
   document.title = `${thread.title} - すたでぃちゃんねる`;
+  
+  // 通報ステータスを更新
+  if (window.updateReportStatusUI) {
+    setTimeout(() => {
+      window.updateReportStatusUI();
+    }, 200);
+  }
 }
 
 // 自分のスレッドかどうかを判定する関数
@@ -404,6 +411,13 @@ function displayCommentsWithReplies(parents, hierarchy = new Map()) {
 
   if (window.adsenseHelpers?.requestAds) {
     window.adsenseHelpers.requestAds(list);
+  }
+  
+  // 通報ステータスを更新
+  if (window.updateReportStatusUI) {
+    setTimeout(() => {
+      window.updateReportStatusUI();
+    }, 200);
   }
 }
 

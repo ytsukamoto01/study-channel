@@ -150,6 +150,137 @@ async function reportContent(targetType, targetId, targetTitle = '') {
   }
 }
 
+// 削除依頼機能
+async function requestDeletion(targetType, targetId, targetTitle = '') {
+  if (!confirm(`この${targetType === 'thread' ? 'スレッド' : 'コメント'}の削除を依頼しますか？`)) {
+    return;
+  }
+
+  try {
+    // 削除理由を選択させる
+    const reason = await showReasonDialog('delete_request');
+    if (!reason) return;
+
+    const requestData = {
+      type: 'delete_request',
+      target_type: targetType,
+      target_id: targetId,
+      reporter_fingerprint: generateUserFingerprint(),
+      reporter_name: '匿名',
+      reason: reason.reason,
+      description: reason.description
+    };
+
+    const response = await fetch('/api/reports', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || '削除依頼の送信に失敗しました');
+    }
+
+    const result = await response.json();
+    showMessage(result.message || '削除依頼を送信しました', 'success');
+
+    // UI更新
+    await updateReportStatusUI();
+
+  } catch (error) {
+    console.error('削除依頼エラー:', error);
+    showMessage(error.message || '削除依頼の送信に失敗しました', 'error');
+  }
+}
+
+// ユーザーの通報ステータスを取得
+async function getUserReportStatus() {
+  try {
+    const fingerprint = generateUserFingerprint();
+    const response = await fetch(`/api/reports?user_fingerprint=${encodeURIComponent(fingerprint)}`);
+    
+    if (!response.ok) {
+      throw new Error('ステータス取得に失敗しました');
+    }
+
+    const result = await response.json();
+    return result.data || [];
+  } catch (error) {
+    console.error('通報ステータス取得エラー:', error);
+    return [];
+  }
+}
+
+// UIにステータスを反映
+async function updateReportStatusUI() {
+  try {
+    const reports = await getUserReportStatus();
+    
+    // 各スレッド・コメントの通報/削除依頼ボタンを更新
+    reports.forEach(report => {
+      const { target_type, target_id, type, status, admin_notes } = report;
+      
+      // 対応するボタンを見つける
+      const reportBtn = document.querySelector(`[onclick*="reportContent('${target_type}', '${target_id}')"]`);
+      const deleteBtn = document.querySelector(`[onclick*="requestDeletion('${target_type}', '${target_id}')"]`);
+      
+      const btn = type === 'report' ? reportBtn : deleteBtn;
+      if (btn) {
+        updateButtonStatus(btn, type, status, admin_notes);
+      }
+    });
+    
+  } catch (error) {
+    console.error('ステータスUI更新エラー:', error);
+  }
+}
+
+// ボタンのステータス表示を更新
+function updateButtonStatus(button, type, status, admin_notes) {
+  const typeText = type === 'report' ? '通報' : '削除依頼';
+  let statusText = '';
+  let className = '';
+  
+  switch (status) {
+    case 'pending':
+      statusText = `${typeText}処理中...`;
+      className = 'report-status-pending';
+      button.disabled = true;
+      break;
+    case 'approved':
+      statusText = `${typeText}承認済み`;
+      className = 'report-status-approved';
+      button.disabled = true;
+      break;
+    case 'rejected':
+      statusText = `${typeText}却下`;
+      if (admin_notes) {
+        statusText += `：${admin_notes}`;
+      }
+      className = 'report-status-rejected';
+      button.disabled = false; // 却下の場合は再通報可能
+      break;
+  }
+  
+  button.textContent = statusText;
+  button.className = `${button.className.split(' ')[0]} ${className}`;
+  
+  // ツールチップで詳細情報を表示
+  if (admin_notes && status === 'rejected') {
+    button.title = `却下理由: ${admin_notes}`;
+  }
+}
+
+// ページロード時にステータスを更新
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(updateReportStatusUI, 1000); // スレッド/コメント読み込み後に実行
+});
+
 // グローバルに公開
 window.showReasonDialog = showReasonDialog;
 window.reportContent = reportContent;
+window.requestDeletion = requestDeletion;
+window.updateReportStatusUI = updateReportStatusUI;
