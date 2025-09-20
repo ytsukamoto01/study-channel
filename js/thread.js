@@ -411,7 +411,8 @@ function displayCommentsWithReplies(parents, hierarchy = new Map()) {
 function renderCommentWithReplies(comment, hierarchy, depth) {
   const indent = depth * 20; // 20px per level
   const numberHtml = comment.comment_number != null ? `${comment.comment_number}.` : '';
-  const authorHtml = escapeHtml(comment.author_name || '匿名');
+ const authorHtml = formatAuthorName(comment.author_name, !!comment.admin_mark);
+${formatAuthorName(thread.author_name, !!thread.admin_mark)}
   const dateHtml = getRelativeTime(new Date(comment.created_at).getTime());
   const contentHtml = escapeHtml(comment.content || '');
   const likeCount = comment.like_count || 0;
