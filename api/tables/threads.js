@@ -1,3 +1,51 @@
+// /api/threads.js
+import { supabase, parseListParams } from './_supabase.js';
+
+export default async function handler(req, res) {
+  try {
+    if (req.method === 'GET') {
+      const { limit, cursorTs, cursorId, category } = parseListParams(req);
+      const sb = supabase(false);
+
+      let q = sb
+        .from('threads')
+        .select('id,title,category,reply_count,like_count,created_at', { count: 'exact' })
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(limit);
+
+      if (category) q = q.eq('category', category);
+
+      if (cursorTs && cursorId) {
+        const ts = encodeURIComponent(cursorTs);
+        const id = encodeURIComponent(cursorId);
+        // created_at < ts OR (created_at = ts AND id < id)
+        q = q.or(`created_at.lt.${ts},and(created_at.eq.${ts},id.lt.${id})`);
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+
+      const nextCursor =
+        data && data.length
+          ? { cursor_ts: data[data.length - 1].created_at, cursor_id: data[data.length - 1].id }
+          : null;
+
+      return res.status(200).json({ items: data, nextCursor });
+    }
+
+    // POST（一般ユーザーの作成）などがあるならここで分岐
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: String(e.message || e) });
+  }
+}
+
+
+
+/*
 // Threads API with Supabase integration
 import { supabase, parseListParams } from '../_supabase.js';
 
@@ -322,4 +370,4 @@ export default async function handler(req, res) {
       message: error.message 
     });
   }
-}
+}*/
