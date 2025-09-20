@@ -199,7 +199,7 @@ export default async function handler(req, res) {
         subcategory: p.subcategory || null,
         hashtags: p.hashtags || [],
         images: p.images || [],            // ← アップロードURLを入れる
-        author_name: "管理人",
+        author_name: "🛡️ 管理人",
         user_fingerprint: null,
         admin_mark: true,
       };
