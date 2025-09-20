@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>テストスレッド作成 - すたでぃちゃんねる</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .test-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s ease;
+        }
+        .test-button:hover {
+            transform: translateY(-2px);
+        }
+        .test-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .progress {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 テストスレッド作成ツール</h1>
+        <p>広告表示テスト用に20個のサンプルスレッドを作成します。</p>
+        
+        <button id="createBtn" class="test-button" onclick="runTestCreation()">
+            📝 20個のテストスレッドを作成
+        </button>
+        
+        <button id="clearBtn" class="test-button" onclick="clearAllThreads()" style="background: #dc3545;">
+            🗑️ 全てのスレッドを削除
+        </button>
+        
+        <div id="progress" class="progress" style="display: none;">
+            <div id="log">準備中...</div>
+        </div>
+        
+        <a href="/" class="back-link">← メインページに戻る</a>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script>
+        function showProgress() {
+            document.getElementById('progress').style.display = 'block';
+        }
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += message + '<br>';
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function disableButtons() {
+            document.getElementById('createBtn').disabled = true;
+            document.getElementById('clearBtn').disabled = true;
+        }
+        
+        function enableButtons() {
+            document.getElementById('createBtn').disabled = false;
+            document.getElementById('clearBtn').disabled = false;
+        }
+        
+        async function runTestCreation() {
+            showProgress();
+            disableButtons();
+            log('🚀 テストスレッド作成を開始...');
+            
+            try {
+                // 外部スクリプトを動的に読み込んで実行
+                const script = document.createElement('script');
+                script.src = 'create-test-threads.js';
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                log('❌ エラー: ' + error.message);
+                enableButtons();
+            }
+        }
+        
+        async function clearAllThreads() {
+            if (!confirm('本当に全てのスレッドを削除しますか？この操作は元に戻せません。')) {
+                return;
+            }
+            
+            showProgress();
+            disableButtons();
+            log('🗑️ 全スレッド削除を開始...');
+            
+            try {
+                // 全スレッドを取得
+                const response = await fetch('/api/tables/threads');
+                if (!response.ok) throw new Error('スレッド取得に失敗');
+                
+                const threadsData = await response.json();
+                const threads = threadsData.data || [];
+                
+                log(`📝 ${threads.length}個のスレッドを発見`);
+                
+                let deleteCount = 0;
+                for (const thread of threads) {
+                    try {
+                        const deleteResponse = await fetch(`/api/tables/threads/${thread.id}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        if (deleteResponse.ok) {
+                            deleteCount++;
+                            log(`✅ 削除成功 [${deleteCount}/${threads.length}]: ${thread.title}`);
+                        } else {
+                            log(`❌ 削除失敗: ${thread.title}`);
+                        }
+                    } catch (error) {
+                        log(`❌ 削除エラー: ${thread.title} - ${error.message}`);
+                    }
+                    
+                    // 少し待機
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                log(`🎉 削除完了! ${deleteCount}個のスレッドを削除しました`);
+                
+                // ページリロード
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+                
+            } catch (error) {
+                log('❌ エラー: ' + error.message);
+            } finally {
+                enableButtons();
+            }
+        }
+    </script>
+</body>
+</html>
