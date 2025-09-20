@@ -53,7 +53,17 @@
         <h3>返信を投稿</h3>
         <form id="replyForm" class="comment-form">
           <textarea id="replyContent" rows="4" placeholder="返信を入力..."></textarea>
-          
+
+          <div id="replyTargetBanner" class="reply-target-banner" hidden>
+            <div class="reply-target-header">
+              <span class="reply-target-label" id="replyTargetLabel">返信先: 親コメント</span>
+              <button type="button" id="replyTargetReset" class="reply-target-reset-btn">
+                <i class="fas fa-undo"></i> 親コメントに戻す
+              </button>
+            </div>
+            <p class="reply-target-snippet" id="replyTargetSnippet"></p>
+          </div>
+
           <!-- 画像添付機能 -->
           <div class="form-group">
             <label for="replyImages">画像添付</label>
