@@ -1826,43 +1826,121 @@ body {
   font-weight:600;
 }
 
-/* 削除依頼・通報ボタン */
+/* 削除依頼・通報リンク */
 .my-post-actions {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #e5e7eb;
+    margin-top: 8px;
     display: flex;
+    justify-content: flex-end;
     gap: 8px;
 }
 
-.delete-request-btn, .report-btn {
-    background-color: #f3f4f6;
-    border: 1px solid #d1d5db;
-    color: #6b7280;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
+.delete-request-link, .report-link {
+    color: #9ca3af;
+    font-size: 11px;
+    text-decoration: none;
+    padding: 2px 4px;
+    border-radius: 3px;
     transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+    background: none;
+}
+
+.delete-request-link:hover {
+    color: #dc2626;
+    background-color: #fef2f2;
+}
+
+.report-link:hover {
+    color: #d97706;
+    background-color: #fffbeb;
+}
+
+/* スレッド詳細での通報リンク（右上配置用） */
+.op-post {
+    position: relative; /* 絶対配置の基準点 */
+}
+
+.thread-report-link {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    color: #9ca3af;
+    font-size: 11px;
+    text-decoration: none;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.thread-report-link:hover {
+    color: #d97706;
+    background-color: #fffbeb;
+    border-color: #fbbf24;
+}
+
+/* スレッドアイテムでの通報リンク（右下配置用） */
+.thread-item {
+    position: relative; /* 絶対配置の基準点 */
+}
+
+.thread-item-report {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    color: #9ca3af;
+    font-size: 11px;
+    text-decoration: none;
+    padding: 2px 4px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.8);
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.thread-item-report:hover {
+    color: #d97706;
+    background-color: #fffbeb;
+}
+
+/* コメント・返信での通報・削除依頼リンク */
+.comment-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: space-between;
+    flex-wrap: wrap;
 }
 
-.delete-request-btn:hover {
-    background-color: #fee2e2;
-    border-color: #fca5a5;
-    color: #dc2626;
-}
-
-.report-btn:hover {
-    background-color: #fef3c7;
-    border-color: #fcd34d;
-    color: #d97706;
-}
-
-.delete-request-btn i, .report-btn i {
+.comment-moderation-links {
+    display: flex;
+    gap: 8px;
     font-size: 11px;
+}
+
+.comment-moderation-links a,
+.comment-moderation-links button {
+    color: #9ca3af;
+    text-decoration: none;
+    padding: 2px 4px;
+    border-radius: 3px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 11px;
+}
+
+.comment-moderation-links .delete-request-link:hover {
+    color: #dc2626;
+    background-color: #fef2f2;
+}
+
+.comment-moderation-links .report-link:hover {
+    color: #d97706;
+    background-color: #fffbeb;
 }
 
 /* 通報・削除依頼モーダル */

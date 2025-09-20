@@ -10,6 +10,92 @@ function isMyComment(comment) {
     return comment.user_fingerprint === userFingerprint;
 }
 
+// コメントの削除依頼
+async function requestDeleteComment(commentId) {
+  if (!confirm('このコメントの削除依頼を送信しますか？\n\n削除依頼は管理者が確認し、適切と判断された場合に削除されます。')) {
+    return;
+  }
+
+  try {
+    // 削除理由を選択させる
+    const reason = await showReasonDialog('delete_request');
+    if (!reason) return;
+
+    const requestData = {
+      type: 'delete_request',
+      target_type: 'comment',
+      target_id: commentId,
+      reporter_fingerprint: userFingerprint,
+      reporter_name: '投稿者本人',
+      reason: reason.reason,
+      description: reason.description
+    };
+
+    const response = await fetch('/api/reports', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || '削除依頼の送信に失敗しました');
+    }
+
+    const result = await response.json();
+    showMessage(result.message || '削除依頼を送信しました', 'success');
+
+  } catch (error) {
+    console.error('削除依頼エラー:', error);
+    showMessage(error.message || '削除依頼の送信に失敗しました', 'error');
+  }
+}
+
+// 返信の削除依頼
+async function requestDeleteReply(replyId) {
+  if (!confirm('この返信の削除依頼を送信しますか？\n\n削除依頼は管理者が確認し、適切と判断された場合に削除されます。')) {
+    return;
+  }
+
+  try {
+    // 削除理由を選択させる
+    const reason = await showReasonDialog('delete_request');
+    if (!reason) return;
+
+    const requestData = {
+      type: 'delete_request',
+      target_type: 'reply',
+      target_id: replyId,
+      reporter_fingerprint: userFingerprint,
+      reporter_name: '投稿者本人',
+      reason: reason.reason,
+      description: reason.description
+    };
+
+    const response = await fetch('/api/reports', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || '削除依頼の送信に失敗しました');
+    }
+
+    const result = await response.json();
+    showMessage(result.message || '削除依頼を送信しました', 'success');
+
+  } catch (error) {
+    console.error('削除依頼エラー:', error);
+    showMessage(error.message || '削除依頼の送信に失敗しました', 'error');
+  }
+}
+
 document.addEventListener('DOMContentLoaded', init);
 
 // 表示名取得（匿名/記名）
@@ -127,11 +213,13 @@ function renderParent(c) {
       <button class="comment-reply-btn" onclick="document.getElementById('replyFormSection').scrollIntoView({behavior:'smooth'})">
         <i class="fas fa-reply"></i> 返信する
       </button>
-      ${!isMyComment(c) ? `
-      <button class="report-btn" onclick="reportContent('comment', '${c.id}')" title="通報">
-        <i class="fas fa-flag"></i> 通報
-      </button>
-      ` : ''}
+      <div class="comment-moderation-links">
+        ${isMyComment(c) ? `
+        <a href="#" onclick="requestDeleteComment('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
+        ` : `
+        <a href="#" onclick="reportContent('comment', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
+        `}
+      </div>
     </div>
   `;
 }
@@ -188,11 +276,13 @@ function renderReplies(list) {
           <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
             <i class="fas fa-heart"></i> <span class="comment-like-count">${c.like_count || 0}</span>
           </button>
-          ${!isMyComment(c) ? `
-          <button class="report-btn" onclick="reportContent('reply', '${c.id}')" title="通報">
-            <i class="fas fa-flag"></i> 通報
-          </button>
-          ` : ''}
+          <div class="comment-moderation-links">
+            ${isMyComment(c) ? `
+            <a href="#" onclick="requestDeleteReply('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
+            ` : `
+            <a href="#" onclick="reportContent('reply', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
+            `}
+          </div>
         </div>
       </div>
     `;

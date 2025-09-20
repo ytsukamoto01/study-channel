@@ -248,12 +248,10 @@ function displayThreads(category = 'all') {
             <div class="thread-stats">
                 <span><i class="fas fa-comments"></i> ${thread.reply_count || 0}</span>
                 <span><i class="fas fa-heart"></i> ${thread.like_count || 0}</span>
-                ${!isMyThread(thread) ? `
-                <button class="report-btn" onclick="event.stopPropagation(); reportContent('thread', '${thread.id}', '${escapeHtml(thread.title)}')" title="通報">
-                    <i class="fas fa-flag"></i> 通報
-                </button>
-                ` : ''}
             </div>
+            ${!isMyThread(thread) ? `
+            <a href="#" class="thread-item-report" onclick="event.stopPropagation(); reportContent('thread', '${thread.id}', '${escapeHtml(thread.title)}'); return false;" title="通報">[通報]</a>
+            ` : ''}
         </div>
             `;
         }).join('');

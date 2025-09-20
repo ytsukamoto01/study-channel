@@ -247,24 +247,29 @@ function displayThreadDetail(thread) {
     }
   }
 
-  // 通報ボタンを追加（自分のスレッドでない場合）
-  const postActionsDiv = document.querySelector('.post-actions');
-  if (postActionsDiv && !isMyThread(thread)) {
-    // 既存の通報ボタンを削除（重複を避ける）
-    const existingReportBtn = postActionsDiv.querySelector('.report-btn');
-    if (existingReportBtn) {
-      existingReportBtn.remove();
+  // 通報リンクを追加（自分のスレッドでない場合）
+  const opPost = document.querySelector('.op-post');
+  if (opPost && !isMyThread(thread)) {
+    // 既存の通報リンクを削除（重複を避ける）
+    const existingReportLink = opPost.querySelector('.thread-report-link');
+    if (existingReportLink) {
+      existingReportLink.remove();
     }
     
-    // 通報ボタンを作成
-    const reportBtn = document.createElement('button');
-    reportBtn.className = 'report-btn';
-    reportBtn.innerHTML = '<i class="fas fa-flag"></i> 通報';
-    reportBtn.title = '通報';
-    reportBtn.onclick = () => reportContent('thread', thread.id, thread.title);
+    // 通報リンクを作成
+    const reportLink = document.createElement('a');
+    reportLink.className = 'thread-report-link';
+    reportLink.href = '#';
+    reportLink.textContent = '[通報]';
+    reportLink.title = '通報';
+    reportLink.onclick = (e) => {
+      e.preventDefault();
+      reportContent('thread', thread.id, thread.title);
+      return false;
+    };
     
-    // いいねボタンの後に追加
-    postActionsDiv.appendChild(reportBtn);
+    // OP投稿の右上に追加
+    opPost.appendChild(reportLink);
   }
 
   document.title = `${thread.title} - すたでぃちゃんねる`;
@@ -276,6 +281,49 @@ function isMyThread(thread) {
         return false;
     }
     return thread.user_fingerprint === userFingerprint;
+}
+
+// コメントの削除依頼
+async function requestDeleteComment(commentId) {
+  if (!confirm('このコメントの削除依頼を送信しますか？\n\n削除依頼は管理者が確認し、適切と判断された場合に削除されます。')) {
+    return;
+  }
+
+  try {
+    // 削除理由を選択させる
+    const reason = await showReasonDialog('delete_request');
+    if (!reason) return;
+
+    const requestData = {
+      type: 'delete_request',
+      target_type: 'comment',
+      target_id: commentId,
+      reporter_fingerprint: userFingerprint,
+      reporter_name: '投稿者本人',
+      reason: reason.reason,
+      description: reason.description
+    };
+
+    const response = await fetch('/api/reports', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || '削除依頼の送信に失敗しました');
+    }
+
+    const result = await response.json();
+    showMessage(result.message || '削除依頼を送信しました', 'success');
+
+  } catch (error) {
+    console.error('削除依頼エラー:', error);
+    showMessage(error.message || '削除依頼の送信に失敗しました', 'error');
+  }
 }
 
 // コメント読み込み（親のみ表示・古い順、件数は親＋返信の合計）
@@ -376,11 +424,13 @@ function renderParentItem(c) {
         <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
           <i class="fas fa-heart"></i> <span class="comment-like-count">${likeCount}</span>
         </button>
-        ${!isMyComment(c) ? `
-        <button class="report-btn" onclick="reportContent('comment', '${c.id}')" title="通報">
-          <i class="fas fa-flag"></i> 通報
-        </button>
-        ` : ''}
+        <div class="comment-moderation-links">
+          ${isMyComment(c) ? `
+          <a href="#" onclick="requestDeleteComment('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
+          ` : `
+          <a href="#" onclick="reportContent('comment', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
+          `}
+        </div>
       </div>
       ${repliesBlock}
     </div>

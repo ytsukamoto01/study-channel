@@ -149,11 +149,9 @@ function displayMyPosts(threads) {
           </span>
         </div>
         
-        <!-- 削除依頼ボタン -->
+        <!-- 削除依頼リンク -->
         <div class="my-post-actions">
-          <button class="delete-request-btn" onclick="event.stopPropagation(); requestDeleteThread('${t.id}', '${escapeHtml(t.title)}')" title="削除依頼">
-            <i class="fas fa-trash-alt"></i> 削除依頼
-          </button>
+          <a href="#" class="delete-request-link" onclick="event.stopPropagation(); requestDeleteThread('${t.id}', '${escapeHtml(t.title)}'); return false;" title="削除依頼">[削除依頼]</a>
         </div>
       </div>
     `;
