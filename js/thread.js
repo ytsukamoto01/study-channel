@@ -98,6 +98,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   currentThreadId = threadId;
   setupEventListeners();
+  registerInlineAdViewportListener();
   loadThreadDetail(threadId);
 
 (function initAuthorToggle() {
@@ -388,22 +389,18 @@ function displayCommentsWithReplies(parents, hierarchy = new Map()) {
   const list = document.getElementById('commentsList');
   if (!list) return;
 
-  const inlineAdState = createInlineAdState();
   let html = '';
 
   parents.forEach(parent => {
-    html += renderCommentWithReplies(parent, hierarchy, 0, inlineAdState);
+    html += renderCommentWithReplies(parent, hierarchy, 0);
   });
 
   list.innerHTML = html;
-
-  if (window.adsenseHelpers?.requestAds) {
-    window.adsenseHelpers.requestAds(list);
-  }
+  applyInlineAds(list);
 }
 
 // 無限階層レンダリング（再帰）
-function renderCommentWithReplies(comment, hierarchy, depth, inlineState) {
+function renderCommentWithReplies(comment, hierarchy, depth) {
   const indent = depth * 20; // 20px per level
   const numberHtml = comment.comment_number != null ? `${comment.comment_number}.` : '';
   const authorHtml = escapeHtml(comment.author_name || '匿名');
@@ -471,28 +468,6 @@ function renderCommentWithReplies(comment, hierarchy, depth, inlineState) {
     </div>
   `;
 
-  if (inlineState) {
-    inlineState.count += 1;
-
-    if (inlineState.enabled) {
-      let inlineMarkup = '';
-
-      while (inlineState.count >= inlineState.nextThreshold && inlineState.enabled) {
-        const rendered = inlineState.render({ indent });
-        if (rendered) {
-          inlineMarkup += rendered;
-          inlineState.nextThreshold += inlineState.frequency;
-        } else {
-          inlineState.enabled = false;
-        }
-      }
-
-      if (inlineMarkup) {
-        html += inlineMarkup;
-      }
-    }
-  }
-
   // 返信があれば再帰的に追加
   const replies = hierarchy.get(comment.id) || [];
   if (replies.length > 0) {
@@ -504,7 +479,7 @@ function renderCommentWithReplies(comment, hierarchy, depth, inlineState) {
     }
     
     replies.forEach(reply => {
-      html += renderCommentWithReplies(reply, hierarchy, depth + 1, inlineState);
+      html += renderCommentWithReplies(reply, hierarchy, depth + 1);
     });
 
     html += `</div>`;
@@ -514,25 +489,85 @@ function renderCommentWithReplies(comment, hierarchy, depth, inlineState) {
 }
 
 const INLINE_AD_FREQUENCY = 5;
+let inlineAdRefreshTimer = null;
+let inlineAdViewportRegistered = false;
 
-function createInlineAdState() {
+function applyInlineAds(root) {
+  const listElement = root instanceof HTMLElement ? root : document.getElementById('commentsList');
+  if (!listElement) {
+    return;
+  }
+
+  const helpers = window.adsenseHelpers || {};
+  const renderMarkup = typeof helpers.renderInlineAdMarkup === 'function' ? helpers.renderInlineAdMarkup : null;
+  const shouldShow = typeof helpers.shouldShowInlineAds === 'function' ? helpers.shouldShowInlineAds() : false;
+  const requestAds = typeof helpers.requestAds === 'function' ? helpers.requestAds : null;
+
+  listElement.querySelectorAll('.inline-ad-container[data-inline-ad]').forEach(node => node.remove());
+
+  if (!renderMarkup || !shouldShow) {
+    return;
+  }
+
+  const comments = Array.from(listElement.querySelectorAll('.comment-item'));
+  if (!comments.length) {
+    return;
+  }
+
+  let nextThreshold = INLINE_AD_FREQUENCY;
+  let inserted = 0;
+
+  comments.forEach((comment, index) => {
+    const ordinal = index + 1;
+    if (ordinal >= nextThreshold) {
+      const indentValue = comment.style.marginLeft || comment.getAttribute('data-inline-indent') || '';
+      const indent = indentValue ? parseFloat(indentValue) || 0 : 0;
+      const markup = renderMarkup({ indent });
+
+      if (markup) {
+        comment.insertAdjacentHTML('afterend', markup);
+        inserted += 1;
+        nextThreshold += INLINE_AD_FREQUENCY;
+      } else {
+        nextThreshold = Infinity;
+      }
+    }
+  });
+
+  if (inserted > 0 && requestAds) {
+    requestAds(listElement);
+  }
+}
+
+function scheduleInlineAdRefresh() {
+  if (inlineAdRefreshTimer) {
+    window.clearTimeout(inlineAdRefreshTimer);
+  }
+
+  inlineAdRefreshTimer = window.setTimeout(() => {
+    inlineAdRefreshTimer = null;
+    const list = document.getElementById('commentsList');
+    if (list) {
+      applyInlineAds(list);
+    }
+  }, 250);
+}
+
+function getInlineAdViewportEventName() {
   const helpers = window.adsenseHelpers;
-  if (!helpers?.shouldShowInlineAds || !helpers.shouldShowInlineAds()) {
-    return null;
+  return helpers?.events?.viewportChange || 'adsense:viewport-change';
+}
+
+function registerInlineAdViewportListener() {
+  if (inlineAdViewportRegistered) {
+    return;
   }
 
-  const renderFn = typeof helpers.renderInlineAdMarkup === 'function' ? helpers.renderInlineAdMarkup : null;
-  if (!renderFn) {
-    return null;
-  }
+  inlineAdViewportRegistered = true;
 
-  return {
-    enabled: true,
-    count: 0,
-    frequency: INLINE_AD_FREQUENCY,
-    nextThreshold: INLINE_AD_FREQUENCY,
-    render: renderFn
-  };
+  const viewportEventName = getInlineAdViewportEventName();
+  window.addEventListener(viewportEventName, scheduleInlineAdRefresh);
+  window.addEventListener('resize', scheduleInlineAdRefresh);
 }
 
 // 親コメントに対する「いいね」

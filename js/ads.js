@@ -3,11 +3,30 @@
   const DESKTOP_RAIL_QUERY = '(min-width: 1441px)';
   const AD_RETRY_INTERVAL = 500;
   const MAX_AD_LOAD_ATTEMPTS = 10;
+  const VIEWPORT_CHANGE_EVENT = 'adsense:viewport-change';
 
   const rails = { left: null, right: null };
   const pendingAds = new WeakSet();
   const watcherCleanup = new WeakMap();
   let resizeTimer = null;
+
+  function getGlobalSlotConfig() {
+    const candidates = [
+      window.adsenseSlotConfig,
+      window.adsenseSlots,
+      window.__PAGE_DATA__?.adsenseSlots,
+      window.__pageData?.adsenseSlots,
+      window.pageData?.adsenseSlots
+    ];
+
+    for (const candidate of candidates) {
+      if (candidate && typeof candidate === 'object') {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
 
   function normalizeSlotId(value) {
     if (value == null) {
@@ -15,7 +34,12 @@
     }
 
     const trimmed = `${value}`.trim();
-    if (!trimmed || trimmed === '0' || trimmed.toLowerCase() === 'null') {
+    if (
+      !trimmed ||
+      trimmed === '0' ||
+      trimmed.toLowerCase() === 'null' ||
+      trimmed.toLowerCase() === 'undefined'
+    ) {
       return null;
     }
 
@@ -24,18 +48,100 @@
 
   function resolveSlotId(slotKey) {
     const datasetKey = `adsenseSlot${slotKey.charAt(0).toUpperCase()}${slotKey.slice(1)}`;
-    const bodySlot = normalizeSlotId(document.body?.dataset?.[datasetKey]);
+    const attributeSources = [
+      document.body?.dataset?.[datasetKey],
+      document.documentElement?.dataset?.[datasetKey]
+    ];
 
-    if (bodySlot) {
-      return bodySlot;
+    for (const source of attributeSources) {
+      const normalized = normalizeSlotId(source);
+      if (normalized) {
+        return normalized;
+      }
     }
 
-    const globalConfig = window.adsenseSlotConfig || window.adsenseSlots;
-    if (globalConfig) {
+    const globalConfig = getGlobalSlotConfig();
+    if (globalConfig && Object.prototype.hasOwnProperty.call(globalConfig, slotKey)) {
       return normalizeSlotId(globalConfig[slotKey]);
     }
 
     return null;
+  }
+
+  function getElementWidth(element) {
+    if (!element) {
+      return 0;
+    }
+
+    if (typeof element.getBoundingClientRect === 'function') {
+      const rect = element.getBoundingClientRect();
+      if (rect && rect.width > 0) {
+        return rect.width;
+      }
+    }
+
+    const offset = element.offsetWidth || element.clientWidth || 0;
+    if (offset > 0) {
+      return offset;
+    }
+
+    if (typeof window.getComputedStyle === 'function') {
+      const width = parseFloat(window.getComputedStyle(element).width);
+      if (!Number.isNaN(width) && width > 0) {
+        return width;
+      }
+    }
+
+    return 0;
+  }
+
+  function isElementHidden(element) {
+    if (!element || !element.isConnected) {
+      return true;
+    }
+
+    if (typeof window.getComputedStyle === 'function') {
+      const style = window.getComputedStyle(element);
+      if (style) {
+        if (style.display === 'none' || style.visibility === 'hidden') {
+          return true;
+        }
+
+        const opacity = parseFloat(style.opacity || '1');
+        if (!Number.isNaN(opacity) && opacity === 0) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  function canRenderAd(ad) {
+    if (!ad || !ad.isConnected) {
+      return false;
+    }
+
+    if (isElementHidden(ad)) {
+      return false;
+    }
+
+    if (getElementWidth(ad) <= 0) {
+      return false;
+    }
+
+    const container = ad.parentElement;
+    if (container) {
+      if (isElementHidden(container)) {
+        return false;
+      }
+
+      if (getElementWidth(container) <= 0) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   function stopWatching(ad) {
@@ -60,19 +166,16 @@
   }
 
   function tryPushAd(ad) {
-    if (!ad.isConnected) {
-      abandonAd(ad);
+    if (!canRenderAd(ad)) {
+      if (!ad || !ad.isConnected) {
+        abandonAd(ad);
+      }
       return false;
     }
 
-    const width = ad.offsetWidth || ad.clientWidth || Math.round(ad.getBoundingClientRect().width);
-    if (width > 0) {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-      markAdLoaded(ad);
-      return true;
-    }
-
-    return false;
+    (window.adsbygoogle = window.adsbygoogle || []).push({});
+    markAdLoaded(ad);
+    return true;
   }
 
   function loadAdWhenReady(ad) {
@@ -243,16 +346,45 @@
     return window.innerWidth <= 767;
   }
 
+  function dispatchViewportChange() {
+    let event = null;
+
+    if (typeof CustomEvent === 'function') {
+      try {
+        event = new CustomEvent(VIEWPORT_CHANGE_EVENT);
+      } catch (_) {}
+    }
+
+    if (!event && typeof Event === 'function') {
+      try {
+        event = new Event(VIEWPORT_CHANGE_EVENT);
+      } catch (_) {}
+    }
+
+    if (!event && document?.createEvent) {
+      try {
+        event = document.createEvent('Event');
+        event.initEvent(VIEWPORT_CHANGE_EVENT, false, false);
+      } catch (_) {}
+    }
+
+    if (event) {
+      window.dispatchEvent(event);
+    }
+  }
+
   function handleViewportChange() {
     syncRails();
     if (document.body) {
       requestAds(document.body);
     }
+    dispatchViewportChange();
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     syncRails();
     requestAds();
+    dispatchViewportChange();
   });
 
   const desktopQuery = window.matchMedia ? window.matchMedia(DESKTOP_RAIL_QUERY) : null;
@@ -276,6 +408,9 @@
   window.adsenseHelpers = Object.assign({}, window.adsenseHelpers || {}, {
     requestAds,
     renderInlineAdMarkup,
-    shouldShowInlineAds
+    shouldShowInlineAds,
+    events: Object.assign({}, window.adsenseHelpers?.events, {
+      viewportChange: VIEWPORT_CHANGE_EVENT
+    })
   });
 })();

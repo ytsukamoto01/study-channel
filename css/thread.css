@@ -151,6 +151,9 @@ body {
   margin: 24px 0;
   text-align: center;
   margin-left: var(--inline-ad-indent, 0);
+  width: calc(100% - var(--inline-ad-indent, 0));
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .inline-ad-container .adsbygoogle {
