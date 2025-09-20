@@ -234,37 +234,46 @@ export default async function handler(req, res) {
     }
 
     // ---- 通報・削除依頼管理機能 ----
-    if (action === "reports_list") {
-      const { type, status, limit = 50, offset = 0 } = payload || {};
-      
-      let query = sb
-        .from('reports')
-        .select(`
-          *,
-          target_thread:threads!reports_target_id_fkey(id, title, content, author_name),
-          target_comment:comments!reports_target_id_fkey(id, content, author_name)
-        `)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      if (type) query = query.eq('type', type);
-      if (status) query = query.eq('status', status);
-
-      const { data, error } = await query;
-      if (error) { 
-        console.error("reports_list error", error); 
-        return res.status(500).json({ ok:false, error: error.message }); 
-      }
-
-      // 統計情報も取得
-      const { data: stats } = await sb.rpc('get_reports_stats');
-
-      return res.status(200).json({ 
-        ok: true, 
-        data: data || [],
-        stats: stats || {}
-      });
+  if (action === "reports_list") {
+    const { type, status, limit = 50, offset = 0 } = payload || {};
+  
+    let query = sb
+      .from("reports")
+      .select(`
+        *,
+        target_thread:threads!reports_thread_ref_fkey(
+          id, title, content, author_name, is_deleted, created_at
+        ),
+        target_comment:comments!reports_comment_ref_fkey(
+          id, content, author_name, is_deleted, thread_id, created_at
+        )
+      `)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+  
+    if (type)   query = query.eq("type", type);
+    if (status) query = query.eq("status", status);
+  
+    const { data, error } = await query;
+    if (error) {
+      console.error("reports_list error", error);
+      return res.status(500).json({ ok: false, error: error.message });
     }
+  
+    // 統計（未定義でも落ちないようにフォールバック）
+    let stats = {};
+    try {
+      const { data: s, error: se } = await sb.rpc("get_reports_stats");
+      if (!se && s) stats = s;
+    } catch {}
+  
+    return res.status(200).json({
+      ok: true,
+      data: data || [],
+      stats
+    });
+  }
+
 
     if (action === "report_update") {
       if (!id) return res.status(400).json({ ok:false, error:"missing id" });
