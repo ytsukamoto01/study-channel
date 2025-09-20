@@ -195,7 +195,7 @@ function displayThreadDetail(thread) {
   console.log('Thread like_count value:', thread.like_count);
   
   document.getElementById('threadTitle').textContent = thread.title;
-  document.getElementById('threadAuthor').innerHTML = formatAuthorName(thread.author_name, !!thread.admin_mark);
+  document.getElementById('threadAuthor').innerHTML = formatAuthorName(thread.author_name);
   document.getElementById('threadDate').textContent = getRelativeTime(new Date(thread.created_at).getTime());
   document.getElementById('threadContent').textContent = thread.content;
   
@@ -411,7 +411,7 @@ function displayCommentsWithReplies(parents, hierarchy = new Map()) {
 function renderCommentWithReplies(comment, hierarchy, depth) {
   const indent = depth * 20; // 20px per level
   const numberHtml = comment.comment_number != null ? `${comment.comment_number}.` : '';
-  const authorHtml = formatAuthorName(comment.author_name, !!comment.admin_mark);
+  const authorHtml = formatAuthorName(comment.author_name);
   const dateHtml = getRelativeTime(new Date(comment.created_at).getTime());
   const contentHtml = escapeHtml(comment.content || '');
   const likeCount = comment.like_count || 0;
@@ -479,18 +479,28 @@ function renderCommentWithReplies(comment, hierarchy, depth) {
   // 返信があれば再帰的に追加
   const replies = hierarchy.get(comment.id) || [];
   if (replies.length > 0) {
+    const repliesContainerId = `replies-${comment.id}`;
     html += `<div class="replies-container" style="margin-left: ${indent + 20}px;">`;
     
-    // 返信件数の表示
-    if (replies.length > 0) {
-      html += `<div class="replies-count" style="margin: 8px 0; color: #6b7280; font-size: 13px;">${replies.length}件の返信</div>`;
-    }
+    // 返信件数の表示とトグルボタン
+    html += `
+      <div class="replies-toggle" style="margin: 8px 0; color: #6b7280; font-size: 13px;">
+        <button onclick="toggleRepliesVisibility('${comment.id}')" 
+                class="replies-toggle-btn" 
+                style="background: none; border: none; color: #3b82f6; cursor: pointer; text-decoration: underline; font-size: 13px; padding: 2px;">
+          <span id="replies-toggle-text-${comment.id}">▼ ${replies.length}件の返信を表示</span>
+        </button>
+      </div>
+    `;
+    
+    // 返信コンテナ（初期状態は表示）
+    html += `<div id="${repliesContainerId}" class="replies-content">`;
     
     replies.forEach(reply => {
       html += renderCommentWithReplies(reply, hierarchy, depth + 1);
     });
     
-    html += `</div>`;
+    html += `</div></div>`;
   }
   
   return html;
@@ -891,6 +901,29 @@ async function submitReply(parentCommentId) {
   } catch (error) {
     console.error('返信投稿エラー:', error);
     handleApiError(error, '返信の投稿に失敗しました');
+  }
+}
+
+// ====== 返信の表示/非表示トグル ======
+// 返信の表示/非表示を切り替え
+function toggleRepliesVisibility(commentId) {
+  const repliesContainer = document.getElementById(`replies-${commentId}`);
+  const toggleText = document.getElementById(`replies-toggle-text-${commentId}`);
+  
+  if (!repliesContainer || !toggleText) return;
+  
+  const isVisible = repliesContainer.style.display !== 'none';
+  
+  if (isVisible) {
+    // 非表示にする
+    repliesContainer.style.display = 'none';
+    const replyCount = repliesContainer.querySelectorAll('.comment-item').length;
+    toggleText.textContent = `▶ ${replyCount}件の返信を表示`;
+  } else {
+    // 表示する
+    repliesContainer.style.display = 'block';
+    const replyCount = repliesContainer.querySelectorAll('.comment-item').length;
+    toggleText.textContent = `▼ ${replyCount}件の返信を非表示`;
   }
 }
 

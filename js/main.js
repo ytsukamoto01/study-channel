@@ -368,7 +368,7 @@ async function openThreadDetail(threadId) {
         // スレッド詳細を表示
         document.getElementById('threadDetailTitle').textContent = thread.title;
         document.getElementById('threadDetailCategory').textContent = thread.category;
-        document.getElementById('threadDetailAuthor').innerHTML = formatAuthorName(thread.author_name, !!thread.admin_mark);
+        document.getElementById('threadDetailAuthor').innerHTML = formatAuthorName(thread.author_name);
         document.getElementById('threadDetailDate').textContent = getRelativeTime(new Date(thread.created_at).getTime());
         document.getElementById('threadDetailContent').textContent = thread.content;
         document.getElementById('threadLikeCount').textContent = thread.like_count || 0;
@@ -440,7 +440,7 @@ function displayComments(comments) {
         <div class="comment-item fade-in">
             <div class="comment-header">
                 <span class="comment-number">${comment.comment_number}.</span>
-                ${formatAuthorName(comment.author_name, !!comment.admin_mark)}
+                ${formatAuthorName(comment.author_name)}
                 <span class="date">${getRelativeTime(new Date(comment.created_at).getTime())}</span>
             </div>
             <div class="comment-content">
@@ -1098,7 +1098,7 @@ function displayFilteredThreads() {
                 <div class="thread-meta">
                     <span class="category">${escapeHtml(thread.category)}</span>
                     ${subcategoryHtml}
-                    ${formatAuthorName(thread.author_name, !!thread.admin_mark)}
+                    ${formatAuthorName(thread.author_name)}
                     <span class="date">${getRelativeTime(new Date(thread.created_at).getTime())}</span>
                 </div>
                 <div class="thread-preview">

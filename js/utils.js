@@ -740,8 +740,8 @@ function formatAuthorName(authorName, isAdmin = false) {
   const raw = (authorName ?? '').toString();
   const name = raw.normalize('NFKC').trim();
 
-  // 管理人判定は isAdmin（DBの admin_mark）を最優先
-  if (isAdmin || name === '管理人') {
+  // 管理人判定はDBのauthor_nameが「管理人」かどうかのみで判定
+  if (name === '管理人') {
     return `<span class="badge-admin">🛡️ 管理人</span>`;
   }
 

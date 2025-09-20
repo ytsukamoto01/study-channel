@@ -202,7 +202,7 @@ function renderParent(c) {
     <div class="comment-header">
       <div class="comment-header-left">
         <span class="comment-number">${c.comment_number != null ? `${c.comment_number}.` : ''}</span>
-        ${formatAuthorName(c.author_name, !!c.admin_mark)}
+        ${formatAuthorName(c.author_name)}
         <span class="date">${getRelativeTime(new Date(c.created_at).getTime())}</span>
       </div>
       <div class="comment-moderation-links">
@@ -272,7 +272,7 @@ function renderReplies(list) {
       <div class="reply-item" data-comment-id="${c.id}">
         <div class="comment-header">
           <div class="comment-header-left">
-            ${formatAuthorName(c.author_name, !!c.admin_mark)}
+            ${formatAuthorName(c.author_name)}
             <span class="date">${getRelativeTime(new Date(c.created_at).getTime())}</span>
           </div>
           <div class="comment-moderation-links">
