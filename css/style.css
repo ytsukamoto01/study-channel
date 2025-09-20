@@ -2109,7 +2109,7 @@ body {
   margin-left: 0; /* 無効化 */
 }
 
-/* 返信トグル機能のスタイル（コメントアクション内で使用） */
+/* 返信トグル機能のスタイル（コメントアクション左端で使用） */
 .replies-toggle-btn {
   background: none !important;
   border: none !important;
@@ -2119,7 +2119,7 @@ body {
   padding: 5px 10px !important;
   border-radius: 15px !important;
   transition: all 0.3s ease !important;
-  margin-left: 8px !important;
+  margin-right: 8px !important;
 }
 
 .replies-toggle-btn:hover {
