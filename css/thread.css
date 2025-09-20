@@ -194,6 +194,20 @@ body {
 .comment-like-btn i { color: #ef4444; margin-right: 6px; }
 .comment-reply-btn i { margin-right: 6px; }
 
+.replies-link {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.replies-link a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.replies-link a:hover {
+  text-decoration: underline;
+}
+
 /* ---------------------------
    返信ページ（replies.html）
 --------------------------- */

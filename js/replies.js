@@ -229,9 +229,22 @@ function renderParent(c) {
 // 子（返信）一覧
 async function loadReplies() {
   try {
-    // 該当スレッドの全コメントから返信を絞り込み
+    // 該当スレッドの全コメントを取得
     const json = await apiCall(`/api/tables/comments?thread_id=${currentThreadId}&sort=created_at&order=asc&limit=1000`);
-    const all = json?.data || [];
+    const all = (json?.data || []).filter(c => !c?.is_deleted);
+
+    // 親コメントごとの返信数を集計（直下の件数）
+    const repliesByParent = {};
+    for (const comment of all) {
+      const parentId = comment.parent_comment_id;
+      if (!parentId) continue;
+      repliesByParent[parentId] = (repliesByParent[parentId] || 0) + 1;
+    }
+
+    for (const comment of all) {
+      comment.reply_count_local = repliesByParent[comment.id] || 0;
+    }
+
     const replies = all.filter(c => c.parent_comment_id === parentCommentId);
 
     document.getElementById('repliesCount').textContent = String(replies.length);
@@ -266,6 +279,21 @@ function renderReplies(list) {
          </div>`
       : '';
 
+    const replyLink = `replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}#replyFormSection`;
+    const repliesCount = typeof c.reply_count_local === 'number'
+      ? c.reply_count_local
+      : typeof c.reply_count === 'number'
+        ? c.reply_count
+        : 0;
+
+    const repliesBlock = repliesCount > 0
+      ? `<div class="replies-link">
+           <a href="replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}">
+             ${repliesCount}件の返信
+           </a>
+         </div>`
+      : '';
+
     return `
       <div class="reply-item" data-comment-id="${c.id}">
         <div class="comment-header">
@@ -284,10 +312,14 @@ function renderReplies(list) {
         <div class="comment-content">${escapeHtml(c.content || '')}</div>
         ${imagesHtml}
         <div class="comment-actions">
+          <button class="comment-reply-btn" onclick="location.href='${replyLink}'">
+            <i class="fas fa-reply"></i> 返信
+          </button>
           <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
             <i class="fas fa-heart"></i> <span class="comment-like-count">${c.like_count || 0}</span>
           </button>
         </div>
+        ${repliesBlock}
       </div>
     `;
   }).join('');
