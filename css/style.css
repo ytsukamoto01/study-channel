@@ -1958,3 +1958,34 @@ body {
     background-color: #e5e7eb;
 }
 
+/* --- 通報リンクを右下に小さく --- */
+.post-actions,
+.comment-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 右端に寄せたい場合は、通報リンクを自分で右に押し出す */
+.report-link {
+  margin-left: auto;           /* 行内で右端へ */
+  font-size: 12px;
+  color: #6b7280;              /* muted グレー */
+  text-decoration: none;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.report-link:hover {
+  color: #111827;
+  text-decoration: underline;
+}
+
+/* カード下辺にピタッと寄せたい場合（任意）
+   使う時は .comment-item / .post-card に position:relative を付与して
+   .report-link-absolute を使ってください。*/
+.report-link-absolute {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  margin-left: 0; /* 無効化 */
+}
