@@ -736,12 +736,16 @@ function fadeInElement(element) {
 
 // 投稿者名を表示用にHTML化
 function formatAuthorName(authorName) {
-    if (authorName === '匿名') {
+    if (authorName === '管理人') {
+        // 管理人専用の黒カプセルバッジを表示
+        return `<span class="badge-admin">管理人</span>`;
+    } else if (authorName === '匿名' || !authorName) {
         return `<span class="anonymous-author">匿名</span>`;
     } else {
         return `<span class="named-author">${escapeHtml(authorName)}</span>`;
     }
 }
+
 
 // API呼び出し用のヘルパー関数
 // utils.js に追加 or 置換
