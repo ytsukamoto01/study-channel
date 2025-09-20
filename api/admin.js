@@ -355,6 +355,95 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok:true });
     }
 
+        // ---- コメント/返信：ツリー取得（thread_full）----
+    if (action === "thread_full") {
+      const threadId = (payload && payload.thread_id) || id;
+      if (!threadId) return res.status(400).json({ ok:false, error:"missing thread_id" });
+      const includeDeleted = payload?.include_deleted ?? true;
+      const order = payload?.order || "oldest";
+
+      const { data, error } = await sb.rpc("admin_get_thread_full", {
+        p_thread_id: threadId,
+        p_include_deleted: includeDeleted,
+        p_order: order
+      });
+      if (error) { console.error("thread_full error", error); return res.status(500).json({ ok:false, error: error.message }); }
+      return res.status(200).json({ ok:true, data });
+    }
+
+    // ---- コメント/返信：フラット取得（必要なら）----
+    if (action === "comments_tree") {
+      const threadId = (payload && payload.thread_id) || id;
+      if (!threadId) return res.status(400).json({ ok:false, error:"missing thread_id" });
+      const includeDeleted = payload?.include_deleted ?? true;
+      const order = payload?.order || "oldest";
+      const limit = payload?.limit ?? 5000;
+      const offset = payload?.offset ?? 0;
+
+      const { data, error } = await sb.rpc("admin_get_comment_tree", {
+        p_thread_id: threadId,
+        p_include_deleted: includeDeleted,
+        p_order: order,
+        p_limit: limit,
+        p_offset: offset
+      });
+      if (error) { console.error("comments_tree error", error); return res.status(500).json({ ok:false, error: error.message }); }
+      return res.status(200).json({ ok:true, data });
+    }
+
+    // ---- コメント編集（本文・画像URL配列）----
+    if (action === "comment_update") {
+      const cid = (payload && payload.id) || id;
+      if (!cid) return res.status(400).json({ ok:false, error:"missing id" });
+      const content = payload?.content ?? "";
+      const images  = payload?.images ?? null;
+
+      const { data, error } = await sb.rpc("admin_update_comment", {
+        p_id: cid,
+        p_content: content,
+        p_images: images
+      });
+      if (error) { console.error("comment_update error", error); return res.status(500).json({ ok:false, error: error.message }); }
+      return res.status(200).json({ ok:true, updated: data });
+    }
+
+    // ---- コメントのソフト削除/復元/ハード削除 ----
+    if (action === "comment_soft_delete") {
+      const cid = (payload && payload.id) || id;
+      if (!cid) return res.status(400).json({ ok:false, error:"missing id" });
+      const { data: ok, error } = await sb.rpc("admin_soft_delete_comment", { p_id: cid });
+      if (error) { console.error("comment_soft_delete error", error); return res.status(500).json({ ok:false, error: error.message }); }
+      return res.status(ok ? 200 : 404).json({ ok: !!ok });
+    }
+    if (action === "comment_restore") {
+      const cid = (payload && payload.id) || id;
+      if (!cid) return res.status(400).json({ ok:false, error:"missing id" });
+      const { data: ok, error } = await sb.rpc("admin_restore_comment", { p_id: cid });
+      if (error) { console.error("comment_restore error", error); return res.status(500).json({ ok:false, error: error.message }); }
+      return res.status(ok ? 200 : 404).json({ ok: !!ok });
+    }
+    if (action === "comment_hard_delete") {
+      const cid = (payload && payload.id) || id;
+      if (!cid) return res.status(400).json({ ok:false, error:"missing id" });
+      const { data: ok, error } = await sb.rpc("admin_hard_delete_comment", { p_id: cid });
+      if (error) { console.error("comment_hard_delete error", error); return res.status(500).json({ ok:false, error: error.message }); }
+      return res.status(ok ? 200 : 404).json({ ok: !!ok });
+    }
+
+    // ---- 親付け替え（nullでルート化）----
+    if (action === "comment_reparent") {
+      const cid = (payload && payload.id) || id;
+      if (!cid) return res.status(400).json({ ok:false, error:"missing id" });
+      const newParent = (payload && payload.new_parent_id) ?? null;
+
+      const { data, error } = await sb.rpc("admin_reparent_comment", {
+        p_id: cid,
+        p_new_parent: newParent
+      });
+      if (error) { console.error("comment_reparent error", error); return res.status(500).json({ ok:false, error: error.message }); }
+      return res.status(200).json({ ok:true, moved: data });
+    }
+
 
     return res.status(400).json({ ok: false, error: "unknown action" });
   } catch (e) {
