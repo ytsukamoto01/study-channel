@@ -120,6 +120,39 @@ body {
     padding: 30px 0;
 }
 
+/* サイド広告 */
+.side-ad {
+    position: fixed;
+    top: 140px;
+    width: 180px;
+    z-index: 20;
+    display: flex;
+    justify-content: center;
+}
+
+.side-ad-left {
+    left: clamp(16px, calc((100vw - 1000px) / 2 - 196px), 400px);
+}
+
+.side-ad-right {
+    right: clamp(16px, calc((100vw - 1000px) / 2 - 196px), 400px);
+}
+
+.side-ad-inner {
+    width: 100%;
+}
+
+.side-ad .adsbygoogle {
+    display: block !important;
+    width: 100% !important;
+}
+
+@media (max-width: 1440px) {
+    .side-ad {
+        display: none;
+    }
+}
+
 .loading {
     text-align: center;
     padding: 50px 20px;
