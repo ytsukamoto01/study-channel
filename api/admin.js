@@ -457,7 +457,7 @@ export default async function handler(req, res) {
       // commentsテーブルに直接挿入
       const ins = {
         thread_id: threadId,
-        parent_id: parentId,
+        parent_comment_id: parentId,
         content: content.trim(),
         images: images,
         author_name: "管理人",
