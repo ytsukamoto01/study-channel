@@ -1513,9 +1513,11 @@ body {
 }
 
 .site-logo img {
-  width: 36px;                     /* アイコン自体は小さめに */
-  height: 36px;
+  width: 36px !important;          /* アイコン自体は小さめに - 初期表示時も固定 */
+  height: 36px !important;
   object-fit: contain;
+  max-width: 36px;                 /* 巨大表示を防ぐ */
+  max-height: 36px;
 }
 
 .logo-container {
