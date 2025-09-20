@@ -179,12 +179,20 @@ body {
   color: #9ca3af;
   flex-shrink: 0;                /* 幅を固定せず自動サイズ */
 }
-
+/*
 .comment-author {
   font-weight: 600;
   color: #374151;
   margin: 0;                     /* 不要な左右余白を消す */
+}*/
+
+.comment-author{ display:inline-flex; align-items:center; gap:4px; font-weight:600; }
+.badge-admin, .comment-author.badge-admin{
+  padding:2px 8px; border-radius:9999px; background:#111; color:#fff; font-weight:700;
 }
+.anonymous-author{ color:#666; }
+.named-author{ color:#222; }
+
 
 .comment-content {
   margin: 2px 0 10px 0;
