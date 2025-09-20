@@ -52,6 +52,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5122489446866147" crossorigin="anonymous"></script>
 </head>
 <body>
     <header class="header">
@@ -151,7 +152,17 @@
     </section>
 
     <main class="main">
-        <div class="container">
+        <div class="page-with-ads">
+            <aside class="side-ad side-ad-left">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-5122489446866147"
+                     data-ad-slot="0"
+                     data-ad-format="auto"
+                     data-full-width-responsive="false"></ins>
+            </aside>
+            <div class="content-with-ads">
+                <div class="container">
             <!-- 検索結果表示 -->
             <div class="search-results-info" id="searchResultsInfo" style="display: none;">
                 <span class="results-count"></span>
@@ -162,6 +173,16 @@
             <div class="threads-list" id="threadsList">
                 <!-- スレッド一覧がここに動的に表示されます -->
             </div>
+                </div>
+            </div>
+            <aside class="side-ad side-ad-right">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-5122489446866147"
+                     data-ad-slot="0"
+                     data-ad-format="auto"
+                     data-full-width-responsive="false"></ins>
+            </aside>
         </div>
     </main>
 
@@ -293,6 +314,7 @@
         </div>
     </div>
 
+    <script src="js/ads.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/debug.js"></script>
     <script src="js/reports.js"></script>

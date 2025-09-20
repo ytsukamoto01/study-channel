@@ -373,7 +373,17 @@ function displayComments(parents) {
   const list = document.getElementById('commentsList');
   if (!list) return;
 
-  list.innerHTML = parents.map(p => renderParentItem(p)).join('');
+  const fragments = [];
+  parents.forEach((parentComment, index) => {
+    fragments.push(renderParentItem(parentComment));
+
+    if ((index + 1) % 5 === 0) {
+      fragments.push(renderMobileInlineAd(index + 1));
+    }
+  });
+
+  list.innerHTML = fragments.join('');
+  document.dispatchEvent(new Event('ads:refresh'));
 }
 
 function renderParentItem(c) {
@@ -435,6 +445,19 @@ function renderParentItem(c) {
         </button>
       </div>
       ${repliesBlock}
+    </div>
+  `;
+}
+
+function renderMobileInlineAd(index) {
+  return `
+    <div class="mobile-inline-ad" data-inline-ad-index="${index}">
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-5122489446866147"
+           data-ad-slot="0"
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins>
     </div>
   `;
 }

@@ -146,6 +146,24 @@ body {
   background: #fff;
 }
 
+.mobile-inline-ad {
+  border-top: 1px solid #e5e7eb;
+  padding: 16px 0;
+  display: none;
+  background: #fff;
+}
+
+.mobile-inline-ad .adsbygoogle {
+  display: block;
+  min-height: 250px;
+}
+
+@media (max-width: 1024px) {
+  .mobile-inline-ad {
+    display: block;
+  }
+}
+
 .comment-header {
   display: flex !important;
   flex-direction: row;
