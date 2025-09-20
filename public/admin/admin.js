@@ -124,27 +124,126 @@ function renderThreadCard(th) {
 }
 
 function openEditModal(th) {
-  const title = prompt("タイトル", th.title);
-  if (title === null) return;
-  const category = prompt("カテゴリ", th.category);
-  if (category === null) return;
-  const subcategory = prompt("サブカテゴリ(空可)", th.subcategory || "");
-  if (subcategory === null) return;
-  const hashtags = prompt("タグ（カンマ区切り）", (th.hashtags||[]).join(", "));
-  if (hashtags === null) return;
-  const content = prompt("本文（改行は \\n ）", th.content || "");
-  if (content === null) return;
+  // 既存モーダルがあれば消す
+  const old = document.getElementById("edit-modal");
+  if (old) old.remove();
 
-  const payload = {
-    title,
-    category,
-    subcategory: subcategory || null,
-    hashtags: parseTags(hashtags || ""),
-    content: content.replaceAll("\\n", "\n"),
-    images: th.images || [],
+  // モーダルDOM
+  const wrap = document.createElement("div");
+  wrap.id = "edit-modal";
+  wrap.style.position = "fixed";
+  wrap.style.inset = "0";
+  wrap.style.background = "rgba(0,0,0,0.4)";
+  wrap.style.zIndex = "9999";
+  wrap.style.display = "flex";
+  wrap.style.alignItems = "center";
+  wrap.style.justifyContent = "center";
+
+  wrap.innerHTML = `
+    <div style="background:#fff; width:min(760px,92vw); max-height:90vh; overflow:auto; border-radius:12px; padding:16px; box-shadow:0 8px 32px rgba(0,0,0,.25)">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+        <h3 style="margin:0;">スレッドを編集</h3>
+        <button id="edit-close" style="border:none;background:#eee;padding:6px 10px;border-radius:8px;cursor:pointer;">閉じる</button>
+      </div>
+
+      <div style="display:grid; gap:10px; margin-top:12px;">
+        <label>タイトル
+          <input id="edit-title" value="${escapeHtml(th.title)}" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:8px;" />
+        </label>
+
+        <label>カテゴリ
+          <input id="edit-category" value="${escapeHtml(th.category || "")}" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:8px;" />
+        </label>
+
+        <label>サブカテゴリ（任意）
+          <input id="edit-subcategory" value="${escapeHtml(th.subcategory || "")}" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:8px;" />
+        </label>
+
+        <label>タグ（カンマ区切り）
+          <input id="edit-hashtags" value="${escapeHtml((th.hashtags||[]).join(", "))}" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:8px;" />
+        </label>
+
+        <label>本文
+          <textarea id="edit-content" rows="8" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:8px;">${escapeHtml(th.content || "")}</textarea>
+        </label>
+
+        <div style="display:grid; gap:6px;">
+          <label>既存画像URL（カンマ区切りで編集可）
+            <textarea id="edit-existing-images" rows="3" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:8px;">${escapeHtml((th.images||[]).join(", "))}</textarea>
+          </label>
+
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <label style="display:flex; align-items:center; gap:8px;">
+              <input type="radio" name="editImageMode" value="append" checked> アップロードは既存に追加
+            </label>
+            <label style="display:flex; align-items:center; gap:8px;">
+              <input type="radio" name="editImageMode" value="replace"> 既存を置き換える
+            </label>
+          </div>
+
+          <label>画像をアップロード（複数可）
+            <input id="edit-new-images" type="file" accept="image/*" multiple />
+          </label>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+        <button id="edit-cancel" style="border:1px solid #ccc; background:#fff; padding:8px 12px; border-radius:8px; cursor:pointer;">キャンセル</button>
+        <button id="edit-save" class="primary" style="border:none; background:#222; color:#fff; padding:8px 12px; border-radius:8px; cursor:pointer;">保存</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+
+  // イベント
+  const close = () => wrap.remove();
+  wrap.querySelector("#edit-close").onclick = close;
+  wrap.querySelector("#edit-cancel").onclick = close;
+
+  wrap.querySelector("#edit-save").onclick = async () => {
+    try {
+      const title = document.getElementById("edit-title").value;
+      const category = document.getElementById("edit-category").value;
+      const subcategory = document.getElementById("edit-subcategory").value;
+      const hashtags = document.getElementById("edit-hashtags").value;
+      const content = document.getElementById("edit-content").value;
+
+      // 既存URLの扱い
+      const existingStr = document.getElementById("edit-existing-images").value || "";
+      const existing = existingStr.split(",").map(s => s.trim()).filter(Boolean);
+
+      // 新規アップロード
+      const fileInput = document.getElementById("edit-new-images");
+      let uploaded = [];
+      if (fileInput?.files?.length) {
+        uploaded = await uploadImages(fileInput.files); // 既存のuploadImagesを再利用
+      }
+
+      // 追加 or 置き換え
+      const mode = [...wrap.querySelectorAll('input[name="editImageMode"]')]
+        .find(r => r.checked)?.value || "append";
+      const images = mode === "replace" ? uploaded : [...existing, ...uploaded];
+
+      const payload = {
+        title,
+        category: category || "未分類",
+        subcategory: subcategory || null,
+        hashtags: parseTags(hashtags || ""),
+        content,
+        images,
+      };
+
+      const res = await callAdmin("thread_update", { id: th.id, payload });
+      if (!res.ok) throw new Error(await res.text());
+
+      close();
+      await loadThreads();
+    } catch (e) {
+      alert("更新失敗: " + (e?.message || e));
+    }
   };
-  saveEdit(th.id, payload);
 }
+
 
 async function saveEdit(id, payload) {
   const res = await callAdmin("thread_update", { id, payload });
