@@ -389,11 +389,22 @@ function displayCommentsWithReplies(parents, hierarchy = new Map()) {
   if (!list) return;
 
   let html = '';
-  parents.forEach(parent => {
+  parents.forEach((parent, index) => {
     html += renderCommentWithReplies(parent, hierarchy, 0);
+
+    if (shouldInsertInlineAd(index + 1)) {
+      const inlineAd = renderInlineAdBlock();
+      if (inlineAd) {
+        html += inlineAd;
+      }
+    }
   });
-  
+
   list.innerHTML = html;
+
+  if (window.adsenseHelpers?.requestAds) {
+    window.adsenseHelpers.requestAds(list);
+  }
 }
 
 // 無限階層レンダリング（再帰）
@@ -483,6 +494,22 @@ function renderCommentWithReplies(comment, hierarchy, depth) {
   }
   
   return html;
+}
+
+function shouldInsertInlineAd(renderedCount) {
+  if (!window.adsenseHelpers?.shouldShowInlineAds) {
+    return false;
+  }
+
+  return renderedCount > 0 && renderedCount % 5 === 0 && window.adsenseHelpers.shouldShowInlineAds();
+}
+
+function renderInlineAdBlock() {
+  if (!window.adsenseHelpers?.renderInlineAdMarkup) {
+    return '';
+  }
+
+  return window.adsenseHelpers.renderInlineAdMarkup();
 }
 
 // 親コメントに対する「いいね」
