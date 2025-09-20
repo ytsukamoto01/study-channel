@@ -15,6 +15,21 @@ function isMyComment(comment) {
     return comment.user_fingerprint === userFingerprint;
 }
 
+// 読み込み中表示のコントロール
+function showThreadLoading() {
+    const loading = document.getElementById('threadLoading');
+    const content = document.getElementById('threadDetailContainer');
+    if (loading) loading.style.display = 'flex';
+    if (content) content.style.display = 'none';
+}
+
+function hideThreadLoading() {
+    const loading = document.getElementById('threadLoading');
+    const content = document.getElementById('threadDetailContainer');
+    if (loading) loading.style.display = 'none';
+    if (content) content.style.display = 'block';
+}
+
 // エラーページ表示関数
 function showErrorPage(message) {
   const container = document.querySelector('main .container');
@@ -139,6 +154,8 @@ function scrollToCommentForm() {
 // スレッド詳細読み込み
 async function loadThreadDetail(threadId) {
   try {
+    showThreadLoading();
+    
     console.log('=== FRONTEND: Loading thread detail ===');
     console.log('Thread ID:', threadId);
     console.log('API URL:', `/api/tables/threads/${threadId}`);
@@ -171,6 +188,9 @@ async function loadThreadDetail(threadId) {
 
     // お気に入り状態
     await checkFavoriteStatus(threadId);
+
+    // 読み込み完了
+    hideThreadLoading();
   } catch (e) {
     console.error('Error loading thread detail:', e);
     console.error('Error stack:', e.stack);
@@ -185,6 +205,7 @@ async function loadThreadDetail(threadId) {
       errorMessage += '\n\nAPI接続に問題があります。しばらく待ってから再試行してください。';
     }
     
+    hideThreadLoading();
     showErrorPage(errorMessage);
   }
 }
