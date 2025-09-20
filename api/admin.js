@@ -1,10 +1,12 @@
-// /api/admin.js  (ESM版：package.json が "type":"module" のため import/export を使用)
-import crypto from "crypto";
+// /api/admin.js  (ESM)
+import crypto, { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import { createClient } from "@supabase/supabase-js";
+import Busboy from "busboy"; // ← 追加
 
 const COOKIE_NAME = "sc_admin_session";
 const MAX_AGE_SEC = 60 * 60 * 12;
+const BUCKET = process.env.SUPABASE_BUCKET || "admin-uploads"; // ← 追加
 
 function supabaseAdmin() {
   const url = process.env.SUPABASE_URL;
@@ -48,17 +50,50 @@ function isAdmin(req) {
   }
 }
 
+// 追加: multipart/form-data をパースするユーティリティ
+function parseMultipart(req) {
+  return new Promise((resolve, reject) => {
+    const bb = Busboy({ headers: req.headers });
+    const files = [];
+    const fields = {};
+    bb.on("file", (_name, stream, info) => {
+      const { filename, mimeType } = info;
+      const chunks = [];
+      stream.on("data", (d) => chunks.push(d));
+      stream.on("limit", () => {
+        // 任意: サイズ制限を入れるならここでエラーに
+      });
+      stream.on("end", () => {
+        files.push({ filename, mimeType, buffer: Buffer.concat(chunks) });
+      });
+    });
+    bb.on("field", (name, val) => { fields[name] = val; });
+    bb.on("error", reject);
+    bb.on("finish", () => resolve({ files, fields }));
+    req.pipe(bb);
+  });
+}
+
+// メインハンドラ
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
       return res.status(405).json({ ok: false, error: "method not allowed" });
     }
 
-    const body =
-      typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
-    const { action, password, id, payload } = body;
+    // multipart のときは action をクエリで受けてもOK
+    const urlObj = new URL(req.url, `http://${req.headers.host}`);
+    const queryAction = urlObj.searchParams.get("action");
 
-    // 環境診断（オプション）
+    const isMultipart = (req.headers["content-type"] || "").startsWith("multipart/form-data");
+    let body = {};
+    if (!isMultipart) {
+      body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
+    }
+    const action = isMultipart ? queryAction : body.action;
+    const { password, id, payload } = body;
+
+    // 診断
     if (action === "diag") {
       const missing = [];
       if (!process.env.ADMIN_PASSWORD_HASH) missing.push("ADMIN_PASSWORD_HASH");
@@ -76,19 +111,13 @@ export default async function handler(req, res) {
         console.error("[ENV MISSING]", { hasHash: !!hash, hasSecret: !!secret });
         return res.status(500).json({ ok: false, error: "server not configured" });
       }
-
-      const ok = await bcrypt
-        .compare(password ?? "", hash)
-        .catch((e) => {
-          console.error("bcrypt.compare error", e);
-          return false;
-        });
+      const ok = await bcrypt.compare(password ?? "", hash).catch((e) => {
+        console.error("bcrypt.compare error", e);
+        return false;
+      });
       if (!ok) return res.status(401).json({ ok: false });
 
-      const cookie = `${COOKIE_NAME}=${sign(
-        JSON.stringify({ admin: true, iat: Date.now() }),
-        secret
-      )}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${MAX_AGE_SEC}`;
+      const cookie = `${COOKIE_NAME}=${sign(JSON.stringify({ admin: true, iat: Date.now() }), secret)}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${MAX_AGE_SEC}`;
       res.setHeader("Set-Cookie", cookie);
       return res.status(200).json({ ok: true });
     }
@@ -96,28 +125,50 @@ export default async function handler(req, res) {
     // 認証必須
     if (!isAdmin(req)) return res.status(401).json({ ok: false, error: "unauthorized" });
 
-    // 認証後に supabase 初期化
     const sb = supabaseAdmin();
 
-    if (action === "logout") {
-      res.setHeader(
-        "Set-Cookie",
-        `${COOKIE_NAME}=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0`
-      );
-      return res.status(200).json({ ok: true });
+    // ---- 画像アップロード（新規）----
+    if (action === "upload_image") {
+      if (!isMultipart) {
+        return res.status(400).json({ ok: false, error: "multipart/form-data required" });
+      }
+      const { files } = await parseMultipart(req);
+      if (!files.length) {
+        return res.status(400).json({ ok: false, error: "no files" });
+      }
+
+      const today = new Date();
+      const y = today.getUTCFullYear();
+      const m = String(today.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(today.getUTCDate()).padStart(2, "0");
+
+      const uploaded = [];
+      for (const f of files) {
+        const orig = f.filename || "file";
+        const extMatch = orig.match(/\.([a-zA-Z0-9]+)$/);
+        const ext = (extMatch ? extMatch[1] : "bin").toLowerCase();
+        const key = `${y}/${m}/${d}/${randomUUID()}.${ext}`;
+
+        const { error: upErr } = await sb.storage.from(BUCKET).upload(key, f.buffer, {
+          contentType: f.mimeType || "application/octet-stream",
+          upsert: false,
+        });
+        if (upErr) {
+          console.error("storage.upload error", upErr);
+          return res.status(500).json({ ok: false, error: upErr.message });
+        }
+        const { data } = sb.storage.from(BUCKET).getPublicUrl(key);
+        uploaded.push({ path: key, url: data.publicUrl });
+      }
+
+      return res.status(200).json({ ok: true, files: uploaded });
     }
 
+    // ---- 既存の threads CRUD ----
     if (action === "threads_list") {
-      const { data, error } = await sb
-        .from("threads")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (error) {
-        console.error("threads_list error", error);
-        return res.status(500).json({ ok: false, error: error.message });
-      }
-      return res.status(200).json({ ok: true, data });
+      const { data, error } = await sb.from("threads").select("*").order("created_at", { ascending: false }).limit(200);
+      if (error) { console.error("threads_list error", error); return res.status(500).json({ ok:false, error: error.message }); }
+      return res.status(200).json({ ok:true, data });
     }
 
     if (action === "thread_create") {
@@ -128,21 +179,18 @@ export default async function handler(req, res) {
         category: p.category || "未分類",
         subcategory: p.subcategory || null,
         hashtags: p.hashtags || [],
-        images: p.images || [],
+        images: p.images || [],            // ← アップロードURLを入れる
         author_name: "管理人",
         user_fingerprint: null,
         admin_mark: true,
       };
       const { data, error } = await sb.from("threads").insert(ins).select("*").single();
-      if (error) {
-        console.error("thread_create error", error);
-        return res.status(500).json({ ok: false, error: error.message });
-      }
-      return res.status(200).json({ ok: true, data });
+      if (error) { console.error("thread_create error", error); return res.status(500).json({ ok:false, error: error.message }); }
+      return res.status(200).json({ ok:true, data });
     }
 
     if (action === "thread_update") {
-      if (!id) return res.status(400).json({ ok: false, error: "missing id" });
+      if (!id) return res.status(400).json({ ok:false, error:"missing id" });
       const p = payload || {};
       const patch = {
         title: p.title,
@@ -150,31 +198,20 @@ export default async function handler(req, res) {
         category: p.category || "未分類",
         subcategory: p.subcategory || null,
         hashtags: p.hashtags || [],
-        images: p.images || [],
+        images: p.images || [],            // ← アップロードURLを入れる
         author_name: "管理人",
         admin_mark: true,
       };
-      const { data, error } = await sb
-        .from("threads")
-        .update(patch)
-        .eq("id", id)
-        .select("*")
-        .single();
-      if (error) {
-        console.error("thread_update error", error);
-        return res.status(500).json({ ok: false, error: error.message });
-      }
-      return res.status(200).json({ ok: true, data });
+      const { data, error } = await sb.from("threads").update(patch).eq("id", id).select("*").single();
+      if (error) { console.error("thread_update error", error); return res.status(500).json({ ok:false, error: error.message }); }
+      return res.status(200).json({ ok:true, data });
     }
 
     if (action === "thread_delete") {
-      if (!id) return res.status(400).json({ ok: false, error: "missing id" });
+      if (!id) return res.status(400).json({ ok:false, error:"missing id" });
       const { error } = await sb.from("threads").delete().eq("id", id);
-      if (error) {
-        console.error("thread_delete error", error);
-        return res.status(500).json({ ok: false, error: error.message });
-      }
-      return res.status(200).json({ ok: true });
+      if (error) { console.error("thread_delete error", error); return res.status(500).json({ ok:false, error: error.message }); }
+      return res.status(200).json({ ok:true });
     }
 
     return res.status(400).json({ ok: false, error: "unknown action" });
