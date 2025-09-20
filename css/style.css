@@ -147,10 +147,25 @@ body {
     width: 100% !important;
 }
 
-@media (max-width: 1440px) {
+@media (max-width: 1200px) {
     .side-ad {
         display: none;
     }
+}
+
+/* インライン広告のスタイル */
+.inline-ad-container {
+    margin: 20px 0;
+    padding: 10px;
+    text-align: center;
+    border-top: 1px solid #e5e7eb;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #f9fafb;
+}
+
+.inline-ad-container .adsbygoogle {
+    display: block !important;
+    margin: 0 auto !important;
 }
 
 .loading {

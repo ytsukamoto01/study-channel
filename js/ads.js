@@ -1,9 +1,10 @@
 (function() {
   const ADSENSE_CLIENT_ID = 'ca-pub-5122489446866147';
+  // AdSenseスロットID（実際のIDに置き換えてください）
   const DEFAULT_SLOT_IDS = {
-    desktopLeft: '1234567890',
-    desktopRight: '1234567891',
-    mobileInline: '1234567892'
+    desktopLeft: '3090194831',
+    desktopRight: '2543627629', 
+    mobileInline: '8936461424'
   };
 
   function getSlotId(name) {
@@ -13,7 +14,7 @@
     return body.dataset?.[datasetKey] || DEFAULT_SLOT_IDS[name];
   }
 
-  const SIDE_AD_MIN_WIDTH = 1441;
+  const SIDE_AD_MIN_WIDTH = 1200; // より低い解像度でも表示するように調整
 
   function shouldShowSideAds() {
     if (window.matchMedia) {
@@ -51,18 +52,27 @@
     if (!document.body) return;
 
     const showSideAds = shouldShowSideAds();
+    console.log('Should show side ads:', showSideAds, 'Window width:', window.innerWidth);
+    
     const leftSelector = '.side-ad.side-ad-left';
     const rightSelector = '.side-ad.side-ad-right';
     const existingLeft = document.querySelector(leftSelector);
     const existingRight = document.querySelector(rightSelector);
 
     if (!showSideAds) {
-      if (existingLeft) existingLeft.remove();
-      if (existingRight) existingRight.remove();
+      if (existingLeft) {
+        console.log('Removing left side ad');
+        existingLeft.remove();
+      }
+      if (existingRight) {
+        console.log('Removing right side ad');
+        existingRight.remove();
+      }
       return;
     }
 
     if (!existingLeft) {
+      console.log('Creating left side ad');
       const left = createSideAd('left');
       if (left) {
         document.body.appendChild(left);
@@ -71,6 +81,7 @@
     }
 
     if (!existingRight) {
+      console.log('Creating right side ad');
       const right = createSideAd('right');
       if (right) {
         document.body.appendChild(right);
@@ -80,15 +91,23 @@
   }
 
   function requestAds(context = document) {
-    const ads = context.querySelectorAll('ins.adsbygoogle:not([data-adsense-loaded])');
-    ads.forEach(ad => {
-      const rect = ad.getBoundingClientRect();
-      if (!rect.width || !rect.height) {
-        return;
-      }
+    // AdSenseスクリプトが読み込まれているか確認
+    if (!window.adsbygoogle) {
+      console.warn('AdSense script not loaded');
+      return;
+    }
 
-      ad.setAttribute('data-adsense-loaded', 'true');
-      (adsbygoogle = window.adsbygoogle || []).push({});
+    const ads = context.querySelectorAll('ins.adsbygoogle:not([data-adsense-loaded])');
+    console.log(`Found ${ads.length} unloaded ads`);
+    
+    ads.forEach((ad, index) => {
+      try {
+        ad.setAttribute('data-adsense-loaded', 'true');
+        (adsbygoogle = window.adsbygoogle || []).push({});
+        console.log(`Pushed ad ${index + 1} to AdSense`);
+      } catch (error) {
+        console.error('Error pushing ad to AdSense:', error);
+      }
     });
   }
 
@@ -109,10 +128,11 @@
   }
 
   function shouldShowInlineAds() {
-    if (window.matchMedia) {
-      return window.matchMedia('(max-width: 767px)').matches;
-    }
-    return window.innerWidth <= 767;
+    const isMobile = window.matchMedia ? 
+      window.matchMedia('(max-width: 767px)').matches :
+      window.innerWidth <= 767;
+    console.log('Should show inline ads (mobile):', isMobile, 'Window width:', window.innerWidth);
+    return isMobile;
   }
 
   function debounce(fn, delay = 200) {
@@ -133,9 +153,16 @@
   }, 250);
 
   document.addEventListener('DOMContentLoaded', () => {
+    console.log('AdSense helpers initializing');
     ensureSideAds();
     requestAds();
     window.addEventListener('resize', handleResize);
+    
+    // 初期化後に再度広告をリクエスト（遅延読み込み対応）
+    setTimeout(() => {
+      console.log('Delayed ad request');
+      requestAds();
+    }, 1000);
   });
 
   window.adsenseHelpers = {

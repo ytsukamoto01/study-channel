@@ -505,18 +505,24 @@ function renderCommentWithReplies(comment, hierarchy, depth) {
 
 function shouldInsertInlineAd(renderedCount) {
   if (!window.adsenseHelpers?.shouldShowInlineAds) {
+    console.log('AdSense helpers not available');
     return false;
   }
 
-  return renderedCount > 0 && renderedCount % 5 === 0 && window.adsenseHelpers.shouldShowInlineAds();
+  const shouldShow = renderedCount > 0 && renderedCount % 5 === 0 && window.adsenseHelpers.shouldShowInlineAds();
+  console.log(`Should insert ad after comment ${renderedCount}:`, shouldShow);
+  return shouldShow;
 }
 
 function renderInlineAdBlock() {
   if (!window.adsenseHelpers?.renderInlineAdMarkup) {
+    console.log('AdSense renderInlineAdMarkup not available');
     return '';
   }
 
-  return window.adsenseHelpers.renderInlineAdMarkup();
+  const adMarkup = window.adsenseHelpers.renderInlineAdMarkup();
+  console.log('Generated ad markup:', adMarkup);
+  return adMarkup;
 }
 
 // 親コメントに対する「いいね」
