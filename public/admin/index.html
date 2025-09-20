@@ -53,6 +53,24 @@
 
     <h3>スレッド一覧</h3>
     <div id="list"></div>
+
+    <h3>通報・削除依頼管理</h3>
+    <div class="row" style="margin-bottom: 16px;">
+      <select id="reports-type-filter">
+        <option value="">全て</option>
+        <option value="report">通報</option>
+        <option value="delete_request">削除依頼</option>
+      </select>
+      <select id="reports-status-filter">
+        <option value="">全ステータス</option>
+        <option value="pending">未処理</option>
+        <option value="approved">承認済み</option>
+        <option value="rejected">拒否済み</option>
+      </select>
+      <button id="refreshReportsBtn">更新</button>
+    </div>
+    <div id="reports-stats" class="muted" style="margin-bottom: 16px;"></div>
+    <div id="reports-list"></div>
   </section>
 
   <script src="/public/admin/admin.js"></script>

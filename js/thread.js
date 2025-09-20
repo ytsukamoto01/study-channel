@@ -7,6 +7,14 @@ let currentThreadId = null;
 let currentThread = null;
 let userFingerprint = null;
 
+// 自分のコメントかどうかを判定する関数
+function isMyComment(comment) {
+    if (!userFingerprint || !comment.user_fingerprint) {
+        return false;
+    }
+    return comment.user_fingerprint === userFingerprint;
+}
+
 // エラーページ表示関数
 function showErrorPage(message) {
   const container = document.querySelector('main .container');
@@ -239,7 +247,35 @@ function displayThreadDetail(thread) {
     }
   }
 
+  // 通報ボタンを追加（自分のスレッドでない場合）
+  const postActionsDiv = document.querySelector('.post-actions');
+  if (postActionsDiv && !isMyThread(thread)) {
+    // 既存の通報ボタンを削除（重複を避ける）
+    const existingReportBtn = postActionsDiv.querySelector('.report-btn');
+    if (existingReportBtn) {
+      existingReportBtn.remove();
+    }
+    
+    // 通報ボタンを作成
+    const reportBtn = document.createElement('button');
+    reportBtn.className = 'report-btn';
+    reportBtn.innerHTML = '<i class="fas fa-flag"></i> 通報';
+    reportBtn.title = '通報';
+    reportBtn.onclick = () => reportContent('thread', thread.id, thread.title);
+    
+    // いいねボタンの後に追加
+    postActionsDiv.appendChild(reportBtn);
+  }
+
   document.title = `${thread.title} - すたでぃちゃんねる`;
+}
+
+// 自分のスレッドかどうかを判定する関数
+function isMyThread(thread) {
+    if (!userFingerprint || !thread.user_fingerprint) {
+        return false;
+    }
+    return thread.user_fingerprint === userFingerprint;
 }
 
 // コメント読み込み（親のみ表示・古い順、件数は親＋返信の合計）
@@ -340,6 +376,11 @@ function renderParentItem(c) {
         <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
           <i class="fas fa-heart"></i> <span class="comment-like-count">${likeCount}</span>
         </button>
+        ${!isMyComment(c) ? `
+        <button class="report-btn" onclick="reportContent('comment', '${c.id}')" title="通報">
+          <i class="fas fa-flag"></i> 通報
+        </button>
+        ` : ''}
       </div>
       ${repliesBlock}
     </div>

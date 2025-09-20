@@ -233,6 +233,117 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok:true });
     }
 
+    // ---- 通報・削除依頼管理機能 ----
+    if (action === "reports_list") {
+      const { type, status, limit = 50, offset = 0 } = payload || {};
+      
+      let query = sb
+        .from('reports')
+        .select(`
+          *,
+          target_thread:threads!reports_target_id_fkey(id, title, content, author_name),
+          target_comment:comments!reports_target_id_fkey(id, content, author_name)
+        `)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (type) query = query.eq('type', type);
+      if (status) query = query.eq('status', status);
+
+      const { data, error } = await query;
+      if (error) { 
+        console.error("reports_list error", error); 
+        return res.status(500).json({ ok:false, error: error.message }); 
+      }
+
+      // 統計情報も取得
+      const { data: stats } = await sb.rpc('get_reports_stats');
+
+      return res.status(200).json({ 
+        ok: true, 
+        data: data || [],
+        stats: stats || {}
+      });
+    }
+
+    if (action === "report_update") {
+      if (!id) return res.status(400).json({ ok:false, error:"missing id" });
+      const p = payload || {};
+      const { status: newStatus, admin_notes } = p;
+
+      if (!newStatus || !['pending', 'approved', 'rejected'].includes(newStatus)) {
+        return res.status(400).json({ ok:false, error:"invalid status" });
+      }
+
+      const { data, error } = await sb
+        .from('reports')
+        .update({ 
+          status: newStatus, 
+          admin_notes: admin_notes || null 
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) { 
+        console.error("report_update error", error); 
+        return res.status(500).json({ ok:false, error: error.message }); 
+      }
+
+      return res.status(200).json({ ok:true, data });
+    }
+
+    if (action === "report_delete") {
+      if (!id) return res.status(400).json({ ok:false, error:"missing id" });
+      
+      const { error } = await sb.from('reports').delete().eq('id', id);
+      if (error) { 
+        console.error("report_delete error", error); 
+        return res.status(500).json({ ok:false, error: error.message }); 
+      }
+
+      return res.status(200).json({ ok:true });
+    }
+
+    // ---- 通報された投稿を削除 ----
+    if (action === "delete_reported_content") {
+      if (!id) return res.status(400).json({ ok:false, error:"missing id" });
+      const { target_type, target_id } = payload || {};
+
+      if (!target_type || !target_id) {
+        return res.status(400).json({ ok:false, error:"missing target_type or target_id" });
+      }
+
+      let deleteError = null;
+      if (target_type === 'thread') {
+        const { error } = await sb.from('threads').delete().eq('id', target_id);
+        deleteError = error;
+      } else if (target_type === 'comment') {
+        const { error } = await sb.from('comments').delete().eq('id', target_id);
+        deleteError = error;
+      }
+
+      if (deleteError) { 
+        console.error("delete_reported_content error", deleteError); 
+        return res.status(500).json({ ok:false, error: deleteError.message }); 
+      }
+
+      // 通報も承認済みに更新
+      const { error: reportError } = await sb
+        .from('reports')
+        .update({ 
+          status: 'approved', 
+          admin_notes: '対象コンテンツを削除しました' 
+        })
+        .eq('id', id);
+
+      if (reportError) { 
+        console.error("report status update error", reportError); 
+      }
+
+      return res.status(200).json({ ok:true });
+    }
+
     return res.status(400).json({ ok: false, error: "unknown action" });
   } catch (e) {
     console.error("UNHANDLED ERROR /api/admin:", e);

@@ -2,6 +2,14 @@ let currentThreadId = null;
 let parentCommentId = null;
 let userFingerprint = null;
 
+// 自分のコメントかどうかを判定する関数
+function isMyComment(comment) {
+    if (!userFingerprint || !comment.user_fingerprint) {
+        return false;
+    }
+    return comment.user_fingerprint === userFingerprint;
+}
+
 document.addEventListener('DOMContentLoaded', init);
 
 // 表示名取得（匿名/記名）
@@ -119,6 +127,11 @@ function renderParent(c) {
       <button class="comment-reply-btn" onclick="document.getElementById('replyFormSection').scrollIntoView({behavior:'smooth'})">
         <i class="fas fa-reply"></i> 返信する
       </button>
+      ${!isMyComment(c) ? `
+      <button class="report-btn" onclick="reportContent('comment', '${c.id}')" title="通報">
+        <i class="fas fa-flag"></i> 通報
+      </button>
+      ` : ''}
     </div>
   `;
 }
@@ -175,6 +188,11 @@ function renderReplies(list) {
           <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
             <i class="fas fa-heart"></i> <span class="comment-like-count">${c.like_count || 0}</span>
           </button>
+          ${!isMyComment(c) ? `
+          <button class="report-btn" onclick="reportContent('reply', '${c.id}')" title="通報">
+            <i class="fas fa-flag"></i> 通報
+          </button>
+          ` : ''}
         </div>
       </div>
     `;

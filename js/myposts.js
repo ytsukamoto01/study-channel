@@ -148,8 +148,13 @@ function displayMyPosts(threads) {
             <i class="fas fa-eye"></i> ${(t.reply_count || 0) > 0 ? 'コメントあり' : 'コメント待ち'}
           </span>
         </div>
-
-        <!-- 編集・削除機能は廃止されました -->
+        
+        <!-- 削除依頼ボタン -->
+        <div class="my-post-actions">
+          <button class="delete-request-btn" onclick="event.stopPropagation(); requestDeleteThread('${t.id}', '${escapeHtml(t.title)}')" title="削除依頼">
+            <i class="fas fa-trash-alt"></i> 削除依頼
+          </button>
+        </div>
       </div>
     `;
   }).join('');
@@ -222,8 +227,49 @@ async function updateFavoriteStatus() {
   }
 }
 
-/* ---------- 編集/削除機能は廃止されました ---------- */
+/* ---------- 削除依頼機能 ---------- */
 
+async function requestDeleteThread(threadId, threadTitle) {
+  if (!confirm(`「${threadTitle}」の削除依頼を送信しますか？\n\n削除依頼は管理者が確認し、適切と判断された場合に削除されます。`)) {
+    return;
+  }
+
+  try {
+    // 削除理由を選択させる
+    const reason = await showReasonDialog('delete_request');
+    if (!reason) return;
+
+    const requestData = {
+      type: 'delete_request',
+      target_type: 'thread',
+      target_id: threadId,
+      reporter_fingerprint: FP,
+      reporter_name: '投稿者本人',
+      reason: reason.reason,
+      description: reason.description
+    };
+
+    const response = await fetch('/api/reports', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || '削除依頼の送信に失敗しました');
+    }
+
+    const result = await response.json();
+    showMessage(result.message || '削除依頼を送信しました', 'success');
+
+  } catch (error) {
+    console.error('削除依頼エラー:', error);
+    showMessage(error.message || '削除依頼の送信に失敗しました', 'error');
+  }
+}
 
 /* ---------- ローディング表示/非表示 ---------- */
 function showLoading(){ const el = document.getElementById('loading'); if (el) el.style.display='block'; }

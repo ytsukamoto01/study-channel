@@ -1826,3 +1826,135 @@ body {
   font-weight:600;
 }
 
+/* 削除依頼・通報ボタン */
+.my-post-actions {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 8px;
+}
+
+.delete-request-btn, .report-btn {
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+    color: #6b7280;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.delete-request-btn:hover {
+    background-color: #fee2e2;
+    border-color: #fca5a5;
+    color: #dc2626;
+}
+
+.report-btn:hover {
+    background-color: #fef3c7;
+    border-color: #fcd34d;
+    color: #d97706;
+}
+
+.delete-request-btn i, .report-btn i {
+    font-size: 11px;
+}
+
+/* 通報・削除依頼モーダル */
+.report-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.report-modal.show {
+    display: flex;
+}
+
+.report-modal-content {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.report-modal h3 {
+    margin-bottom: 16px;
+    color: #1f2937;
+}
+
+.report-form-group {
+    margin-bottom: 16px;
+}
+
+.report-form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.report-form-group select,
+.report-form-group textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-family: inherit;
+}
+
+.report-form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.report-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.report-submit-btn, .report-cancel-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.report-submit-btn {
+    background-color: #dc2626;
+    color: white;
+}
+
+.report-submit-btn:hover {
+    background-color: #b91c1c;
+}
+
+.report-cancel-btn {
+    background-color: #f3f4f6;
+    color: #6b7280;
+    border-color: #d1d5db;
+}
+
+.report-cancel-btn:hover {
+    background-color: #e5e7eb;
+}
+

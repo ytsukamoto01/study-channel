@@ -7,6 +7,14 @@ let currentSearchTerm = '';
 let currentSearchType = 'all';
 let filteredThreads = [];
 
+// 自分のスレッドかどうかを判定する関数
+function isMyThread(thread) {
+    if (!userFingerprint || !thread.user_fingerprint) {
+        return false;
+    }
+    return thread.user_fingerprint === userFingerprint;
+}
+
 // ページ読み込み時の初期化
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
@@ -240,6 +248,11 @@ function displayThreads(category = 'all') {
             <div class="thread-stats">
                 <span><i class="fas fa-comments"></i> ${thread.reply_count || 0}</span>
                 <span><i class="fas fa-heart"></i> ${thread.like_count || 0}</span>
+                ${!isMyThread(thread) ? `
+                <button class="report-btn" onclick="event.stopPropagation(); reportContent('thread', '${thread.id}', '${escapeHtml(thread.title)}')" title="通報">
+                    <i class="fas fa-flag"></i> 通報
+                </button>
+                ` : ''}
             </div>
         </div>
             `;
