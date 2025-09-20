@@ -28,6 +28,13 @@
     return null;
   }
 
+  // サイド広告確保関数（現在は無効化）
+  function ensureSideAds() {
+    // サイド広告は現在無効化されています
+    // 将来的にサイド広告を有効にする場合はここに実装
+    return;
+  }
+
   // スレッド間広告を生成する関数
   function createThreadInlineAd() {
     const slotId = getSlotId('mobileInline'); // PCでもモバイル用スロットを使用
