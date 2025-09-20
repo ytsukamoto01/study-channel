@@ -99,7 +99,7 @@ function displayFavorites(threads, favorites) {
                 <div class="thread-meta">
                     <span class="category">${escapeHtml(thread.category)}</span>
                     ${subcategoryHtml}
-                    ${formatAuthorName(thread.author_name)}
+                    ${formatAuthorName(thread.author_name, !!thread.admin_mark)}
                     <span class="date">${getRelativeTime(new Date(thread.created_at).getTime())}</span>
                 </div>
                 <div class="thread-preview">

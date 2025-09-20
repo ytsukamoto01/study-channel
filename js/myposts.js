@@ -125,7 +125,7 @@ function displayMyPosts(threads) {
         <div class="thread-meta">
           <span class="category">${escapeHtml(t.category)}</span>
           ${sub}
-          ${formatAuthorName(t.author_name)}
+          ${formatAuthorName(t.author_name, !!t.admin_mark)}
           <span class="date">${getRelativeTime(new Date(t.created_at).getTime())}</span>
         </div>
         <div class="thread-preview">

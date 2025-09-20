@@ -195,7 +195,7 @@ function displayThreadDetail(thread) {
   console.log('Thread like_count value:', thread.like_count);
   
   document.getElementById('threadTitle').textContent = thread.title;
-  document.getElementById('threadAuthor').innerHTML = formatAuthorName(thread.author_name);
+  document.getElementById('threadAuthor').innerHTML = formatAuthorName(thread.author_name, !!thread.admin_mark);
   document.getElementById('threadDate').textContent = getRelativeTime(new Date(thread.created_at).getTime());
   document.getElementById('threadContent').textContent = thread.content;
   
@@ -411,7 +411,7 @@ function displayCommentsWithReplies(parents, hierarchy = new Map()) {
 function renderCommentWithReplies(comment, hierarchy, depth) {
   const indent = depth * 20; // 20px per level
   const numberHtml = comment.comment_number != null ? `${comment.comment_number}.` : '';
-  const authorHtml = escapeHtml(comment.author_name || '匿名');
+  const authorHtml = formatAuthorName(comment.author_name, !!comment.admin_mark);
   const dateHtml = getRelativeTime(new Date(comment.created_at).getTime());
   const contentHtml = escapeHtml(comment.content || '');
   const likeCount = comment.like_count || 0;
