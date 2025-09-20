@@ -33,7 +33,11 @@ export default async function handler(req, res) {
         
         console.log('Fetching comments for thread:', threadId);
         
-        let query = db.from('comments').select('*').order('created_at', { ascending: true });
+        let query = db
+       .from('comments')
+       // threads テーブルの admin_mark をネスト取得
+       .select('*, threads(admin_mark)')
+       .order('created_at', { ascending: true });
         
         if (threadId) {
           query = query.eq('thread_id', threadId);
@@ -46,10 +50,16 @@ export default async function handler(req, res) {
           throw error;
         }
         
-        // Calculate real-time like counts for all comments
-        const commentsWithCounts = await Promise.all(
-          (data || []).map(comment => calculateCommentCounts(db, comment))
-        );
+       // threads.admin_mark をフラット化して c.admin_mark に格納
+       const withAdmin = (data || []).map(c => ({
+         ...c,
+         admin_mark: !!(c.threads?.admin_mark)
+       }));
+
+       // （必要なら）like数の再計算をここで実行
+       const commentsWithCounts = await Promise.all(
+         withAdmin.map(comment => calculateCommentCounts(db, comment))
+       );
         
         console.log('Successfully fetched comments from Supabase:', commentsWithCounts?.length || 0);
         return res.status(200).json({ data: commentsWithCounts || [] });
@@ -154,8 +164,20 @@ export default async function handler(req, res) {
           throw error;
         }
         
-        // Calculate like counts for the new comment
-        const commentWithCounts = await calculateCommentCounts(db, data);
+       // 対応するスレッドの admin_mark を取得
+       const { data: threadRow } = await db
+         .from('threads')
+         .select('admin_mark')
+         .eq('id', data.thread_id)
+         .single();
+
+       const withAdmin = {
+         ...data,
+         admin_mark: !!(threadRow?.admin_mark)
+       };
+
+       // like数の再計算（必要なら）
+       const commentWithCounts = await calculateCommentCounts(db, withAdmin);
         
         console.log('Successfully created comment in Supabase:', commentWithCounts.id);
         return res.status(200).json({ data: commentWithCounts });
