@@ -228,8 +228,9 @@ export default async function handler(req, res) {
 
     if (action === "thread_delete") {
       if (!id) return res.status(400).json({ ok:false, error:"missing id" });
-      const { error } = await sb.from("threads").delete().eq("id", id);
+      const { data: ok, error } = await sb.rpc("admin_soft_delete_thread", { p_id: id });
       if (error) { console.error("thread_delete error", error); return res.status(500).json({ ok:false, error: error.message }); }
+      if (ok !== true) return res.status(404).json({ ok:false, error:"not found or already deleted" });
       return res.status(200).json({ ok:true });
     }
 
@@ -318,40 +319,42 @@ export default async function handler(req, res) {
     if (action === "delete_reported_content") {
       if (!id) return res.status(400).json({ ok:false, error:"missing id" });
       const { target_type, target_id } = payload || {};
-
       if (!target_type || !target_id) {
         return res.status(400).json({ ok:false, error:"missing target_type or target_id" });
       }
-
-      let deleteError = null;
-      if (target_type === 'thread') {
-        const { error } = await sb.from('threads').delete().eq('id', target_id);
-        deleteError = error;
-      } else if (target_type === 'comment') {
-        const { error } = await sb.from('comments').delete().eq('id', target_id);
-        deleteError = error;
+    
+      // ★ reply も comments 行なので comment と同じRPCに送る
+      let rpcCall;
+      if (target_type === "thread") {
+        rpcCall = sb.rpc("admin_soft_delete_thread", { p_id: target_id });
+      } else if (target_type === "comment" || target_type === "reply") {
+        rpcCall = sb.rpc("admin_soft_delete_comment", { p_id: target_id });
+      } else {
+        return res.status(400).json({ ok:false, error:"unsupported target_type" });
       }
-
-      if (deleteError) { 
-        console.error("delete_reported_content error", deleteError); 
-        return res.status(500).json({ ok:false, error: deleteError.message }); 
+    
+      const { data: ok, error: rpcErr } = await rpcCall;
+      if (rpcErr) {
+        console.error("delete_reported_content rpc error", rpcErr);
+        return res.status(500).json({ ok:false, error: rpcErr.message });
       }
-
-      // 通報も承認済みに更新
-      const { error: reportError } = await sb
-        .from('reports')
-        .update({ 
-          status: 'approved', 
-          admin_notes: '対象コンテンツを削除しました' 
-        })
-        .eq('id', id);
-
-      if (reportError) { 
-        console.error("report status update error", reportError); 
+    
+      // RPCはboolean返却。false=該当なし/既に削除済み
+      if (ok !== true) {
+        return res.status(404).json({ ok:false, error:"Target not found or already deleted" });
       }
-
+    
+      // レポートを承認済みに更新（履歴を残す）
+      const { error: reportErr } = await sb
+        .from("reports")
+        .update({ status: "approved", admin_notes: "対象コンテンツを削除しました" })
+        .eq("id", id);
+    
+      if (reportErr) console.error("report status update error", reportErr);
+    
       return res.status(200).json({ ok:true });
     }
+
 
     return res.status(400).json({ ok: false, error: "unknown action" });
   } catch (e) {
