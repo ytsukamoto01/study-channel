@@ -1906,14 +1906,26 @@ body {
     background-color: #fffbeb;
 }
 
-/* コメント・返信での通報・削除依頼リンク */
+/* コメント・返信でのヘッダー行レイアウト */
+.comment-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.comment-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* コメント・返信での通報・削除依頼リンク（ヘッダー右側） */
 .comment-moderation-links {
     display: flex;
-    justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
     font-size: 11px;
-    margin-top: 4px;
-    padding-top: 4px;
+    margin-left: auto;
 }
 
 .comment-moderation-links a,

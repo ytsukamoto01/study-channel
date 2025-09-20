@@ -411,9 +411,18 @@ function renderParentItem(c) {
   return `
     <div class="comment-item" data-comment-id="${c.id}">
       <div class="comment-header">
-        <span class="comment-number">${numberHtml}</span>
-        <span class="comment-author">${authorHtml}</span>
-        <span class="date">${dateHtml}</span>
+        <div class="comment-header-left">
+          <span class="comment-number">${numberHtml}</span>
+          <span class="comment-author">${authorHtml}</span>
+          <span class="date">${dateHtml}</span>
+        </div>
+        <div class="comment-moderation-links">
+          ${isMyComment(c) ? `
+          <a href="#" onclick="requestDeleteComment('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
+          ` : `
+          <a href="#" onclick="reportContent('comment', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
+          `}
+        </div>
       </div>
       <div class="comment-content">${contentHtml}</div>
       ${imagesHtml}
@@ -424,13 +433,6 @@ function renderParentItem(c) {
         <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
           <i class="fas fa-heart"></i> <span class="comment-like-count">${likeCount}</span>
         </button>
-      </div>
-      <div class="comment-moderation-links">
-        ${isMyComment(c) ? `
-        <a href="#" onclick="requestDeleteComment('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
-        ` : `
-        <a href="#" onclick="reportContent('comment', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
-        `}
       </div>
       ${repliesBlock}
     </div>
