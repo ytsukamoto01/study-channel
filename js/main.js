@@ -208,11 +208,16 @@ function displayThreads(category = 'all') {
                 <i class="far fa-star"></i>
             </button>
             <h3 class="thread-title">${escapeHtml(thread.title)}</h3>
-            <div class="thread-meta">
-                <span class="category">${escapeHtml(thread.category)}</span>
-                <span class="author">${escapeHtml(thread.author_name)}</span>
-                <span class="date">${getRelativeTime(new Date(thread.created_at).getTime())}</span>
+            <div class="thread-meta"> 
+              <span class="category">${escapeHtml(thread.category)}</span>
+              <span class="author">${
+                thread.author_name === '管理人'
+                  ? '<span class="badge-admin">管理人</span>'
+                  : escapeHtml(thread.author_name || '匿名')
+              }</span>
+              <span class="date">${getRelativeTime(new Date(thread.created_at).getTime())}</span>
             </div>
+
             <div class="thread-preview">
                 ${escapeHtml(createPreview(thread.content, 120))}
             </div>
