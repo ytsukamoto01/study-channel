@@ -87,7 +87,7 @@ function handleCommentsAPI(req, res, query) {
       user_fingerprint: 'test-user-a',
       created_at: new Date(Date.now() - 300000).toISOString(),
       like_count: 2,
-      comment_number: 1,
+      comment_number: 2, // 主コメント=1、通常コメント=2から開始
       parent_comment_id: null
     },
     {
@@ -98,7 +98,7 @@ function handleCommentsAPI(req, res, query) {
       user_fingerprint: 'test-user-b',
       created_at: new Date(Date.now() - 200000).toISOString(),
       like_count: 1,
-      comment_number: 2,
+      comment_number: 3, // 次の通常コメント
       parent_comment_id: null
     },
     {
@@ -109,7 +109,7 @@ function handleCommentsAPI(req, res, query) {
       user_fingerprint: 'test-user-c',
       created_at: new Date(Date.now() - 100000).toISOString(),
       like_count: 0,
-      comment_number: 3,
+      comment_number: null, // 返信コメントは番号なし
       parent_comment_id: 'comment-1'
     }
   ];
@@ -391,13 +391,25 @@ const server = http.createServer((req, res) => {
       } else if (req.method === 'POST') {
         console.log('POST /api/tables/comments - body:', parsedBody);
         
-        // Calculate next comment number for this thread (simulate database count)
+        // Calculate next comment number for this thread
+        // 主コメント（スレッド）= 1番、通常コメント = 2番から開始、返信 = 番号なし
         const threadId = parsedBody.thread_id;
         if (!global.mockCommentsStorage) {
           global.mockCommentsStorage = [];
         }
-        const existingCommentsForThread = global.mockCommentsStorage.filter(c => c.thread_id === threadId);
-        const nextCommentNumber = existingCommentsForThread.length + 1;
+        
+        let nextCommentNumber = null;
+        
+        // 返信コメントの場合は番号なし
+        if (parsedBody.parent_comment_id) {
+          nextCommentNumber = null;
+        } else {
+          // 通常コメントの場合は2番から開始（主コメント=1番）
+          const existingMainCommentsForThread = global.mockCommentsStorage.filter(c => 
+            c.thread_id === threadId && !c.parent_comment_id
+          );
+          nextCommentNumber = existingMainCommentsForThread.length + 2; // 2番から開始
+        }
         
         const newComment = {
           id: `comment-${Date.now()}`,

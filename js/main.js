@@ -425,8 +425,12 @@ async function loadComments(threadId) {
         const result = await response.json();
         const comments = (result.data || []).filter(comment => comment.thread_id === threadId);
         
-        // コメント番号でソート
-        comments.sort((a, b) => a.comment_number - b.comment_number);
+        // コメント番号でソート（番号がnullの場合は後ろに）
+        comments.sort((a, b) => {
+            if (a.comment_number === null) return 1;
+            if (b.comment_number === null) return -1;
+            return a.comment_number - b.comment_number;
+        });
         
         displayComments(comments);
         
@@ -457,7 +461,7 @@ function displayComments(comments) {
     commentsList.innerHTML = comments.map(comment => `
         <div class="comment-item fade-in">
             <div class="comment-header">
-                <span class="comment-number">${comment.comment_number}.</span>
+                ${comment.comment_number != null ? `<span class="comment-number">${comment.comment_number}.</span>` : ''}
                 ${formatAuthorName(comment.author_name)}
                 <span class="date">${getRelativeTime(new Date(comment.created_at).getTime())}</span>
             </div>
