@@ -260,69 +260,135 @@ function renderReplies(list) {
   const wrap = document.getElementById('repliesList');
   if (!wrap) return;
 
-  list.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-  if (list.length === 0) {
+  wrap.innerHTML = '';
+
+  const replies = Array.isArray(list) ? [...list] : [];
+  if (replies.length === 0) {
     wrap.innerHTML = `<div class="empty-state"><p>まだ返信はありません</p></div>`;
     return;
   }
 
-  wrap.innerHTML = list.map(c => {
-    // 画像表示
-    const imagesHtml = (Array.isArray(c.images) && c.images.length > 0) 
-      ? `<div class="comment-images">
-           <div class="image-gallery">
-             ${c.images.map((imageUrl, index) => `
-               <img src="${imageUrl}" alt="返信画像${index + 1}" class="gallery-image" 
-                    onclick="openImageModal('${imageUrl}')">
-             `).join('')}
-           </div>
-         </div>`
-      : '';
+  replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-    const replyLink = `replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}#replyFormSection`;
+  for (const c of replies) {
+    const replyItem = document.createElement('div');
+    replyItem.className = 'reply-item';
+    replyItem.setAttribute('data-comment-id', c.id);
+
+    const header = document.createElement('div');
+    header.className = 'comment-header';
+
+    const headerLeft = document.createElement('div');
+    headerLeft.className = 'comment-header-left';
+
+    const authorSpan = document.createElement('span');
+    authorSpan.className = 'comment-author';
+    authorSpan.textContent = c.author_name || '匿名';
+    headerLeft.appendChild(authorSpan);
+
+    const dateSpan = document.createElement('span');
+    dateSpan.className = 'date';
+    dateSpan.textContent = getRelativeTime(new Date(c.created_at).getTime());
+    headerLeft.appendChild(dateSpan);
+
+    header.appendChild(headerLeft);
+
+    const moderation = document.createElement('div');
+    moderation.className = 'comment-moderation-links';
+
+    if (isMyComment(c)) {
+      const deleteLink = document.createElement('a');
+      deleteLink.href = '#';
+      deleteLink.className = 'delete-request-link';
+      deleteLink.title = '削除依頼';
+      deleteLink.textContent = '[削除依頼]';
+      deleteLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        requestDeleteReply(c.id);
+      });
+      moderation.appendChild(deleteLink);
+    } else {
+      const reportLink = document.createElement('a');
+      reportLink.href = '#';
+      reportLink.className = 'report-link';
+      reportLink.title = '通報';
+      reportLink.textContent = '[通報]';
+      reportLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        reportContent('reply', c.id);
+      });
+      moderation.appendChild(reportLink);
+    }
+
+    header.appendChild(moderation);
+    replyItem.appendChild(header);
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'comment-content';
+    contentDiv.textContent = c.content || '';
+    replyItem.appendChild(contentDiv);
+
+    if (Array.isArray(c.images) && c.images.length > 0) {
+      const imagesWrapper = document.createElement('div');
+      imagesWrapper.className = 'comment-images';
+      const gallery = document.createElement('div');
+      gallery.className = 'image-gallery';
+
+      c.images.forEach((imageUrl, index) => {
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.alt = `返信画像${index + 1}`;
+        img.className = 'gallery-image';
+        img.addEventListener('click', () => openImageModal(imageUrl));
+        gallery.appendChild(img);
+      });
+
+      imagesWrapper.appendChild(gallery);
+      replyItem.appendChild(imagesWrapper);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'comment-actions';
+
+    const replyButton = document.createElement('button');
+    replyButton.type = 'button';
+    replyButton.className = 'comment-reply-btn';
+    replyButton.innerHTML = '<i class="fas fa-reply"></i> 返信する';
+    replyButton.addEventListener('click', () => {
+      const replyLink = `replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}#replyFormSection`;
+      location.href = replyLink;
+    });
+    actions.appendChild(replyButton);
+
+    const likeButton = document.createElement('button');
+    likeButton.type = 'button';
+    likeButton.className = 'comment-like-btn';
+    likeButton.innerHTML = `<i class="fas fa-heart"></i> <span class="comment-like-count">${c.like_count || 0}</span>`;
+    likeButton.addEventListener('click', () => likeThisComment(c.id));
+    actions.appendChild(likeButton);
+
+    replyItem.appendChild(actions);
+
     const repliesCount = typeof c.reply_count_local === 'number'
       ? c.reply_count_local
       : typeof c.reply_count === 'number'
         ? c.reply_count
         : 0;
 
-    const repliesBlock = repliesCount > 0
-      ? `<div class="replies-link">
-           <a href="replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}">
-             ${repliesCount}件の返信
-           </a>
-         </div>`
-      : '';
+    if (repliesCount > 0) {
+      const repliesLinkWrap = document.createElement('div');
+      repliesLinkWrap.className = 'replies-link';
 
-    return `
-      <div class="reply-item" data-comment-id="${c.id}">
-        <div class="comment-header">
-          <div class="comment-header-left">
-            <span class="comment-author">${escapeHtml(c.author_name || '匿名')}</span>
-            <span class="date">${getRelativeTime(new Date(c.created_at).getTime())}</span>
-          </div>
-          <div class="comment-moderation-links">
-            ${isMyComment(c) ? `
-            <a href="#" onclick="requestDeleteReply('${c.id}'); return false;" class="delete-request-link" title="削除依頼">[削除依頼]</a>
-            ` : `
-            <a href="#" onclick="reportContent('reply', '${c.id}'); return false;" class="report-link" title="通報">[通報]</a>
-            `}
-          </div>
-        </div>
-        <div class="comment-content">${escapeHtml(c.content || '')}</div>
-        ${imagesHtml}
-        <div class="comment-actions">
-          <button class="comment-reply-btn" onclick="location.href='${replyLink}'">
-            <i class="fas fa-reply"></i> 返信する
-          </button>
-          <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
-            <i class="fas fa-heart"></i> <span class="comment-like-count">${c.like_count || 0}</span>
-          </button>
-        </div>
-        ${repliesBlock}
-      </div>
-    `;
-  }).join('');
+      const repliesLink = document.createElement('a');
+      repliesLink.href = `replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}`;
+      repliesLink.textContent = `${repliesCount}件の返信`;
+
+      repliesLinkWrap.appendChild(repliesLink);
+      replyItem.appendChild(repliesLinkWrap);
+    }
+
+    wrap.appendChild(replyItem);
+  }
 }
 
 // 返信投稿
