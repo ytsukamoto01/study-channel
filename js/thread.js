@@ -453,6 +453,11 @@ function renderCommentWithReplies(comment, hierarchy, depth) {
         <button class="comment-reply-btn" onclick="toggleReplyForm('${comment.id}')">
           <i class="fas fa-reply"></i> 返信する
         </button>
+        ${(hierarchy.get(comment.id) || []).length > 0 ? `
+        <button class="replies-toggle-btn" onclick="toggleRepliesVisibility('${comment.id}')">
+          <span id="replies-toggle-text-${comment.id}">▶ ${(hierarchy.get(comment.id) || []).length}件の返信を表示</span>
+        </button>
+        ` : ''}
         <button class="comment-like-btn" onclick="likeThisComment('${comment.id}')">
           <i class="fas fa-heart"></i> <span class="comment-like-count">${likeCount}</span>
         </button>
@@ -476,31 +481,19 @@ function renderCommentWithReplies(comment, hierarchy, depth) {
     </div>
   `;
   
-  // 返信があれば再帰的に追加
+  // 返信があれば再帰的に追加（デフォルト非表示）
   const replies = hierarchy.get(comment.id) || [];
   if (replies.length > 0) {
     const repliesContainerId = `replies-${comment.id}`;
-    html += `<div class="replies-container" style="margin-left: ${indent + 20}px;">`;
     
-    // 返信件数の表示とトグルボタン
-    html += `
-      <div class="replies-toggle" style="margin: 8px 0; color: #6b7280; font-size: 13px;">
-        <button onclick="toggleRepliesVisibility('${comment.id}')" 
-                class="replies-toggle-btn" 
-                style="background: none; border: none; color: #3b82f6; cursor: pointer; text-decoration: underline; font-size: 13px; padding: 2px;">
-          <span id="replies-toggle-text-${comment.id}">▼ ${replies.length}件の返信を表示</span>
-        </button>
-      </div>
-    `;
-    
-    // 返信コンテナ（初期状態は表示）
-    html += `<div id="${repliesContainerId}" class="replies-content">`;
+    // 返信コンテナ（初期状態は非表示）
+    html += `<div id="${repliesContainerId}" class="replies-content" style="display: none; margin-left: ${indent + 20}px;">`;
     
     replies.forEach(reply => {
       html += renderCommentWithReplies(reply, hierarchy, depth + 1);
     });
     
-    html += `</div></div>`;
+    html += `</div>`;
   }
   
   return html;
@@ -905,25 +898,26 @@ async function submitReply(parentCommentId) {
 }
 
 // ====== 返信の表示/非表示トグル ======
-// 返信の表示/非表示を切り替え
+// 返信の表示/非表示を切り替え（デフォルト非表示）
 function toggleRepliesVisibility(commentId) {
   const repliesContainer = document.getElementById(`replies-${commentId}`);
   const toggleText = document.getElementById(`replies-toggle-text-${commentId}`);
   
   if (!repliesContainer || !toggleText) return;
   
-  const isVisible = repliesContainer.style.display !== 'none';
+  // デフォルトがdisplay:noneなので、noneかどうかで判定
+  const isHidden = repliesContainer.style.display === 'none' || repliesContainer.style.display === '';
   
-  if (isVisible) {
-    // 非表示にする
-    repliesContainer.style.display = 'none';
-    const replyCount = repliesContainer.querySelectorAll('.comment-item').length;
-    toggleText.textContent = `▶ ${replyCount}件の返信を表示`;
-  } else {
+  if (isHidden) {
     // 表示する
     repliesContainer.style.display = 'block';
     const replyCount = repliesContainer.querySelectorAll('.comment-item').length;
     toggleText.textContent = `▼ ${replyCount}件の返信を非表示`;
+  } else {
+    // 非表示にする
+    repliesContainer.style.display = 'none';
+    const replyCount = repliesContainer.querySelectorAll('.comment-item').length;
+    toggleText.textContent = `▶ ${replyCount}件の返信を表示`;
   }
 }
 
