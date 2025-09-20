@@ -305,7 +305,7 @@ async function requestDeleteComment(commentId) {
       type: 'delete_request',
       target_type: 'comment',
       target_id: commentId,
-      reporter_fingerprint: userFingerprint,
+      reporter_fingerprint: generateUserFingerprint(),
       reporter_name: '投稿者本人',
       reason: reason.reason,
       description: reason.description
@@ -326,6 +326,13 @@ async function requestDeleteComment(commentId) {
 
     const result = await response.json();
     showMessage(result.message || '削除依頼を送信しました', 'success');
+
+    // UI更新
+    if (window.updateReportStatusUI) {
+      setTimeout(() => {
+        window.updateReportStatusUI();
+      }, 200);
+    }
 
   } catch (error) {
     console.error('削除依頼エラー:', error);

@@ -144,6 +144,11 @@ async function reportContent(targetType, targetId, targetTitle = '') {
     const result = await response.json();
     showMessage(result.message || '通報を送信しました', 'success');
 
+    // UI更新
+    setTimeout(() => {
+      updateReportStatusUI();
+    }, 200);
+
   } catch (error) {
     console.error('通報エラー:', error);
     showMessage(error.message || '通報の送信に失敗しました', 'error');
@@ -223,13 +228,23 @@ async function updateReportStatusUI() {
     reports.forEach(report => {
       const { target_type, target_id, type, status, admin_notes } = report;
       
-      // 対応するボタンを見つける
-      const reportBtn = document.querySelector(`[onclick*="reportContent('${target_type}', '${target_id}')"]`);
-      const deleteBtn = document.querySelector(`[onclick*="requestDeletion('${target_type}', '${target_id}')"]`);
+      // 対応するボタンを見つける - 複数のセレクターを試行
+      let btn = null;
       
-      const btn = type === 'report' ? reportBtn : deleteBtn;
+      if (type === 'report') {
+        btn = document.querySelector(`[onclick*="reportContent('${target_type}', '${target_id}')"]`) ||
+              document.querySelector(`.report-link[onclick*="'${target_id}'"]`) ||
+              document.querySelector(`.thread-item-report[onclick*="'${target_id}'"]`);
+      } else {
+        btn = document.querySelector(`[onclick*="requestDeletion('${target_type}', '${target_id}')"]`) ||
+              document.querySelector(`[onclick*="requestDeleteComment('${target_id}')"]`) ||
+              document.querySelector(`.delete-request-link[onclick*="'${target_id}'"]`);
+      }
+      
       if (btn) {
         updateButtonStatus(btn, type, status, admin_notes);
+      } else {
+        console.log(`ボタンが見つかりません: type=${type}, target_type=${target_type}, target_id=${target_id}`);
       }
     });
     
@@ -266,7 +281,10 @@ function updateButtonStatus(button, type, status, admin_notes) {
   }
   
   button.textContent = statusText;
-  button.className = `${button.className.split(' ')[0]} ${className}`;
+  
+  // 既存のステータスクラスを削除してから新しいクラスを追加
+  button.classList.remove('report-status-pending', 'report-status-approved', 'report-status-rejected');
+  button.classList.add(className);
   
   // ツールチップで詳細情報を表示
   if (admin_notes && status === 'rejected') {
