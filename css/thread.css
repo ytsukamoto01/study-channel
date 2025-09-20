@@ -199,12 +199,22 @@ body {
   font-size: 13px;
 }
 
-.replies-link a {
+.replies-link a,
+.replies-link button {
   color: #3b82f6;
   text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.replies-link a:hover {
+.replies-link a:hover,
+.replies-link button:hover {
   text-decoration: underline;
 }
 
@@ -212,37 +222,142 @@ body {
    返信ページ（replies.html）
 --------------------------- */
 
+#repliesList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 #repliesList .reply-item {
-  border-top: 1px solid #e5e7eb;
-  padding: 20px 0 20px 16px;   /* ← 左に余白を追加 */
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
   background: #fff;
 }
 
-.reply-item .comment-header {
+#repliesList .reply-item .comment-header {
   display: flex;
   align-items: center;
-  gap: 10px;                    /* 番号と名前の間の余白 */
+  justify-content: space-between;
+  gap: 12px;
   color: #6b7280;
   font-size: 13px;
   margin-bottom: 6px;
 }
 
-.reply-item .comment-number {
-  color: #9ca3af;
-  flex-shrink: 0;
+#repliesList .reply-item .comment-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.reply-item .comment-author {
+#repliesList .reply-item .comment-author {
   font-weight: 600;
   color: #374151;
-  margin-left: 4px;
+  margin: 0;
 }
 
-.reply-item .comment-content {
-  margin: 2px 0 10px 0;
+#repliesList .reply-item .comment-content {
+  margin: 6px 0 12px;
   line-height: 1.7;
   white-space: pre-wrap;
-  padding-left: 0;               /* ヘッダーと揃える */
+}
+
+#repliesList .reply-item .comment-actions {
+  margin-top: 12px;
+}
+
+.reply-children {
+  margin-top: 14px;
+  margin-left: 16px;
+  border-left: 2px solid #e5e7eb;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reply-children .reply-item {
+  background: #f9fafb;
+}
+
+.reply-children .reply-item .comment-actions {
+  margin-top: 10px;
+}
+
+.reply-children-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: #2563eb;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reply-children-toggle:hover {
+  text-decoration: underline;
+}
+
+.reply-item.is-reply-target,
+#parentCommentBox.is-reply-target {
+  border-color: #93c5fd;
+  background: #f8fbff;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
+}
+
+.reply-children .reply-item.is-reply-target {
+  background: #eef4ff;
+}
+
+.reply-target-banner {
+  background: #eff6ff;
+  border-left: 4px solid #3b82f6;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reply-target-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reply-target-label {
+  font-weight: 600;
+  color: #1d4ed8;
+  font-size: 14px;
+}
+
+.reply-target-reset-btn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.reply-target-reset-btn:hover {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.reply-target-snippet {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+  white-space: pre-line;
 }
 
 /* ---------------------------

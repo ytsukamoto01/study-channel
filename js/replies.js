@@ -1,6 +1,10 @@
 let currentThreadId = null;
 let parentCommentId = null;
 let userFingerprint = null;
+let commentsById = new Map();
+let childrenByParentId = new Map();
+let activeReplyTargetId = null;
+let activeReplyTargetElement = null;
 
 // 自分のコメントかどうかを判定する関数
 function isMyComment(comment) {
@@ -134,16 +138,20 @@ async function init() {
     return showPageError('パラメータが不正です（thread / parent）');
   }
 
-  await loadParentComment();
-  await loadReplies();
+  activeReplyTargetId = parentCommentId;
+
+  await refreshRepliesView();
 
   // 返信する（上部ボタン）
   document.getElementById('scrollToReplyFormBtn')?.addEventListener('click', () => {
-    document.getElementById('replyFormSection')?.scrollIntoView({ behavior: 'smooth' });
-    setTimeout(() => document.getElementById('replyContent')?.focus(), 250);
+    setReplyTarget(parentCommentId, { scrollToForm: true });
   });
 
-    // 返信投稿
+  document.getElementById('replyTargetReset')?.addEventListener('click', () => {
+    setReplyTarget(parentCommentId, { scrollToForm: false });
+  });
+
+  // 返信投稿
   document.getElementById('replyForm')?.addEventListener('submit', handleReplySubmit);
 
   // ★ 追加：表示名トグルの初期化
@@ -162,22 +170,60 @@ function showPageError(msg) {
     </div>`;
 }
 
-// 親コメント1件
-async function loadParentComment() {
+async function refreshRepliesView() {
   try {
-    // 全コメントから該当の親コメントを検索
-    const json = await apiCall(`/api/tables/comments?thread_id=${currentThreadId}&limit=1000`);
-    const allComments = json?.data || [];
-    const parent = allComments.find(c => c.id === parentCommentId);
-    
+    const json = await apiCall(`/api/tables/comments?thread_id=${currentThreadId}&sort=created_at&order=asc&limit=1000`);
+    const all = (json?.data || []).filter(c => !c?.is_deleted);
+
+    buildCommentMaps(all);
+
+    const parent = commentsById.get(parentCommentId);
     if (!parent) {
-      return showPageError('親コメントが見つかりません');
+      showPageError('親コメントが見つかりません');
+      return;
     }
-    
+
     renderParent(parent);
+
+    const directReplies = childrenByParentId.get(parentCommentId) || [];
+    document.getElementById('repliesCount').textContent = String(directReplies.length);
+    renderReplies(directReplies);
+
+    if (!activeReplyTargetId || !commentsById.has(activeReplyTargetId)) {
+      activeReplyTargetId = parentCommentId;
+    }
+    setReplyTarget(activeReplyTargetId);
   } catch (e) {
-    console.error('親コメント取得エラー:', e);
-    showPageError('親コメントの読み込みに失敗しました');
+    console.error('返信取得エラー:', e);
+    document.getElementById('repliesCount').textContent = '0';
+    renderReplies([]);
+    setReplyTarget(parentCommentId);
+  }
+}
+
+function buildCommentMaps(comments) {
+  commentsById = new Map();
+  childrenByParentId = new Map();
+
+  for (const comment of comments) {
+    commentsById.set(comment.id, comment);
+  }
+
+  for (const comment of comments) {
+    const parentId = comment.parent_comment_id;
+    if (!parentId) continue;
+    if (!childrenByParentId.has(parentId)) {
+      childrenByParentId.set(parentId, []);
+    }
+    childrenByParentId.get(parentId).push(comment);
+  }
+
+  for (const childList of childrenByParentId.values()) {
+    childList.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  }
+
+  for (const comment of comments) {
+    comment.reply_count_local = (childrenByParentId.get(comment.id) || []).length;
   }
 }
 
@@ -185,19 +231,18 @@ function renderParent(c) {
   const box = document.getElementById('parentCommentBox');
   if (!box) return;
   box.setAttribute('data-comment-id', c.id);
-  
-  // 画像表示
-  const imagesHtml = (Array.isArray(c.images) && c.images.length > 0) 
+
+  const imagesHtml = (Array.isArray(c.images) && c.images.length > 0)
     ? `<div class="comment-images">
          <div class="image-gallery">
            ${c.images.map((imageUrl, index) => `
-             <img src="${imageUrl}" alt="コメント画像${index + 1}" class="gallery-image" 
+             <img src="${imageUrl}" alt="コメント画像${index + 1}" class="gallery-image"
                   onclick="openImageModal('${imageUrl}')">
            `).join('')}
          </div>
        </div>`
     : '';
-  
+
   box.innerHTML = `
     <div class="comment-header">
       <div class="comment-header-left">
@@ -216,44 +261,17 @@ function renderParent(c) {
     <div class="comment-content">${escapeHtml(c.content || '')}</div>
     ${imagesHtml}
     <div class="comment-actions">
-      <button class="comment-like-btn" onclick="likeThisComment('${c.id}')">
+      <button type="button" class="comment-like-btn" data-role="parent-like">
         <i class="fas fa-heart"></i> <span class="comment-like-count">${c.like_count || 0}</span>
       </button>
-      <button class="comment-reply-btn" onclick="document.getElementById('replyFormSection').scrollIntoView({behavior:'smooth'})">
+      <button type="button" class="comment-reply-btn" data-role="parent-reply">
         <i class="fas fa-reply"></i> 返信する
       </button>
     </div>
   `;
-}
 
-// 子（返信）一覧
-async function loadReplies() {
-  try {
-    // 該当スレッドの全コメントを取得
-    const json = await apiCall(`/api/tables/comments?thread_id=${currentThreadId}&sort=created_at&order=asc&limit=1000`);
-    const all = (json?.data || []).filter(c => !c?.is_deleted);
-
-    // 親コメントごとの返信数を集計（直下の件数）
-    const repliesByParent = {};
-    for (const comment of all) {
-      const parentId = comment.parent_comment_id;
-      if (!parentId) continue;
-      repliesByParent[parentId] = (repliesByParent[parentId] || 0) + 1;
-    }
-
-    for (const comment of all) {
-      comment.reply_count_local = repliesByParent[comment.id] || 0;
-    }
-
-    const replies = all.filter(c => c.parent_comment_id === parentCommentId);
-
-    document.getElementById('repliesCount').textContent = String(replies.length);
-    renderReplies(replies);
-  } catch (e) {
-    console.error('返信取得エラー:', e);
-    document.getElementById('repliesCount').textContent = '0';
-    renderReplies([]);
-  }
+  box.querySelector('[data-role="parent-like"]')?.addEventListener('click', () => likeThisComment(c.id));
+  box.querySelector('[data-role="parent-reply"]')?.addEventListener('click', () => setReplyTarget(c.id, { scrollToForm: true }));
 }
 
 function renderReplies(list) {
@@ -262,133 +280,216 @@ function renderReplies(list) {
 
   wrap.innerHTML = '';
 
-  const replies = Array.isArray(list) ? [...list] : [];
+  const replies = Array.isArray(list) ? list : [];
   if (replies.length === 0) {
     wrap.innerHTML = `<div class="empty-state"><p>まだ返信はありません</p></div>`;
     return;
   }
 
-  replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-  for (const c of replies) {
-    const replyItem = document.createElement('div');
-    replyItem.className = 'reply-item';
-    replyItem.setAttribute('data-comment-id', c.id);
-
-    const header = document.createElement('div');
-    header.className = 'comment-header';
-
-    const headerLeft = document.createElement('div');
-    headerLeft.className = 'comment-header-left';
-
-    const authorSpan = document.createElement('span');
-    authorSpan.className = 'comment-author';
-    authorSpan.textContent = c.author_name || '匿名';
-    headerLeft.appendChild(authorSpan);
-
-    const dateSpan = document.createElement('span');
-    dateSpan.className = 'date';
-    dateSpan.textContent = getRelativeTime(new Date(c.created_at).getTime());
-    headerLeft.appendChild(dateSpan);
-
-    header.appendChild(headerLeft);
-
-    const moderation = document.createElement('div');
-    moderation.className = 'comment-moderation-links';
-
-    if (isMyComment(c)) {
-      const deleteLink = document.createElement('a');
-      deleteLink.href = '#';
-      deleteLink.className = 'delete-request-link';
-      deleteLink.title = '削除依頼';
-      deleteLink.textContent = '[削除依頼]';
-      deleteLink.addEventListener('click', (event) => {
-        event.preventDefault();
-        requestDeleteReply(c.id);
-      });
-      moderation.appendChild(deleteLink);
-    } else {
-      const reportLink = document.createElement('a');
-      reportLink.href = '#';
-      reportLink.className = 'report-link';
-      reportLink.title = '通報';
-      reportLink.textContent = '[通報]';
-      reportLink.addEventListener('click', (event) => {
-        event.preventDefault();
-        reportContent('reply', c.id);
-      });
-      moderation.appendChild(reportLink);
-    }
-
-    header.appendChild(moderation);
-    replyItem.appendChild(header);
-
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'comment-content';
-    contentDiv.textContent = c.content || '';
-    replyItem.appendChild(contentDiv);
-
-    if (Array.isArray(c.images) && c.images.length > 0) {
-      const imagesWrapper = document.createElement('div');
-      imagesWrapper.className = 'comment-images';
-      const gallery = document.createElement('div');
-      gallery.className = 'image-gallery';
-
-      c.images.forEach((imageUrl, index) => {
-        const img = document.createElement('img');
-        img.src = imageUrl;
-        img.alt = `返信画像${index + 1}`;
-        img.className = 'gallery-image';
-        img.addEventListener('click', () => openImageModal(imageUrl));
-        gallery.appendChild(img);
-      });
-
-      imagesWrapper.appendChild(gallery);
-      replyItem.appendChild(imagesWrapper);
-    }
-
-    const actions = document.createElement('div');
-    actions.className = 'comment-actions';
-
-    const replyButton = document.createElement('button');
-    replyButton.type = 'button';
-    replyButton.className = 'comment-reply-btn';
-    replyButton.innerHTML = '<i class="fas fa-reply"></i> 返信する';
-    replyButton.addEventListener('click', () => {
-      const replyLink = `replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}#replyFormSection`;
-      location.href = replyLink;
-    });
-    actions.appendChild(replyButton);
-
-    const likeButton = document.createElement('button');
-    likeButton.type = 'button';
-    likeButton.className = 'comment-like-btn';
-    likeButton.innerHTML = `<i class="fas fa-heart"></i> <span class="comment-like-count">${c.like_count || 0}</span>`;
-    likeButton.addEventListener('click', () => likeThisComment(c.id));
-    actions.appendChild(likeButton);
-
-    replyItem.appendChild(actions);
-
-    const repliesCount = typeof c.reply_count_local === 'number'
-      ? c.reply_count_local
-      : typeof c.reply_count === 'number'
-        ? c.reply_count
-        : 0;
-
-    if (repliesCount > 0) {
-      const repliesLinkWrap = document.createElement('div');
-      repliesLinkWrap.className = 'replies-link';
-
-      const repliesLink = document.createElement('a');
-      repliesLink.href = `replies.html?thread=${encodeURIComponent(currentThreadId)}&parent=${encodeURIComponent(c.id)}`;
-      repliesLink.textContent = `${repliesCount}件の返信`;
-
-      repliesLinkWrap.appendChild(repliesLink);
-      replyItem.appendChild(repliesLinkWrap);
-    }
-
-    wrap.appendChild(replyItem);
+  const fragment = document.createDocumentFragment();
+  for (const reply of replies) {
+    fragment.appendChild(createReplyItem(reply, 0));
   }
+  wrap.appendChild(fragment);
+}
+
+function createReplyItem(comment, depth = 0) {
+  const replyItem = document.createElement('div');
+  replyItem.className = 'reply-item';
+  replyItem.dataset.commentId = comment.id;
+  replyItem.dataset.depth = String(depth);
+
+  const header = document.createElement('div');
+  header.className = 'comment-header';
+
+  const headerLeft = document.createElement('div');
+  headerLeft.className = 'comment-header-left';
+
+  const authorSpan = document.createElement('span');
+  authorSpan.className = 'comment-author';
+  authorSpan.textContent = comment.author_name || '匿名';
+  headerLeft.appendChild(authorSpan);
+
+  const dateSpan = document.createElement('span');
+  dateSpan.className = 'date';
+  dateSpan.textContent = getRelativeTime(new Date(comment.created_at).getTime());
+  headerLeft.appendChild(dateSpan);
+
+  header.appendChild(headerLeft);
+
+  const moderation = document.createElement('div');
+  moderation.className = 'comment-moderation-links';
+
+  if (isMyComment(comment)) {
+    const deleteLink = document.createElement('a');
+    deleteLink.href = '#';
+    deleteLink.className = 'delete-request-link';
+    deleteLink.title = '削除依頼';
+    deleteLink.textContent = '[削除依頼]';
+    deleteLink.addEventListener('click', (event) => {
+      event.preventDefault();
+      requestDeleteReply(comment.id);
+    });
+    moderation.appendChild(deleteLink);
+  } else {
+    const reportLink = document.createElement('a');
+    reportLink.href = '#';
+    reportLink.className = 'report-link';
+    reportLink.title = '通報';
+    reportLink.textContent = '[通報]';
+    reportLink.addEventListener('click', (event) => {
+      event.preventDefault();
+      reportContent('reply', comment.id);
+    });
+    moderation.appendChild(reportLink);
+  }
+
+  header.appendChild(moderation);
+  replyItem.appendChild(header);
+
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'comment-content';
+  contentDiv.textContent = comment.content || '';
+  replyItem.appendChild(contentDiv);
+
+  if (Array.isArray(comment.images) && comment.images.length > 0) {
+    const imagesWrapper = document.createElement('div');
+    imagesWrapper.className = 'comment-images';
+    const gallery = document.createElement('div');
+    gallery.className = 'image-gallery';
+
+    comment.images.forEach((imageUrl, index) => {
+      const img = document.createElement('img');
+      img.src = imageUrl;
+      img.alt = `返信画像${index + 1}`;
+      img.className = 'gallery-image';
+      img.addEventListener('click', () => openImageModal(imageUrl));
+      gallery.appendChild(img);
+    });
+
+    imagesWrapper.appendChild(gallery);
+    replyItem.appendChild(imagesWrapper);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'comment-actions';
+
+  const likeButton = document.createElement('button');
+  likeButton.type = 'button';
+  likeButton.className = 'comment-like-btn';
+  likeButton.innerHTML = `<i class="fas fa-heart"></i> <span class="comment-like-count">${comment.like_count || 0}</span>`;
+  likeButton.addEventListener('click', () => likeThisComment(comment.id));
+  actions.appendChild(likeButton);
+
+  const replyButton = document.createElement('button');
+  replyButton.type = 'button';
+  replyButton.className = 'comment-reply-btn';
+  replyButton.innerHTML = '<i class="fas fa-reply"></i> 返信する';
+  replyButton.addEventListener('click', () => setReplyTarget(comment.id, { scrollToForm: true }));
+  actions.appendChild(replyButton);
+
+  replyItem.appendChild(actions);
+
+  const children = childrenByParentId.get(comment.id) || [];
+  if (children.length > 0) {
+    const repliesLinkWrap = document.createElement('div');
+    repliesLinkWrap.className = 'replies-link nested-replies-link';
+
+    const toggleButton = document.createElement('button');
+    toggleButton.type = 'button';
+    toggleButton.className = 'reply-children-toggle';
+    toggleButton.innerHTML = `<i class="fas fa-comments"></i> ${children.length}件の返信を隠す`;
+    repliesLinkWrap.appendChild(toggleButton);
+    replyItem.appendChild(repliesLinkWrap);
+
+    const childContainer = document.createElement('div');
+    childContainer.className = 'reply-children';
+    children.forEach(child => childContainer.appendChild(createReplyItem(child, depth + 1)));
+    replyItem.appendChild(childContainer);
+
+    let expanded = true;
+    toggleButton.addEventListener('click', () => {
+      expanded = !expanded;
+      childContainer.style.display = expanded ? '' : 'none';
+      toggleButton.innerHTML = `<i class="fas fa-comments"></i> ${children.length}件の返信${expanded ? 'を隠す' : 'を表示'}`;
+    });
+  }
+
+  return replyItem;
+}
+
+function setReplyTarget(commentId, options = {}) {
+  if (!commentsById.has(commentId)) {
+    commentId = parentCommentId;
+  }
+
+  activeReplyTargetId = commentId;
+
+  updateReplyTargetBanner(commentId);
+
+  if (activeReplyTargetElement) {
+    activeReplyTargetElement.classList.remove('is-reply-target');
+  }
+
+  let targetElement = null;
+  if (commentId === parentCommentId) {
+    targetElement = document.getElementById('parentCommentBox');
+  } else {
+    targetElement = document.querySelector(`.reply-item[data-comment-id="${commentId}"]`);
+  }
+
+  if (targetElement) {
+    targetElement.classList.add('is-reply-target');
+    activeReplyTargetElement = targetElement;
+  } else {
+    activeReplyTargetElement = null;
+  }
+
+  if (options.scrollToForm) {
+    scrollToReplyForm();
+  }
+}
+
+function updateReplyTargetBanner(commentId) {
+  const banner = document.getElementById('replyTargetBanner');
+  if (!banner) return;
+
+  const labelEl = document.getElementById('replyTargetLabel');
+  const snippetEl = document.getElementById('replyTargetSnippet');
+  const resetBtn = document.getElementById('replyTargetReset');
+
+  const target = commentsById.get(commentId) || commentsById.get(parentCommentId);
+  const author = target?.author_name || '匿名';
+
+  if (labelEl) {
+    labelEl.textContent = commentId === parentCommentId
+      ? `返信先: 親コメント（${author}）`
+      : `返信先: ${author}さんのコメント`;
+  }
+
+  if (snippetEl) {
+    snippetEl.textContent = formatReplySnippet(target?.content);
+  }
+
+  if (resetBtn) {
+    resetBtn.style.display = commentId === parentCommentId ? 'none' : 'inline-flex';
+  }
+
+  banner.hidden = false;
+}
+
+function formatReplySnippet(content) {
+  if (typeof content !== 'string') return '（本文なし）';
+  const trimmed = content.trim();
+  if (!trimmed) return '（本文なし）';
+  return trimmed.length > 70 ? `${trimmed.slice(0, 70)}…` : trimmed;
+}
+
+function scrollToReplyForm() {
+  const section = document.getElementById('replyFormSection');
+  if (!section) return;
+  section.scrollIntoView({ behavior: 'smooth' });
+  setTimeout(() => document.getElementById('replyContent')?.focus(), 250);
 }
 
 // 返信投稿
@@ -405,33 +506,25 @@ async function handleReplySubmit(e) {
     return showMessage('返信内容または画像を入力してください', 'error');
   }
 
-  const authorRadio = document.querySelector('input[name="commentAuthorType"]:checked');
-  const authorName = authorRadio?.value === 'custom'
-    ? document.getElementById('commentCustomAuthorName').value || '匿名'
-    : '匿名';
+  const authorName = getCommentAuthorName();
+
+  const targetId = commentsById.has(activeReplyTargetId) ? activeReplyTargetId : parentCommentId;
 
   try {
     await apiCall('/api/tables/comments', {
       method: 'POST',
       body: JSON.stringify({
         thread_id: currentThreadId,
-        parent_comment_id: parentCommentId,
+        parent_comment_id: targetId,
         content,
         images: images,
         author_name: authorName,
         user_fingerprint: userFingerprint
       })
     });
-    
-    // 即座に返信数を更新
-    const repliesCountElement = document.getElementById('repliesCount');
-    if (repliesCountElement) {
-      const currentCount = parseInt(repliesCountElement.textContent || '0');
-      repliesCountElement.textContent = currentCount + 1;
-    }
-    
+
     document.getElementById('replyContent').value = '';
-    
+
     // 画像データをクリア（reply用）
     if (typeof uploadedImages !== 'undefined') {
       uploadedImages.reply = [];
@@ -441,9 +534,9 @@ async function handleReplySubmit(e) {
     }
     
     showMessage('返信を投稿しました！', 'success');
-    
+
     // 返信一覧を再読み込み
-    await loadReplies();
+    await refreshRepliesView();
   } catch (e) {
     handleApiError(e, '返信投稿に失敗しました');
   }
