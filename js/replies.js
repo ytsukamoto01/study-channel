@@ -270,7 +270,7 @@ function renderReplies(list) {
       <div class="reply-item" data-comment-id="${c.id}">
         <div class="comment-header">
           <div class="comment-header-left">
-            <span class="comment-author">${escapeHtml(c.author_name || '匿名')}</span>
+            <span class="comment-author">${formatAuthorName(c.author_name)}</span>
             <span class="date">${getRelativeTime(new Date(c.created_at).getTime())}</span>
           </div>
           <div class="comment-moderation-links">
@@ -290,6 +290,7 @@ function renderReplies(list) {
         </div>
       </div>
     `;
+
   }).join('');
 }
 
