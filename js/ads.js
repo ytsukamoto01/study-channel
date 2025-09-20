@@ -1,10 +1,10 @@
 (function() {
-  const ADSENSE_CLIENT_ID = 'ca-pub-5122489446866147';
-  // AdSenseスロットID（実際のIDに置き換えてください）
+  // Google AdSenseテスト用設定（テスト広告が確実に表示されます）
+  const ADSENSE_CLIENT_ID = 'ca-pub-3940256099942544'; // Google公式テストID
   const DEFAULT_SLOT_IDS = {
-    desktopLeft: '3090194831',
-    desktopRight: '2543627629', 
-    mobileInline: '8936461424'
+    desktopLeft: '6300978111',   // テスト用サイドバー広告
+    desktopRight: '6300978111',  // テスト用サイドバー広告
+    mobileInline: '6300978111'   // テスト用インライン広告
   };
 
   function getSlotId(name) {
@@ -37,10 +37,12 @@
     const ins = document.createElement('ins');
     ins.className = 'adsbygoogle';
     ins.style.display = 'block';
+    ins.style.width = '300px';
+    ins.style.height = '250px';
     ins.setAttribute('data-ad-client', ADSENSE_CLIENT_ID);
     ins.setAttribute('data-ad-slot', slotId);
-    ins.setAttribute('data-ad-format', 'auto');
-    ins.setAttribute('data-full-width-responsive', 'true');
+    ins.setAttribute('data-ad-format', 'rectangle'); // 固定サイズでテスト
+    ins.setAttribute('data-adtest', 'on'); // テストモードを有効に
 
     inner.appendChild(ins);
     aside.appendChild(inner);
@@ -93,7 +95,9 @@
   function requestAds(context = document) {
     // AdSenseスクリプトが読み込まれているか確認
     if (!window.adsbygoogle) {
-      console.warn('AdSense script not loaded');
+      console.warn('AdSense script not loaded, creating fallback');
+      // フォールバックとしてダミー広告を表示
+      createFallbackAds(context);
       return;
     }
 
@@ -105,10 +109,50 @@
         ad.setAttribute('data-adsense-loaded', 'true');
         (adsbygoogle = window.adsbygoogle || []).push({});
         console.log(`Pushed ad ${index + 1} to AdSense`);
+        
+        // 3秒後に広告が表示されていない場合はフォールバックを表示
+        setTimeout(() => {
+          const rect = ad.getBoundingClientRect();
+          if (rect.height < 50) {
+            console.log('Ad not loaded, showing fallback');
+            showFallbackAd(ad);
+          }
+        }, 3000);
       } catch (error) {
         console.error('Error pushing ad to AdSense:', error);
       }
     });
+  }
+  
+  function createFallbackAds(context) {
+    const adContainers = context.querySelectorAll('.adsbygoogle');
+    adContainers.forEach(container => {
+      showFallbackAd(container);
+    });
+  }
+  
+  function showFallbackAd(container) {
+    container.innerHTML = `
+      <div style="
+        width: 100%; 
+        height: 250px; 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        color: white; 
+        font-size: 18px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      ">
+        <div style="text-align: center;">
+          <div style="font-size: 24px; margin-bottom: 8px;">📢</div>
+          <div>テスト広告</div>
+          <div style="font-size: 14px; opacity: 0.8; margin-top: 4px;">AdSense Demo</div>
+        </div>
+      </div>
+    `;
+    container.style.display = 'block';
   }
 
   function renderInlineAdMarkup() {
@@ -118,11 +162,11 @@
     return `
       <div class="inline-ad-container">
         <ins class="adsbygoogle"
-             style="display:block"
+             style="display:block; width:100%; height:250px;"
              data-ad-client="${ADSENSE_CLIENT_ID}"
              data-ad-slot="${slotId}"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
+             data-ad-format="rectangle"
+             data-adtest="on"></ins>
       </div>
     `;
   }
