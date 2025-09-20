@@ -34,61 +34,72 @@
     const inner = document.createElement('div');
     inner.className = 'side-ad-inner';
 
-    const ins = document.createElement('ins');
-    ins.className = 'adsbygoogle';
-    ins.style.display = 'block';
-    ins.style.width = '300px';
-    ins.style.height = '250px';
-    ins.setAttribute('data-ad-client', ADSENSE_CLIENT_ID);
-    ins.setAttribute('data-ad-slot', slotId);
-    ins.setAttribute('data-ad-format', 'rectangle'); // 固定サイズでテスト
-    ins.setAttribute('data-adtest', 'on'); // テストモードを有効に
+    // 複数の広告ユニットを作成（縦に並べる）
+    for (let i = 0; i < 3; i++) {
+      const ins = document.createElement('ins');
+      ins.className = 'adsbygoogle';
+      ins.style.display = 'block';
+      ins.style.width = '160px';
+      ins.style.height = '250px';
+      ins.style.marginBottom = '20px';
+      ins.setAttribute('data-ad-client', ADSENSE_CLIENT_ID);
+      ins.setAttribute('data-ad-slot', slotId);
+      ins.setAttribute('data-ad-format', 'rectangle');
+      ins.setAttribute('data-adtest', 'on');
+      
+      inner.appendChild(ins);
+    }
 
-    inner.appendChild(ins);
     aside.appendChild(inner);
-
     return aside;
   }
 
   function ensureSideAds() {
-    if (!document.body) return;
+    const threadsListContainer = document.getElementById('threadsList');
+    if (!threadsListContainer) return;
 
     const showSideAds = shouldShowSideAds();
     console.log('Should show side ads:', showSideAds, 'Window width:', window.innerWidth);
     
-    const leftSelector = '.side-ad.side-ad-left';
-    const rightSelector = '.side-ad.side-ad-right';
-    const existingLeft = document.querySelector(leftSelector);
-    const existingRight = document.querySelector(rightSelector);
-
+    const wrapper = threadsListContainer.parentElement;
+    let threadsWrapper = wrapper.querySelector('.threads-list-wrapper');
+    
     if (!showSideAds) {
-      if (existingLeft) {
-        console.log('Removing left side ad');
-        existingLeft.remove();
-      }
-      if (existingRight) {
-        console.log('Removing right side ad');
-        existingRight.remove();
+      // 幅が狭い場合は通常のレイアウトに戻す
+      if (threadsWrapper) {
+        wrapper.appendChild(threadsListContainer);
+        threadsWrapper.remove();
       }
       return;
     }
 
-    if (!existingLeft) {
-      console.log('Creating left side ad');
-      const left = createSideAd('left');
-      if (left) {
-        document.body.appendChild(left);
-        requestAds(left);
+    if (!threadsWrapper) {
+      console.log('Creating threads wrapper with side ads');
+      
+      // 新しいラッパーを作成
+      threadsWrapper = document.createElement('div');
+      threadsWrapper.className = 'threads-list-wrapper';
+      
+      // 左側広告を作成
+      const leftAd = createSideAd('left');
+      if (leftAd) {
+        threadsWrapper.appendChild(leftAd);
       }
-    }
-
-    if (!existingRight) {
-      console.log('Creating right side ad');
-      const right = createSideAd('right');
-      if (right) {
-        document.body.appendChild(right);
-        requestAds(right);
+      
+      // スレッドリストを中央に配置
+      threadsWrapper.appendChild(threadsListContainer);
+      
+      // 右側広告を作成
+      const rightAd = createSideAd('right');
+      if (rightAd) {
+        threadsWrapper.appendChild(rightAd);
       }
+      
+      // ラッパーをコンテナに追加
+      wrapper.appendChild(threadsWrapper);
+      
+      // 広告をリクエスト
+      requestAds(threadsWrapper);
     }
   }
 
@@ -212,6 +223,7 @@
   window.adsenseHelpers = {
     requestAds,
     renderInlineAdMarkup,
-    shouldShowInlineAds
+    shouldShowInlineAds,
+    ensureSideAds
   };
 })();

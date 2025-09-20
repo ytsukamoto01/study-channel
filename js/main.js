@@ -263,6 +263,13 @@ function displayThreads(category = 'all') {
             updateFavoriteStatusFromCache(favoritesCache);
         }
         
+        // 広告レイアウトを確保
+        if (window.adsenseHelpers && window.adsenseHelpers.ensureSideAds) {
+            setTimeout(() => {
+                window.adsenseHelpers.ensureSideAds();
+            }, 100);
+        }
+        
     } catch (error) {
         console.error('スレッド表示エラー:', error);
         threadsList.innerHTML = `

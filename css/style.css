@@ -18,6 +18,11 @@ body {
     padding: 0 20px;
 }
 
+/* メインページ用のコンテナオーバーライド */
+.main .container {
+    max-width: 1400px;
+}
+
 /* ヘッダー全体 */
 .header {
   background: linear-gradient(135deg, #3b82f6, #8b5cf6); /* 青〜紫 */
@@ -120,22 +125,39 @@ body {
     padding: 30px 0;
 }
 
-/* サイド広告 */
-.side-ad {
-    position: fixed;
-    top: 140px;
-    width: 180px;
-    z-index: 20;
+/* コンテンツエリアの広告対応レイアウト */
+.main {
+    position: relative;
+}
+
+.container {
+    position: relative;
+}
+
+/* スレッドリスト用の広告配置 */
+.threads-list-wrapper {
     display: flex;
+    gap: 20px;
+    align-items: flex-start;
     justify-content: center;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
-.side-ad-left {
-    left: clamp(16px, calc((100vw - 1000px) / 2 - 196px), 400px);
+.threads-list {
+    flex: 1;
+    max-width: 1000px;
 }
 
-.side-ad-right {
-    right: clamp(16px, calc((100vw - 1000px) / 2 - 196px), 400px);
+/* サイド広告（スレッドカード横に配置） */
+.side-ad {
+    width: 160px;
+    min-height: 600px;
+    position: sticky;
+    top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 .side-ad-inner {
@@ -145,9 +167,14 @@ body {
 .side-ad .adsbygoogle {
     display: block !important;
     width: 100% !important;
+    min-height: 250px;
 }
 
 @media (max-width: 1200px) {
+    .threads-list-wrapper {
+        flex-direction: column;
+    }
+    
     .side-ad {
         display: none;
     }
