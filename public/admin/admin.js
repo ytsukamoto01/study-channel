@@ -107,13 +107,33 @@ function renderThreadCard(th) {
         <div class="muted">${escapeHtml(th.category)} / ${escapeHtml(th.subcategory || "")}</div>
       </div>
       <div class="actions">
+        <button data-act="toggle-comments">コメントを見る</button>
         <button data-act="edit">編集</button>
         <button class="danger" data-act="del">削除</button>
       </div>
     </div>
     <div style="margin-top:8px; white-space:pre-wrap">${escapeHtml(th.content || "")}</div>
     <div class="muted" style="margin-top:6px">#${(th.hashtags||[]).join(" #")}</div>
+
+    <div id="cmt-${th.id}" style="display:none; margin-top:12px;">
+      <div class="row" style="justify-content:space-between;">
+        <div class="muted">コメントツリー</div>
+        <div class="row">
+          <label class="row" style="gap:6px;">
+            <input type="checkbox" id="cmt-incdel-${th.id}" checked> 削除済みも表示
+          </label>
+          <select id="cmt-order-${th.id}">
+            <option value="oldest" selected>親は古い順</option>
+            <option value="newest">親は新しい順</option>
+          </select>
+          <button data-act="reload-comments">更新</button>
+        </div>
+      </div>
+      <div id="cmt-list-${th.id}" style="margin-top:8px;"></div>
+    </div>
   `;
+
+  // 既存イベント
   wrap.querySelector("[data-act='edit']").onclick = () => openEditModal(th);
   wrap.querySelector("[data-act='del']").onclick = async () => {
     if (!confirm("削除しますか？")) return;
@@ -121,8 +141,21 @@ function renderThreadCard(th) {
     if (!res.ok) return alert("削除失敗: " + (await res.text()));
     await loadThreads();
   };
+
+  // コメントトグル
+  wrap.querySelector("[data-act='toggle-comments']").onclick = async () => {
+    const box = document.getElementById(`cmt-${th.id}`);
+    const now = box.style.display !== "none";
+    box.style.display = now ? "none" : "block";
+    if (!now) await loadCommentsForThread(th.id);
+  };
+  wrap.querySelector("[data-act='reload-comments']").onclick = async () => {
+    await loadCommentsForThread(th.id);
+  };
+
   return wrap;
 }
+
 
 function openEditModal(th) {
   // 既存モーダルがあれば消す
@@ -428,6 +461,156 @@ async function deleteReportedContent(reportId, targetType, targetId) {
     alert("削除に失敗しました: " + (e?.message || e));
   }
 }
+
+async function loadCommentsForThread(threadId) {
+  const includeDeleted = document.getElementById(`cmt-incdel-${threadId}`)?.checked ?? true;
+  const order = document.getElementById(`cmt-order-${threadId}`)?.value || "oldest";
+
+  const res = await callAdmin("thread_full", { payload: { thread_id: threadId, include_deleted: includeDeleted, order } });
+  if (!res.ok) {
+    const t = await res.text();
+    return alert("コメント取得失敗: " + t);
+  }
+  const json = await res.json();
+  const data = json?.data || {};
+  const cmts = Array.isArray(data.comments) ? data.comments : [];
+
+  const listEl = document.getElementById(`cmt-list-${threadId}`);
+  if (!listEl) return;
+
+  if (!cmts.length) {
+    listEl.innerHTML = `<div class="muted">コメントはありません</div>`;
+    return;
+  }
+  listEl.innerHTML = "";
+  for (const c of cmts) {
+    listEl.appendChild(renderCommentLine(c, threadId));
+  }
+}
+
+// 1行分のコメントDOMを生成（インデントは depth で）
+function renderCommentLine(c, threadId) {
+  const line = document.createElement("div");
+  line.className = "cmt-line";
+  line.style.marginLeft = `${Math.min(c.depth, 10) * 16}px`; // depthに応じてインデント
+
+  const deletedCls = c.is_deleted ? "cmt-deleted" : "";
+  const content = (c.content && c.content.trim().length) ? escapeHtml(c.content) : "(本文なし)";
+  const imgInfo = (Array.isArray(c.images) && c.images.length) ? `<div class="muted mono">${c.images.length}枚の画像URL</div>` : "";
+
+  line.innerHTML = `
+    <div class="${deletedCls}">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <strong>${escapeHtml(c.author_name || "匿名")}</strong>
+          <span class="muted mono">#${c.id.slice(0,8)} depth:${c.depth} replies:${c.reply_count}</span>
+        </div>
+        <div class="actions">
+          <button data-act="c-edit">編集</button>
+          ${c.is_deleted
+            ? `<button data-act="c-restore">復元</button>`
+            : `<button class="danger" data-act="c-softdel">ソフト削除</button>`
+          }
+          <button class="danger" data-act="c-harddel">ハード削除</button>
+        </div>
+      </div>
+      <div style="white-space:pre-wrap; margin-top:4px;">${content}</div>
+      ${imgInfo}
+      <div class="row" style="gap:6px; margin-top:6px;">
+        <input class="mono" id="reparent-${c.id}" placeholder="新しい親コメントID（空でルート）" style="flex:1; min-width:260px;">
+        <button data-act="c-reparent">親を付け替え</button>
+      </div>
+    </div>
+  `;
+
+  // ボタン動作
+  line.querySelector("[data-act='c-edit']").onclick = () => openCommentEditModal(c, threadId);
+  line.querySelector("[data-act='c-softdel']").onclick = async () => {
+    if (!confirm("このコメントをソフト削除しますか？")) return;
+    const r = await callAdmin("comment_soft_delete", { payload: { id: c.id } });
+    if (!r.ok) return alert("失敗: " + (await r.text()));
+    await loadCommentsForThread(threadId);
+  };
+  const restoreBtn = line.querySelector("[data-act='c-restore']");
+  if (restoreBtn) restoreBtn.onclick = async () => {
+    const r = await callAdmin("comment_restore", { payload: { id: c.id } });
+    if (!r.ok) return alert("失敗: " + (await r.text()));
+    await loadCommentsForThread(threadId);
+  };
+  line.querySelector("[data-act='c-harddel']").onclick = async () => {
+    if (!confirm("このコメントを完全削除します。よろしいですか？")) return;
+    const r = await callAdmin("comment_hard_delete", { payload: { id: c.id } });
+    if (!r.ok) return alert("失敗: " + (await r.text()));
+    await loadCommentsForThread(threadId);
+  };
+  line.querySelector("[data-act='c-reparent']").onclick = async () => {
+    const newParent = (document.getElementById(`reparent-${c.id}`)?.value || "").trim() || null;
+    if (newParent === c.id) return alert("自分自身は親にできません。");
+    const r = await callAdmin("comment_reparent", { payload: { id: c.id, new_parent_id: newParent } });
+    if (!r.ok) return alert("付け替え失敗: " + (await r.text()));
+    await loadCommentsForThread(threadId);
+  };
+
+  return line;
+}
+
+// コメント編集モーダル
+function openCommentEditModal(c, threadId) {
+  const old = document.getElementById("cmt-edit-modal");
+  if (old) old.remove();
+
+  const wrap = document.createElement("div");
+  wrap.id = "cmt-edit-modal";
+  wrap.style.position = "fixed";
+  wrap.style.inset = "0";
+  wrap.style.background = "rgba(0,0,0,0.4)";
+  wrap.style.zIndex = "9999";
+  wrap.style.display = "flex";
+  wrap.style.alignItems = "center";
+  wrap.style.justifyContent = "center";
+
+  wrap.innerHTML = `
+    <div style="background:#fff; width:min(720px,92vw); max-height:90vh; overflow:auto; border-radius:12px; padding:16px; box-shadow:0 8px 32px rgba(0,0,0,.25)">
+      <div class="row" style="justify-content:space-between;">
+        <h3 style="margin:0;">コメント編集</h3>
+        <button id="cmt-edit-close" style="border:none;background:#eee;padding:6px 10px;border-radius:8px;cursor:pointer;">閉じる</button>
+      </div>
+      <div style="display:grid; gap:10px; margin-top:12px;">
+        <label>本文
+          <textarea id="cmt-edit-content" rows="8" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:8px;">${escapeHtml(c.content || "")}</textarea>
+        </label>
+        <label>画像URL（カンマ区切り）
+          <textarea id="cmt-edit-images" rows="3" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:8px;">${escapeHtml((c.images||[]).join(", "))}</textarea>
+        </label>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+        <button id="cmt-edit-cancel" style="border:1px solid #ccc; background:#fff; padding:8px 12px; border-radius:8px; cursor:pointer;">キャンセル</button>
+        <button id="cmt-edit-save" class="primary" style="border:none; background:#222; color:#fff; padding:8px 12px; border-radius:8px; cursor:pointer;">保存</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+
+  const close = () => wrap.remove();
+  wrap.querySelector("#cmt-edit-close").onclick = close;
+  wrap.querySelector("#cmt-edit-cancel").onclick = close;
+
+  wrap.querySelector("#cmt-edit-save").onclick = async () => {
+    try {
+      const content = document.getElementById("cmt-edit-content").value;
+      const imagesStr = document.getElementById("cmt-edit-images").value || "";
+      const images = imagesStr.split(",").map(s => s.trim()).filter(Boolean);
+
+      const r = await callAdmin("comment_update", { payload: { id: c.id, content, images } });
+      if (!r.ok) throw new Error(await r.text());
+      close();
+      await loadCommentsForThread(threadId);
+    } catch (e) {
+      alert("更新失敗: " + (e?.message || e));
+    }
+  };
+}
+
 
 // フィルター変更時に自動更新
 document.getElementById("reports-type-filter").onchange = loadReports;
