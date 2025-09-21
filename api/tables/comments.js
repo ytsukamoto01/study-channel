@@ -133,13 +133,13 @@ export default async function handler(req, res) {
           {
             id: `comment-${threadId}-3`,
             thread_id: threadId,
-            content: '>> 1\nこれは返信のテストです。',
+            content: '>> 2\nこれは返信のテストです。',
             images: [],
             author_name: 'テストユーザー3',
             user_fingerprint: 'test-user-3',
             created_at: new Date(Date.now() - 900000).toISOString(), // 15分前
             like_count: 0,
-            comment_number: 3,
+            comment_number: null, // 返信コメントは番号なし
             parent_comment_id: `comment-${threadId}-1`
           }
         ];
@@ -162,13 +162,22 @@ export default async function handler(req, res) {
         
         console.log('Creating new comment:', body);
         
-        // Calculate next comment number for this thread
-        const { count: existingCommentsCount } = await db
-          .from('comments')
-          .select('*', { count: 'exact', head: true })
-          .eq('thread_id', body.thread_id);
+        // 🔢 コメント番号の採番ルール:
+        // - 主コメント（parent_comment_id = null）: 通し番号を付与（1, 2, 3...）
+        // - 返信コメント（parent_comment_id あり）: null（番号なし）
         
-        const nextCommentNumber = (existingCommentsCount || 0) + 1;
+        let commentNumber = null;
+        
+        if (!body.parent_comment_id) {
+          // 主コメントの場合のみ番号を計算
+          const { count: existingMainCommentsCount } = await db
+            .from('comments')
+            .select('*', { count: 'exact', head: true })
+            .eq('thread_id', body.thread_id)
+            .is('parent_comment_id', null); // 主コメントのみカウント
+          
+          commentNumber = (existingMainCommentsCount || 0) + 1;
+        }
         
         const commentData = {
           thread_id: body.thread_id,
@@ -177,7 +186,7 @@ export default async function handler(req, res) {
           author_name: body.author_name || '匿名',
           user_fingerprint: body.user_fingerprint || 'anonymous',
           like_count: 0,
-          comment_number: nextCommentNumber,
+          comment_number: commentNumber, // 主コメント: 1,2,3... / 返信: null
           parent_comment_id: body.parent_comment_id || null
         };
         
@@ -224,8 +233,12 @@ export default async function handler(req, res) {
         // フォールバック用のモック投稿レスポンス
         const body = typeof req.body === 'object' ? req.body : JSON.parse(req.body || '{}');
         
-        // Generate next comment number (simulate database calculation)
-        const nextCommentNumber = Math.floor(Math.random() * 100) + 1; // Random for mock
+        // 🔢 モック用コメント番号ルール: 主コメントのみ番号付与
+        let mockCommentNumber = null;
+        if (!body.parent_comment_id) {
+          // 主コメントの場合のみ番号を生成
+          mockCommentNumber = Math.floor(Math.random() * 10) + 1; // Random for mock
+        }
         
         const mockComment = {
           id: `mock-comment-${Date.now()}`,
@@ -236,7 +249,7 @@ export default async function handler(req, res) {
           user_fingerprint: body.user_fingerprint || 'anonymous',
           created_at: new Date().toISOString(),
           like_count: 0,
-          comment_number: nextCommentNumber,
+          comment_number: mockCommentNumber, // 主コメント: 数字 / 返信: null
           parent_comment_id: body.parent_comment_id || null
         };
         

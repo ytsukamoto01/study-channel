@@ -506,7 +506,17 @@ function displayCommentsWithReplies(parents, hierarchy = new Map()) {
 // 無限階層レンダリング（再帰）
 function renderCommentWithReplies(comment, hierarchy, depth) {
   const indent = depth * 20; // 20px per level
-  const numberHtml = comment.comment_number != null ? `${comment.comment_number}.` : '';
+  
+  // 🔢 コメント番号のルール:
+  // - 主コメント（depth=0）: 2から開始（OPスレッドが1番）
+  // - 返信コメント（depth>0）: 番号なし
+  let numberHtml = '';
+  if (depth === 0 && comment.comment_number != null) {
+    // 主コメントの場合、番号+1して2から開始（1番目コメント→2、2番目コメント→3...）
+    numberHtml = `${comment.comment_number + 1}.`;
+  }
+  // 返信コメント（depth > 0）は番号なし（numberHtml = ''のまま）
+  
   const authorHtml = formatAuthorName(comment.author_name);
   const dateHtml = getRelativeTime(new Date(comment.created_at).getTime());
   const contentHtml = escapeHtml(comment.content || '');
