@@ -1365,19 +1365,25 @@ async function updateFavoriteStatus() {
     }
 }
 
-// キャッシュからお気に入り状態を更新（高速化）
+// キャッシュからお気に入り状態を更新（高速化）- 自分のお気に入りのみ反映
 function updateFavoriteStatusFromCache(favoritesData) {
     if (!Array.isArray(favoritesData)) {
         console.warn('お気に入りデータが無効な形式:', favoritesData);
         return;
     }
     
-    const favoriteThreadIds = favoritesData.map(fav => fav.thread_id);
+    // 🔒 重要: 自分のお気に入りのみをフィルタリング
+    const myUserFingerprint = generateUserFingerprint();
+    const myFavoriteThreadIds = favoritesData
+        .filter(fav => fav.user_fingerprint === myUserFingerprint)
+        .map(fav => fav.thread_id);
+    
+    console.log('自分のお気に入りスレッドID:', myFavoriteThreadIds);
     
     // 全てのお気に入りボタンの状態を更新
     document.querySelectorAll('.favorite-btn').forEach(button => {
         const threadId = button.getAttribute('data-thread-id');
-        const isFavorited = favoriteThreadIds.includes(threadId);
+        const isFavorited = myFavoriteThreadIds.includes(threadId);
         
         if (isFavorited) {
             button.classList.add('favorited');
@@ -1389,6 +1395,8 @@ function updateFavoriteStatusFromCache(favoritesData) {
             button.querySelector('i')?.classList.add('far');
         }
     });
+    
+    console.log('お気に入り状態更新完了 - 自分のみ反映:', myFavoriteThreadIds.length, '件');
 }
 
 // キャッシュクリア関数
