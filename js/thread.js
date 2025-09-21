@@ -151,7 +151,7 @@ function scrollToCommentForm() {
   setTimeout(() => document.getElementById('commentContent')?.focus(), 250);
 }
 
-// スレッド詳細読み込み
+// スレッド詳細読み込み（並列処理最適化版）
 async function loadThreadDetail(threadId) {
   try {
     showThreadLoading();
@@ -160,37 +160,91 @@ async function loadThreadDetail(threadId) {
     console.log('Thread ID:', threadId);
     console.log('API URL:', `/api/tables/threads/${threadId}`);
     
-    const response = await apiCall(`/api/tables/threads/${threadId}`);
-    console.log('=== FRONTEND: API Response received ===');
-    console.log('Full API Response:', response);
-    console.log('Response status:', response.status);
-    console.log('Thread data received:', response.data);
-    console.log('Thread like_count from API:', response.data?.like_count);
-    console.log('Thread object keys:', Object.keys(response.data || {}));
+    // 🚀 OPTIMIZATION: Parallel API calls for faster loading
+    console.time('loadThreadDetail');
     
-    currentThread = response.data;
-    if (!currentThread || !currentThread.id) {
-      console.error('Invalid thread data received:', currentThread);
-      throw new Error('スレッドが見つかりません');
+    const [threadResponse, commentsResponse, favoriteResponse] = await Promise.allSettled([
+      // 1. スレッド詳細取得
+      apiCall(`/api/tables/threads/${threadId}`),
+      
+      // 2. コメント取得（並列実行）
+      apiCall(`/api/tables/comments?thread_id=${threadId}&sort=created_at&order=asc&limit=1000`),
+      
+      // 3. お気に入り状態確認（並列実行）
+      (async () => {
+        try {
+          const fp = generateUserFingerprint();
+          const res = await fetch('/api/tables/favorites');
+          if (!res.ok) return { isFavorite: false };
+          const json = await res.json();
+          const favorites = json.data || [];
+          const isFav = favorites.some(f => f.thread_id === threadId && f.user_fingerprint === fp);
+          return { isFavorite: isFav };
+        } catch (e) {
+          console.warn('お気に入り状態の確認エラー:', e);
+          return { isFavorite: false };
+        }
+      })()
+    ]);
+    
+    console.timeEnd('loadThreadDetail');
+    
+    // スレッドデータの処理
+    if (threadResponse.status === 'fulfilled') {
+      currentThread = threadResponse.value.data;
+      if (!currentThread || !currentThread.id) {
+        throw new Error('スレッドが見つかりません');
+      }
+
+      console.log('Thread loaded successfully:', currentThread.title);
+
+      // 正規化
+      currentThread.hashtags = normalizeHashtags(currentThread.hashtags);
+      currentThread.images = Array.isArray(currentThread.images) ? currentThread.images : [];
+
+      // 表示
+      displayThreadDetail(currentThread);
+    } else {
+      throw new Error('スレッドの取得に失敗しました: ' + threadResponse.reason?.message);
     }
+    
+    // コメントデータの処理
+    if (commentsResponse.status === 'fulfilled') {
+      const commentsData = commentsResponse.value?.data || [];
+      console.log('Comments loaded successfully:', commentsData.length);
+      
+      // コメント総数
+      const totalCount = commentsData.length;
+      const countEl = document.getElementById('commentCount');
+      if (countEl) countEl.textContent = String(totalCount);
 
-    console.log('Thread loaded successfully:', currentThread.title);
-
-    // 正規化
-    currentThread.hashtags = normalizeHashtags(currentThread.hashtags);
-    currentThread.images = Array.isArray(currentThread.images) ? currentThread.images : [];
-
-    // 表示
-    displayThreadDetail(currentThread);
-
-    // コメント（親＋返信件数の集計）
-    await loadComments(threadId);
-
-    // お気に入り状態
-    await checkFavoriteStatus(threadId);
+      // 親コメントのみ抽出（古い順）
+      const parents = commentsData.filter(c => !c.parent_comment_id);
+      parents.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      
+      // 階層構造を構築
+      const commentHierarchy = buildCommentHierarchy(commentsData);
+      
+      // 階層表示
+      displayCommentsWithReplies(parents, commentHierarchy);
+    } else {
+      console.error('コメント読み込みエラー:', commentsResponse.reason);
+      // エラー時は空のコメントリストを表示
+      displayCommentsWithReplies([]);
+    }
+    
+    // お気に入り状態の処理
+    if (favoriteResponse.status === 'fulfilled') {
+      updateFavoriteButton(favoriteResponse.value.isFavorite);
+    } else {
+      console.warn('お気に入り状態確認エラー:', favoriteResponse.reason);
+      updateFavoriteButton(false);
+    }
 
     // 読み込み完了
     hideThreadLoading();
+    
+    console.log('=== FRONTEND: All data loaded successfully ===');
   } catch (e) {
     console.error('Error loading thread detail:', e);
     console.error('Error stack:', e.stack);

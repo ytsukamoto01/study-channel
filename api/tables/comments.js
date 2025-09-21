@@ -1,23 +1,61 @@
 // Comments API with Supabase integration
 import { supabase, parseListParams } from '../_supabase.js';
 
-// Calculate real-time like count for a comment
+// 🚀 OPTIMIZATION: Batch calculate like counts for all comments
+async function calculateAllCommentCounts(db, comments) {
+  try {
+    if (!comments || comments.length === 0) {
+      return comments;
+    }
+    
+    // Extract all comment IDs for batch query
+    const commentIds = comments.map(c => c.id);
+    
+    console.log('Batch calculating like counts for', commentIds.length, 'comments');
+    
+    // Single query to get all like counts for comments
+    const { data: likesData, error } = await db
+      .from('likes')
+      .select('target_id')
+      .eq('target_type', 'comment')
+      .in('target_id', commentIds);
+    
+    if (error) {
+      console.error('Error fetching comment likes:', error);
+      // Return original comments if query fails
+      return comments;
+    }
+    
+    // Count likes by comment ID
+    const likeCounts = {};
+    (likesData || []).forEach(like => {
+      likeCounts[like.target_id] = (likeCounts[like.target_id] || 0) + 1;
+    });
+    
+    // Apply counts to comments
+    const commentsWithCounts = comments.map(comment => ({
+      ...comment,
+      like_count: likeCounts[comment.id] || 0
+    }));
+    
+    console.log('Successfully calculated likes for', commentIds.length, 'comments');
+    return commentsWithCounts;
+    
+  } catch (error) {
+    console.error('Error in batch comment count calculation:', error);
+    // Return original comments if calculation fails
+    return comments;
+  }
+}
+
+// Legacy function for backward compatibility (single comment)
 async function calculateCommentCounts(db, comment) {
   try {
-    // Calculate like count for this comment
-    const { count: likeCount } = await db
-      .from('likes')
-      .select('*', { count: 'exact', head: true })
-      .eq('target_type', 'comment')
-      .eq('target_id', comment.id);
-    
-    return {
-      ...comment,
-      like_count: likeCount || 0
-    };
+    // Use batch function for single comment
+    const results = await calculateAllCommentCounts(db, [comment]);
+    return results[0] || comment;
   } catch (error) {
     console.error('Error calculating comment counts:', error);
-    // Return comment with original count if calculation fails
     return comment;
   }
 }
@@ -56,10 +94,8 @@ export default async function handler(req, res) {
          admin_mark: !!(c.threads?.admin_mark)
        }));
 
-       // （必要なら）like数の再計算をここで実行
-       const commentsWithCounts = await Promise.all(
-         withAdmin.map(comment => calculateCommentCounts(db, comment))
-       );
+       // 🚀 OPTIMIZATION: Batch calculate like counts instead of individual queries
+       const commentsWithCounts = await calculateAllCommentCounts(db, withAdmin);
         
         console.log('Successfully fetched comments from Supabase:', commentsWithCounts?.length || 0);
         return res.status(200).json({ data: commentsWithCounts || [] });

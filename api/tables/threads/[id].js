@@ -1,35 +1,39 @@
 // Single thread API - /api/tables/threads/[id]
 import { supabase } from '../../_supabase.js';
 
-// Calculate real-time like count and comment count for a thread
+// Calculate real-time like count and comment count for a thread using optimized query
 async function calculateThreadCounts(db, thread) {
   try {
     console.log('calculateThreadCounts called for thread:', thread.id, thread.title);
     
-    // Calculate like count
-    const { count: likeCount, error: likesError } = await db
-      .from('likes')
-      .select('*', { count: 'exact', head: true })
-      .eq('target_type', 'thread')
-      .eq('target_id', thread.id);
+    // 🚀 OPTIMIZATION: Use Promise.all for parallel execution
+    const [likeResult, commentResult] = await Promise.all([
+      // Calculate like count
+      db
+        .from('likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('target_type', 'thread')
+        .eq('target_id', thread.id),
+      
+      // Calculate comment count (both parent comments and replies)
+      db
+        .from('comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('thread_id', thread.id)
+    ]);
+    
+    const { count: likeCount, error: likesError } = likeResult;
+    const { count: commentCount, error: commentsError } = commentResult;
     
     if (likesError) {
       console.error('Error fetching like count for thread', thread.id, ':', likesError);
     }
     
-    console.log('Like count for thread', thread.id, ':', likeCount);
-    
-    // Calculate comment count (both parent comments and replies)
-    const { count: commentCount, error: commentsError } = await db
-      .from('comments')
-      .select('*', { count: 'exact', head: true })
-      .eq('thread_id', thread.id);
-    
     if (commentsError) {
       console.error('Error fetching comment count for thread', thread.id, ':', commentsError);
     }
     
-    console.log('Comment count for thread', thread.id, ':', commentCount);
+    console.log('Counts for thread', thread.id, '- Likes:', likeCount, 'Comments:', commentCount);
     
     const updatedThread = {
       ...thread,
@@ -50,28 +54,34 @@ async function calculateThreadCounts(db, thread) {
     console.error('Error calculating thread counts for thread', thread.id, ':', error);
     console.error('Error stack:', error.stack);
     
-    // Try alternative method: direct count query as fallback
+    // 🚀 OPTIMIZATION: Simplified fallback with single query
     try {
-      console.log('Attempting fallback like count method for thread', thread.id);
+      console.log('Attempting optimized fallback for thread', thread.id);
       
-      const { data: likes, error: fallbackError } = await db
-        .from('likes')
-        .select('id')
-        .eq('target_type', 'thread')
-        .eq('target_id', thread.id);
-      
-      if (!fallbackError && Array.isArray(likes)) {
-        const fallbackLikeCount = likes.length;
-        console.log('Fallback like count successful:', fallbackLikeCount);
+      const [likeFallback, commentFallback] = await Promise.all([
+        db
+          .from('likes')
+          .select('id')
+          .eq('target_type', 'thread')
+          .eq('target_id', thread.id),
         
-        return {
-          ...thread,
-          like_count: fallbackLikeCount,
-          reply_count: thread.reply_count || 0
-        };
-      }
+        db
+          .from('comments')
+          .select('id')
+          .eq('thread_id', thread.id)
+      ]);
       
-      console.error('Fallback method also failed:', fallbackError);
+      const likeCount = likeFallback.data?.length || 0;
+      const commentCount = commentFallback.data?.length || 0;
+      
+      console.log('Fallback counts successful - Likes:', likeCount, 'Comments:', commentCount);
+      
+      return {
+        ...thread,
+        like_count: likeCount,
+        reply_count: commentCount
+      };
+      
     } catch (fallbackError) {
       console.error('Fallback method exception:', fallbackError);
     }
@@ -82,7 +92,11 @@ async function calculateThreadCounts(db, thread) {
       title: thread.title,
       original_like_count: thread.like_count
     });
-    return thread;
+    return {
+      ...thread,
+      like_count: thread.like_count || 0,
+      reply_count: thread.reply_count || 0
+    };
   }
 }
 

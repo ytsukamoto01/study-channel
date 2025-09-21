@@ -28,9 +28,10 @@ ON threads (category);
 CREATE INDEX IF NOT EXISTS idx_threads_category_created_at 
 ON threads (category, created_at DESC);
 
--- 5. 削除フラグでの絞り込み高速化（削除されていないスレッドのみ表示）
-CREATE INDEX IF NOT EXISTS idx_threads_is_deleted 
-ON threads (is_deleted) WHERE is_deleted = false;
+-- 5. 削除フラグでの絞り込み高速化（is_deletedカラムが存在する場合のみ）
+-- CREATE INDEX IF NOT EXISTS idx_threads_is_deleted 
+-- ON threads (is_deleted) WHERE is_deleted = false;
+-- 注意: is_deletedカラムの存在を事前に確認してから有効化してください
 
 -- ===== COMMENTS TABLE INDEXES =====
 
@@ -43,16 +44,17 @@ CREATE INDEX IF NOT EXISTS idx_comments_thread_id_created_at
 ON comments (thread_id, created_at ASC);
 
 -- 3. 親コメント・返信の階層取得高速化
-CREATE INDEX IF NOT EXISTS idx_comments_parent_id 
-ON comments (parent_id);
+CREATE INDEX IF NOT EXISTS idx_comments_parent_comment_id 
+ON comments (parent_comment_id);
 
 -- 4. ユーザー固有コメント検索の高速化
 CREATE INDEX IF NOT EXISTS idx_comments_user_fingerprint 
 ON comments (user_fingerprint);
 
--- 5. 削除フラグでの絞り込み高速化
-CREATE INDEX IF NOT EXISTS idx_comments_is_deleted 
-ON comments (is_deleted) WHERE is_deleted = false;
+-- 5. 削除フラグでの絞り込み高速化（is_deletedカラムが存在する場合のみ）
+-- CREATE INDEX IF NOT EXISTS idx_comments_is_deleted 
+-- ON comments (is_deleted) WHERE is_deleted = false;
+-- 注意: is_deletedカラムの存在を事前に確認してから有効化してください
 
 -- ===== LIKES TABLE INDEXES =====
 
@@ -92,25 +94,29 @@ ON favorites (created_at DESC);
 
 -- ===== REPORTS TABLE INDEXES =====
 
--- 1. 管理画面での通報一覧取得高速化
-CREATE INDEX IF NOT EXISTS idx_reports_created_at_desc 
-ON reports (created_at DESC);
+-- 注意: reportsテーブルは既に基本インデックスが作成済み
+-- reports-migration.sqlで以下が作成済み:
+-- - idx_reports_status, idx_reports_type, idx_reports_target, idx_reports_created_at
 
--- 2. 通報ステータス別絞り込み高速化
-CREATE INDEX IF NOT EXISTS idx_reports_status 
-ON reports (status);
+-- 1. 管理画面での通報一覧取得高速化（既存: idx_reports_created_at）
+-- CREATE INDEX IF NOT EXISTS idx_reports_created_at_desc 
+-- ON reports (created_at DESC);
 
--- 3. 通報タイプ別絞り込み高速化
-CREATE INDEX IF NOT EXISTS idx_reports_type 
-ON reports (type);
+-- 2. 通報ステータス別絞り込み高速化（既存: idx_reports_status）
+-- CREATE INDEX IF NOT EXISTS idx_reports_status 
+-- ON reports (status);
+
+-- 3. 通報タイプ別絞り込み高速化（既存: idx_reports_type）
+-- CREATE INDEX IF NOT EXISTS idx_reports_type 
+-- ON reports (type);
 
 -- 4. ユーザー通報履歴取得高速化
 CREATE INDEX IF NOT EXISTS idx_reports_reporter_fingerprint 
 ON reports (reporter_fingerprint);
 
--- 5. 対象別通報検索高速化
-CREATE INDEX IF NOT EXISTS idx_reports_target_type_target_id 
-ON reports (target_type, target_id);
+-- 5. 対象別通報検索高速化（既存: idx_reports_target）
+-- CREATE INDEX IF NOT EXISTS idx_reports_target_type_target_id 
+-- ON reports (target_type, target_id);
 
 -- 6. 複合インデックス: ステータス + 作成日時（管理画面フィルタ高速化）
 CREATE INDEX IF NOT EXISTS idx_reports_status_created_at 
