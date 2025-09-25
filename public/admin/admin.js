@@ -151,10 +151,41 @@ function renderThreadCard(th) {
   // 既存イベント
   wrap.querySelector("[data-act='edit']").onclick = () => openEditModal(th);
   wrap.querySelector("[data-act='del']").onclick = async () => {
-    if (!confirm("削除しますか？")) return;
-    const res = await callAdmin("thread_delete", { id: th.id });
-    if (!res.ok) return alert("削除失敗: " + (await res.text()));
-    await loadThreads();
+    // 🗑️ カスケード削除の確認メッセージ
+    const confirmMessage = `このスレッドを削除しますか？\n\n⚠️ 以下も同時に削除されます：\n• 全てのコメント・返信\n• いいね・お気に入り\n• 関連する通報データ\n\nこの操作は取り消せません。`;
+    
+    if (!confirm(confirmMessage)) return;
+    
+    try {
+      // 削除実行中の表示
+      const deleteBtn = wrap.querySelector("[data-act='del']");
+      const originalText = deleteBtn.textContent;
+      deleteBtn.textContent = '削除中...';
+      deleteBtn.disabled = true;
+      
+      const res = await callAdmin("thread_delete", { id: th.id });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        alert("削除失敗: " + errorText);
+        return;
+      }
+      
+      // 成功通知
+      alert("スレッドと関連データを削除しました");
+      await loadThreads();
+      
+    } catch (error) {
+      console.error('削除エラー:', error);
+      alert("削除中にエラーが発生しました: " + error.message);
+    } finally {
+      // ボタンを復元（削除成功時は既にloadThreads()で更新されるため不要だが、エラー時のため）
+      const deleteBtn = wrap.querySelector("[data-act='del']");
+      if (deleteBtn) {
+        deleteBtn.textContent = originalText;
+        deleteBtn.disabled = false;
+      }
+    }
   };
 
   // コメントトグル
@@ -478,7 +509,16 @@ async function updateReport(id, status, report = null) {
     if (status === 'approved' && report) {
       const typeText = report.target_type === 'thread' ? 'スレッド' : 
                        report.target_type === 'comment' ? 'コメント' : '返信';
-      deleteContent = confirm(`この通報・削除依頼を承認し、該当の${typeText}を削除しますか？`);
+      
+      // 🗑️ スレッドの場合はカスケード削除の警告を表示
+      let confirmMessage;
+      if (report.target_type === 'thread') {
+        confirmMessage = `この通報・削除依頼を承認し、該当の${typeText}を削除しますか？\n\n⚠️ スレッド削除時は以下も同時に削除されます：\n• 全てのコメント・返信\n• いいね・お気に入り\n• 関連する通報データ\n\nこの操作は取り消せません。`;
+      } else {
+        confirmMessage = `この通報・削除依頼を承認し、該当の${typeText}を削除しますか？\n\n⚠️ ${typeText}削除時は以下も同時に削除されます：\n• いいね\n• 関連する通報データ\n\nこの操作は取り消せません。`;
+      }
+      
+      deleteContent = confirm(confirmMessage);
       
       if (!deleteContent) {
         // 承認のみの場合
@@ -532,18 +572,31 @@ async function deleteReportedContent(reportId, targetType, targetId) {
   const typeText = targetType === 'thread' ? 'スレッド' : 
                    targetType === 'comment' ? 'コメント' : '返信';
   
-  if (!confirm(`この${typeText}を削除しますか？この操作は取り消せません。`)) return;
+  // 🗑️ カスケード削除の警告メッセージ
+  let confirmMessage;
+  if (targetType === 'thread') {
+    confirmMessage = `この${typeText}を削除しますか？\n\n⚠️ スレッド削除時は以下も同時に削除されます：\n• 全てのコメント・返信\n• いいね・お気に入り\n• 関連する通報データ\n\nこの操作は取り消せません。`;
+  } else {
+    confirmMessage = `この${typeText}を削除しますか？\n\n⚠️ ${typeText}削除時は以下も同時に削除されます：\n• いいね\n• 関連する通報データ\n\nこの操作は取り消せません。`;
+  }
+  
+  if (!confirm(confirmMessage)) return;
   
   try {
+    // 削除実行の通知
+    console.log(`Deleting ${typeText} with cascade: ${targetId}`);
+    
     const res = await callAdmin("delete_reported_content", { 
       id: reportId, 
       payload: { target_type: targetType, target_id: targetId }
     });
     if (!res.ok) throw new Error(await res.text());
     
+    alert(`${typeText}と関連データを削除しました`);
     await loadReports();
   } catch (e) {
     alert("削除に失敗しました: " + (e?.message || e));
+    console.error('削除エラー:', e);
   }
 }
 
