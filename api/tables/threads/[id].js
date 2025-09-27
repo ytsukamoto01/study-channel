@@ -7,20 +7,17 @@ async function calculateThreadCounts(db, thread) {
     console.log('calculateThreadCounts called for thread:', thread.id, thread.title);
     
     // 🚀 OPTIMIZATION: Use Promise.all for parallel execution
-    const [likeResult, commentResult] = await Promise.all([
-      // Calculate like count
-      db
-        .from('likes')
-        .select('*', { count: 'exact', head: true })
-        .eq('target_type', 'thread')
-        .eq('target_id', thread.id),
-      
-      // Calculate comment count (both parent comments and replies)
-      db
-        .from('comments')
-        .select('*', { count: 'exact', head: true })
-        .eq('thread_id', thread.id)
-    ]);
+  const [likeFallback, commentFallback] = await Promise.all([
+    db
+      .from('likes')
+      .select('id')
+      .eq('thread_id', thread.id),          // ← 修正
+  
+    db
+      .from('comments')
+      .select('id')
+      .eq('thread_id', thread.id)
+  ]);
     
     const { count: likeCount, error: likesError } = likeResult;
     const { count: commentCount, error: commentsError } = commentResult;
@@ -58,18 +55,17 @@ async function calculateThreadCounts(db, thread) {
     try {
       console.log('Attempting optimized fallback for thread', thread.id);
       
-      const [likeFallback, commentFallback] = await Promise.all([
-        db
-          .from('likes')
-          .select('id')
-          .eq('target_type', 'thread')
-          .eq('target_id', thread.id),
-        
-        db
-          .from('comments')
-          .select('id')
-          .eq('thread_id', thread.id)
-      ]);
+  const [likeFallback, commentFallback] = await Promise.all([
+    db
+      .from('likes')
+      .select('id')
+      .eq('thread_id', thread.id),          // ← 修正
+  
+    db
+      .from('comments')
+      .select('id')
+      .eq('thread_id', thread.id)
+  ]);
       
       const likeCount = likeFallback.data?.length || 0;
       const commentCount = commentFallback.data?.length || 0;
