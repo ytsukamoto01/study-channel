@@ -228,10 +228,30 @@ export default async function handler(req, res) {
 
     if (action === "thread_delete") {
       if (!id) return res.status(400).json({ ok:false, error:"missing id" });
-      const { data: ok, error } = await sb.rpc("admin_soft_delete_thread", { p_id: id });
-      if (error) { console.error("thread_delete error", error); return res.status(500).json({ ok:false, error: error.message }); }
-      if (ok !== true) return res.status(404).json({ ok:false, error:"not found or already deleted" });
-      return res.status(200).json({ ok:true });
+      
+      console.log("🗑️ Thread cascade delete requested for ID:", id);
+      
+      // ✅ 完全なカスケード削除機能（関数競合解決後）
+      try {
+        const { data: ok, error } = await sb.rpc("admin_soft_delete_thread", { p_id: id });
+        
+        if (error) { 
+          console.error("thread_delete error", error); 
+          return res.status(500).json({ ok:false, error: error.message }); 
+        }
+        
+        if (ok !== true) {
+          console.log("Thread not found or already deleted:", id);
+          return res.status(404).json({ ok:false, error:"not found or already deleted" });
+        }
+        
+        console.log("✅ Thread and all related data deleted successfully:", id);
+        return res.status(200).json({ ok:true });
+        
+      } catch (rpcError) {
+        console.error("RPC call failed:", rpcError);
+        return res.status(500).json({ ok:false, error: "Database function call failed: " + rpcError.message });
+      }
     }
 
     // ---- 通報・削除依頼管理機能 ----
