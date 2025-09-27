@@ -8,11 +8,10 @@ async function calculateThreadCounts(db, thread) {
     console.log('calculateThreadCounts called for thread:', thread.id, thread.title);
     
     // Calculate like count
-    const { count: likeCount, error: likesError } = await db
-      .from('likes')
-      .select('*', { count: 'exact', head: true })
-      .eq('target_type', 'thread')
-      .eq('target_id', thread.id);
+  const { count: likeCount, error: likesError } = await db
+    .from('likes')
+    .select('*', { count: 'exact', head: true })
+    .eq('thread_id', thread.id);
     
     if (likesError) {
       console.error('Error fetching like count for thread', thread.id, ':', likesError);
