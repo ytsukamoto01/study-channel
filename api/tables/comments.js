@@ -4,49 +4,37 @@ import { supabase, parseListParams } from '../_supabase.js';
 // 🚀 OPTIMIZATION: Batch calculate like counts for all comments
 async function calculateAllCommentCounts(db, comments) {
   try {
-    if (!comments || comments.length === 0) {
-      return comments;
-    }
-    
-    // Extract all comment IDs for batch query
+    if (!comments || comments.length === 0) return comments;
+
     const commentIds = comments.map(c => c.id);
-    
-    console.log('Batch calculating like counts for', commentIds.length, 'comments');
-    
-    // Single query to get all like counts for comments
-    const { data: likesData, error } = await db
+
+    // 新スキーマ対応：comment_id で一括取得
+    // まとめて取得して JS 側でカウントする（GROUP BY を使わず安全・確実）
+    const { data: likesRows, error } = await db
       .from('likes')
-      .select('target_id')
-      .eq('target_type', 'comment')
-      .in('target_id', commentIds);
-    
+      .select('comment_id')
+      .in('comment_id', commentIds);
+
     if (error) {
       console.error('Error fetching comment likes:', error);
-      // Return original comments if query fails
-      return comments;
+      return comments; // 集計に失敗しても元の値を返す
     }
-    
-    // Count likes by comment ID
-    const likeCounts = {};
-    (likesData || []).forEach(like => {
-      likeCounts[like.target_id] = (likeCounts[like.target_id] || 0) + 1;
+
+    // comment_id ごとに件数を集計
+    const counts = {};
+    (likesRows || []).forEach(r => {
+      if (!r || !r.comment_id) return;
+      counts[r.comment_id] = (counts[r.comment_id] || 0) + 1;
     });
-    
-    // Apply counts to comments
-    const commentsWithCounts = comments.map(comment => ({
-      ...comment,
-      like_count: likeCounts[comment.id] || 0
-    }));
-    
-    console.log('Successfully calculated likes for', commentIds.length, 'comments');
-    return commentsWithCounts;
-    
-  } catch (error) {
-    console.error('Error in batch comment count calculation:', error);
-    // Return original comments if calculation fails
+
+    // like_count を付与
+    return comments.map(c => ({ ...c, like_count: counts[c.id] || 0 }));
+  } catch (e) {
+    console.error('Error in batch comment count calculation:', e);
     return comments;
   }
 }
+
 
 // Legacy function for backward compatibility (single comment)
 async function calculateCommentCounts(db, comment) {
