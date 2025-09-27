@@ -360,9 +360,9 @@ async function likeThisComment(commentId) {
   try {
     if (!userFingerprint) userFingerprint = generateUserFingerprint();
 
-    const likes = await apiCall('/api/tables/likes');
+    const likes = await apiCall(`/api/tables/likes?comment_id=${commentId}`);
     const exists = (likes.data || []).some(l =>
-      l.target_type === 'comment' && l.target_id === commentId && l.user_fingerprint === userFingerprint
+      l.comment_id === commentId && l.user_fingerprint === userFingerprint
     );
     if (exists) {
       showMessage('このコメントには既にいいねしています', 'error');
