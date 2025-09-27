@@ -229,29 +229,33 @@ export default async function handler(req, res) {
     if (action === "thread_delete") {
       if (!id) return res.status(400).json({ ok:false, error:"missing id" });
       
-      console.log("🗑️ Thread cascade delete requested for ID:", id);
+      console.log("🗑️ BULLETPROOF Thread cascade delete requested for ID:", id, "Type:", typeof id);
       
-      // ✅ UUID型対応のカスケード削除機能
+      // 🛡️ BULLETPROOF カスケード削除機能
       try {
-        // TEXTラッパー関数を使用してUUID変換を処理
-        const { data: ok, error } = await sb.rpc("admin_soft_delete_thread_text", { p_id: id });
+        // 強化されたログ記録
+        console.log("📞 Calling admin_soft_delete_thread_text with p_id:", id);
+        
+        const { data: ok, error } = await sb.rpc("admin_soft_delete_thread_text", { p_id: String(id) });
         
         if (error) { 
-          console.error("thread_delete error", error); 
+          console.error("🚨 thread_delete BULLETPROOF error:", error);
+          console.error("🚨 Error details:", JSON.stringify(error, null, 2)); 
           return res.status(500).json({ ok:false, error: error.message }); 
         }
         
         if (ok !== true) {
-          console.log("Thread not found or already deleted:", id);
+          console.log("⚠️ Thread not found or already deleted:", id);
           return res.status(404).json({ ok:false, error:"not found or already deleted" });
         }
         
-        console.log("✅ Thread and all related data deleted successfully:", id);
+        console.log("✅ BULLETPROOF: Thread and all related data deleted successfully:", id);
         return res.status(200).json({ ok:true });
         
       } catch (rpcError) {
-        console.error("RPC call failed:", rpcError);
-        return res.status(500).json({ ok:false, error: "Database function call failed: " + rpcError.message });
+        console.error("🚨 RPC call FAILED in bulletproof mode:", rpcError);
+        console.error("🚨 Stack trace:", rpcError.stack);
+        return res.status(500).json({ ok:false, error: "BULLETPROOF deletion failed: " + rpcError.message });
       }
     }
 

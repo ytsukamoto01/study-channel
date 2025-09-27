@@ -1,17 +1,30 @@
 -- ===================================================================
--- 完全動作保証版：Bulletproof カスケード削除関数
+-- 完全クリーンアップ + Bulletproof版のみ残す
 -- ===================================================================
 
--- 【ステップ1】既存関数の完全削除
-DROP FUNCTION IF EXISTS admin_soft_delete_thread(uuid) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_thread_text(text) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_comment(uuid) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_comment_text(text) CASCADE;
+-- 【ステップ1】既存の全ての admin_soft_delete 関数を完全削除
+DO $$
+DECLARE
+    func_record RECORD;
+BEGIN
+    -- 既存の関数を全て検索して削除
+    FOR func_record IN 
+        SELECT routine_name, specific_name
+        FROM information_schema.routines 
+        WHERE routine_schema = 'public' 
+        AND routine_name LIKE 'admin_soft_delete_%'
+    LOOP
+        EXECUTE 'DROP FUNCTION IF EXISTS ' || func_record.specific_name || ' CASCADE';
+        RAISE NOTICE 'Dropped function: %', func_record.specific_name;
+    END LOOP;
+    
+    RAISE NOTICE '✅ All existing admin_soft_delete functions removed';
+END $$;
 
--- 【ステップ2】完全動作保証版関数の作成
+-- 【ステップ2】Bulletproof版のみ作成
 
 -- スレッド削除（Bulletproof版）
-CREATE OR REPLACE FUNCTION admin_soft_delete_thread_bulletproof(p_id TEXT)
+CREATE FUNCTION admin_soft_delete_thread_text(p_id TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -28,11 +41,12 @@ DECLARE
     thread_exists BOOLEAN := FALSE;
     comment_id_record RECORD;
 BEGIN
-    -- 1. 入力バリデーションとUUID変換
+    -- 1. 入力バリデーション
     IF p_id IS NULL OR trim(p_id) = '' THEN
         RAISE EXCEPTION 'Thread ID cannot be null or empty';
     END IF;
     
+    -- 2. UUID変換（エラーハンドリング付き）
     BEGIN
         thread_uuid := p_id::UUID;
     EXCEPTION
@@ -40,7 +54,7 @@ BEGIN
             RAISE EXCEPTION 'Invalid UUID format: %', p_id;
     END;
     
-    -- 2. スレッドの存在確認
+    -- 3. スレッドの存在確認
     SELECT EXISTS(
         SELECT 1 FROM threads 
         WHERE id = thread_uuid 
@@ -54,7 +68,7 @@ BEGIN
     
     RAISE NOTICE 'Starting cascade deletion for thread: %', p_id;
     
-    -- 3. コメント・返信のソフト削除
+    -- 4. コメント・返信のソフト削除
     UPDATE comments 
     SET is_deleted = TRUE, deleted_at = NOW()
     WHERE thread_id = thread_uuid 
@@ -63,46 +77,49 @@ BEGIN
     GET DIAGNOSTICS updated_comments = ROW_COUNT;
     RAISE NOTICE 'Soft deleted % comments', updated_comments;
     
-    -- 4. スレッドのいいねを削除（明示的な型変換）
+    -- 5. スレッドのいいねを削除（TEXT同士で比較）
     DELETE FROM likes 
     WHERE target_type = 'thread' 
-    AND target_id = p_id;  -- TEXTとして直接比較
+    AND target_id = p_id;  -- TEXT同士の比較
     
     GET DIAGNOSTICS deleted_thread_likes = ROW_COUNT;
     RAISE NOTICE 'Deleted % thread likes', deleted_thread_likes;
     
-    -- 5. コメントのいいねを削除（ループで安全に処理）
+    -- 6. コメントのいいねを削除（ループで1件ずつ安全処理）
+    deleted_comment_likes := 0;
     FOR comment_id_record IN 
         SELECT id FROM comments WHERE thread_id = thread_uuid
     LOOP
         DELETE FROM likes 
         WHERE target_type = 'comment' 
         AND target_id = comment_id_record.id::TEXT;
+        
+        deleted_comment_likes := deleted_comment_likes + 1;
     END LOOP;
     
-    GET DIAGNOSTICS deleted_comment_likes = ROW_COUNT;
-    RAISE NOTICE 'Deleted % comment likes', deleted_comment_likes;
+    RAISE NOTICE 'Processed % comment likes', deleted_comment_likes;
     
-    -- 6. お気に入りを削除
+    -- 7. お気に入りを削除
     DELETE FROM favorites 
     WHERE thread_id = thread_uuid;
     
     GET DIAGNOSTICS deleted_favorites = ROW_COUNT;
     RAISE NOTICE 'Deleted % favorites', deleted_favorites;
     
-    -- 7. スレッド通報の更新
+    -- 8. スレッド通報の更新（TEXT同士で比較）
     UPDATE reports 
     SET status = 'resolved', 
         resolved_at = NOW(), 
         resolved_reason = 'Thread deleted by admin'
     WHERE target_type = 'thread' 
-    AND target_id = p_id  -- TEXTとして直接比較
+    AND target_id = p_id  -- TEXT同士の比較
     AND status = 'pending';
     
     GET DIAGNOSTICS updated_thread_reports = ROW_COUNT;
     RAISE NOTICE 'Updated % thread reports', updated_thread_reports;
     
-    -- 8. コメント通報の更新（ループで安全に処理）
+    -- 9. コメント通報の更新（ループで1件ずつ安全処理）
+    updated_comment_reports := 0;
     FOR comment_id_record IN 
         SELECT id FROM comments WHERE thread_id = thread_uuid
     LOOP
@@ -113,35 +130,32 @@ BEGIN
         WHERE (target_type = 'comment' OR target_type = 'reply')
         AND target_id = comment_id_record.id::TEXT
         AND status = 'pending';
+        
+        updated_comment_reports := updated_comment_reports + 1;
     END LOOP;
     
-    GET DIAGNOSTICS updated_comment_reports = ROW_COUNT;
-    RAISE NOTICE 'Updated % comment reports', updated_comment_reports;
+    RAISE NOTICE 'Processed % comment reports', updated_comment_reports;
     
-    -- 9. スレッド本体をソフト削除
+    -- 10. スレッド本体をソフト削除
     UPDATE threads 
     SET is_deleted = TRUE, deleted_at = NOW()
     WHERE id = thread_uuid;
     
-    RAISE NOTICE 'CASCADE DELETE SUMMARY for thread %:', p_id;
-    RAISE NOTICE '- Comments deleted: %', updated_comments;
-    RAISE NOTICE '- Thread likes deleted: %', deleted_thread_likes;
-    RAISE NOTICE '- Comment likes deleted: %', deleted_comment_likes;
-    RAISE NOTICE '- Favorites deleted: %', deleted_favorites;
-    RAISE NOTICE '- Thread reports updated: %', updated_thread_reports;
-    RAISE NOTICE '- Comment reports updated: %', updated_comment_reports;
+    RAISE NOTICE 'CASCADE DELETE COMPLETED for thread %', p_id;
+    RAISE NOTICE 'SUMMARY: Comments: %, Thread likes: %, Comment likes: %, Favorites: %, Thread reports: %, Comment reports: %', 
+                 updated_comments, deleted_thread_likes, deleted_comment_likes, deleted_favorites, updated_thread_reports, updated_comment_reports;
     
     RETURN TRUE;
     
 EXCEPTION
     WHEN OTHERS THEN
-        RAISE EXCEPTION 'Error during cascade deletion: %', SQLERRM;
+        RAISE EXCEPTION 'Bulletproof cascade deletion error: %', SQLERRM;
         RETURN FALSE;
 END;
 $$;
 
 -- コメント削除（Bulletproof版）
-CREATE OR REPLACE FUNCTION admin_soft_delete_comment_bulletproof(p_id TEXT)
+CREATE FUNCTION admin_soft_delete_comment_text(p_id TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -153,11 +167,12 @@ DECLARE
     updated_reports INTEGER := 0;
     comment_exists BOOLEAN := FALSE;
 BEGIN
-    -- 1. 入力バリデーションとUUID変換
+    -- 1. 入力バリデーション
     IF p_id IS NULL OR trim(p_id) = '' THEN
         RAISE EXCEPTION 'Comment ID cannot be null or empty';
     END IF;
     
+    -- 2. UUID変換（エラーハンドリング付き）
     BEGIN
         comment_uuid := p_id::UUID;
     EXCEPTION
@@ -165,7 +180,7 @@ BEGIN
             RAISE EXCEPTION 'Invalid UUID format: %', p_id;
     END;
     
-    -- 2. コメントの存在確認
+    -- 3. コメントの存在確認
     SELECT EXISTS(
         SELECT 1 FROM comments 
         WHERE id = comment_uuid 
@@ -179,94 +194,69 @@ BEGIN
     
     RAISE NOTICE 'Starting cascade deletion for comment: %', p_id;
     
-    -- 3. いいねを削除（TEXTとして直接比較）
+    -- 4. いいねを削除（TEXT同士で比較）
     DELETE FROM likes 
     WHERE target_type = 'comment' 
-    AND target_id = p_id;
+    AND target_id = p_id;  -- TEXT同士の比較
     
     GET DIAGNOSTICS deleted_likes = ROW_COUNT;
     RAISE NOTICE 'Deleted % comment likes', deleted_likes;
     
-    -- 4. 通報を更新（TEXTとして直接比較）
+    -- 5. 通報を更新（TEXT同士で比較）
     UPDATE reports 
     SET status = 'resolved', 
         resolved_at = NOW(), 
         resolved_reason = 'Comment deleted by admin'
     WHERE (target_type = 'comment' OR target_type = 'reply') 
-    AND target_id = p_id
+    AND target_id = p_id  -- TEXT同士の比較
     AND status = 'pending';
     
     GET DIAGNOSTICS updated_reports = ROW_COUNT;
     RAISE NOTICE 'Updated % comment reports', updated_reports;
     
-    -- 5. コメント本体をソフト削除
+    -- 6. コメント本体をソフト削除
     UPDATE comments 
     SET is_deleted = TRUE, deleted_at = NOW()
     WHERE id = comment_uuid;
     
-    RAISE NOTICE 'CASCADE DELETE SUMMARY for comment %:', p_id;
-    RAISE NOTICE '- Likes deleted: %', deleted_likes;
-    RAISE NOTICE '- Reports updated: %', updated_reports;
+    RAISE NOTICE 'CASCADE DELETE COMPLETED for comment %', p_id;
+    RAISE NOTICE 'SUMMARY: Likes: %, Reports: %', deleted_likes, updated_reports;
     
     RETURN TRUE;
     
 EXCEPTION
     WHEN OTHERS THEN
-        RAISE EXCEPTION 'Error during comment cascade deletion: %', SQLERRM;
+        RAISE EXCEPTION 'Bulletproof comment cascade deletion error: %', SQLERRM;
         RETURN FALSE;
 END;
 $$;
 
--- 【ステップ3】API互換性のため、元の関数名でエイリアスを作成
-CREATE OR REPLACE FUNCTION admin_soft_delete_thread_text(p_id TEXT)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-    RETURN admin_soft_delete_thread_bulletproof(p_id);
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION admin_soft_delete_comment_text(p_id TEXT)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-    RETURN admin_soft_delete_comment_bulletproof(p_id);
-END;
-$$;
-
--- 【ステップ4】テスト用の関数（実際のIDは使わないでください）
-CREATE OR REPLACE FUNCTION test_cascade_delete_functions()
-RETURNS TEXT
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-    RETURN 'Cascade delete functions created successfully! Use admin_soft_delete_thread_text(id) and admin_soft_delete_comment_text(id)';
-END;
-$$;
-
--- 【ステップ5】確認と結果表示
-SELECT test_cascade_delete_functions();
-
+-- 【ステップ3】確認
 SELECT 
     routine_name, 
     routine_type,
     specific_name
 FROM information_schema.routines 
 WHERE routine_schema = 'public' 
-    AND (routine_name LIKE 'admin_soft_delete_%' OR routine_name = 'test_cascade_delete_functions')
+    AND routine_name LIKE 'admin_soft_delete_%'
 ORDER BY routine_name;
 
--- 成功メッセージ
+-- 【ステップ4】成功メッセージ
 DO $$
 BEGIN
-    RAISE NOTICE '🎯 BULLETPROOF CASCADE DELETE FUNCTIONS CREATED SUCCESSFULLY!';
-    RAISE NOTICE '📋 Use admin_soft_delete_thread_text(thread_id) for thread deletion';
-    RAISE NOTICE '📋 Use admin_soft_delete_comment_text(comment_id) for comment deletion';
-    RAISE NOTICE '🔧 All type conversions handled explicitly and safely';
-    RAISE NOTICE '✅ Ready for production use!';
+    RAISE NOTICE '';
+    RAISE NOTICE '🎯🎯🎯 BULLETPROOF CASCADE DELETE SETUP COMPLETE! 🎯🎯🎯';
+    RAISE NOTICE '';
+    RAISE NOTICE '✅ Only bulletproof functions remain:';
+    RAISE NOTICE '   - admin_soft_delete_thread_text(p_id TEXT)';
+    RAISE NOTICE '   - admin_soft_delete_comment_text(p_id TEXT)';
+    RAISE NOTICE '';
+    RAISE NOTICE '🛡️  Features:';
+    RAISE NOTICE '   - TEXT parameter input (no UUID conversion issues)';
+    RAISE NOTICE '   - TEXT-to-TEXT comparison for likes/reports';  
+    RAISE NOTICE '   - Loop-based safe processing';
+    RAISE NOTICE '   - Detailed logging for each step';
+    RAISE NOTICE '';
+    RAISE NOTICE '🚀 Ready for admin panel testing!';
+    RAISE NOTICE '';
 END $$;

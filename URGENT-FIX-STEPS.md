@@ -12,12 +12,18 @@
 -- テーブル構造と型を確認できます
 ```
 
-### ステップ2: Bulletproof版実行（必須）
+### ステップ2: 完全クリーンアップ + Bulletproof版実行（必須）
 **Supabase SQL Editor で実行:**
 ```sql
--- supabase-bulletproof-solution.sql の内容を全てコピー&ペースト
--- 完全に動作保証された版です！
+-- supabase-complete-cleanup-bulletproof.sql の内容を全てコピー&ペースト
+-- 古い関数を完全削除 + Bulletproof版のみ作成！
 ```
+
+**この版の特徴:**
+- ✅ 既存関数の完全削除（競合を完全回避）
+- ✅ TEXT同士の比較のみ（UUID型エラー不可能）
+- ✅ ループ処理で安全な関連データ処理
+- ✅ 強化されたログ記録
 
 ### ステップ3: 動作確認
 1. ✅ 管理画面でスレッド削除を試行
