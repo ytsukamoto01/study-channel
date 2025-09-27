@@ -231,9 +231,10 @@ export default async function handler(req, res) {
       
       console.log("🗑️ Thread cascade delete requested for ID:", id);
       
-      // ✅ 完全なカスケード削除機能（関数競合解決後）
+      // ✅ UUID型対応のカスケード削除機能
       try {
-        const { data: ok, error } = await sb.rpc("admin_soft_delete_thread", { p_id: id });
+        // TEXTラッパー関数を使用してUUID変換を処理
+        const { data: ok, error } = await sb.rpc("admin_soft_delete_thread_text", { p_id: id });
         
         if (error) { 
           console.error("thread_delete error", error); 
@@ -343,12 +344,12 @@ export default async function handler(req, res) {
         return res.status(400).json({ ok:false, error:"missing target_type or target_id" });
       }
     
-      // ★ reply も comments 行なので comment と同じRPCに送る
+      // ★ UUID型対応のTEXTラッパー関数を使用
       let rpcCall;
       if (target_type === "thread") {
-        rpcCall = sb.rpc("admin_soft_delete_thread", { p_id: target_id });
+        rpcCall = sb.rpc("admin_soft_delete_thread_text", { p_id: target_id });
       } else if (target_type === "comment" || target_type === "reply") {
-        rpcCall = sb.rpc("admin_soft_delete_comment", { p_id: target_id });
+        rpcCall = sb.rpc("admin_soft_delete_comment_text", { p_id: target_id });
       } else {
         return res.status(400).json({ ok:false, error:"unsupported target_type" });
       }
@@ -431,7 +432,7 @@ export default async function handler(req, res) {
     if (action === "comment_soft_delete") {
       const cid = (payload && payload.id) || id;
       if (!cid) return res.status(400).json({ ok:false, error:"missing id" });
-      const { data: ok, error } = await sb.rpc("admin_soft_delete_comment", { p_id: cid });
+      const { data: ok, error } = await sb.rpc("admin_soft_delete_comment_text", { p_id: cid });
       if (error) { console.error("comment_soft_delete error", error); return res.status(500).json({ ok:false, error: error.message }); }
       return res.status(ok ? 200 : 404).json({ ok: !!ok });
     }
