@@ -28,7 +28,7 @@ if (!ADMIN_PASSWORD_HASH) {
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-// UUID 厳格チェック（DB側は uuid 型なので二重で安全）
+// UUID 厳格チェック
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const isUUID = (s) => typeof s === "string" && UUID_RE.test(s);
 
@@ -60,13 +60,11 @@ function isAdmin(req) {
   if (!raw) return false;
   try { return !!JSON.parse(raw).admin; } catch { return false; }
 }
-
 function json(res, code, body) {
   res.statusCode = code;
   res.setHeader("content-type", "application/json; charset=utf-8");
   res.end(JSON.stringify(body));
 }
-
 async function readJsonBody(req) {
   return new Promise((resolve) => {
     let s = "";
@@ -76,7 +74,6 @@ async function readJsonBody(req) {
     });
   });
 }
-
 async function ensureBucket(sb) {
   const { data: got } = await sb.storage.getBucket(BUCKET);
   if (got) return;
@@ -90,7 +87,6 @@ async function ensureBucket(sb) {
     throw new Error("cannot create bucket");
   }
 }
-
 function parseMultipart(req) {
   return new Promise((resolve, reject) => {
     const bb = Busboy({ headers: req.headers });
@@ -127,9 +123,7 @@ export default async function handler(req, res) {
     const action = isMultipart ? queryAction : body.action;
     const { password, id, payload } = body;
 
-    // -------------------------
-    // Public: diagnostics
-    // -------------------------
+    // Diagnostics
     if (action === "diag") {
       const missing = [];
       if (!ADMIN_PASSWORD_HASH) missing.push("ADMIN_PASSWORD_HASH");
@@ -139,9 +133,7 @@ export default async function handler(req, res) {
       return json(res, missing.length ? 500 : 200, { ok: missing.length === 0, missing });
     }
 
-    // -------------------------
-    // Public: login / logout
-    // -------------------------
+    // Login / Logout
     if (action === "login") {
       if (!ADMIN_PASSWORD_HASH || !SESSION_SECRET) {
         console.error("[ENV MISSING] login", { hasHash: !!ADMIN_PASSWORD_HASH, hasSecret: !!SESSION_SECRET });
@@ -149,32 +141,24 @@ export default async function handler(req, res) {
       }
       const ok = await bcrypt.compare(password ?? "", ADMIN_PASSWORD_HASH).catch(() => false);
       if (!ok) return json(res, 401, { ok: false });
-
       const cookieVal = sign(JSON.stringify({ admin: true, iat: Date.now() }), SESSION_SECRET);
       const cookie = `${COOKIE_NAME}=${cookieVal}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${MAX_AGE_SEC}`;
       res.setHeader("Set-Cookie", cookie);
       return json(res, 200, { ok: true });
     }
-
     if (action === "logout") {
-      res.setHeader(
-        "Set-Cookie",
-        `${COOKIE_NAME}=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0`
-      );
+      res.setHeader("Set-Cookie", `${COOKIE_NAME}=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0`);
       return json(res, 200, { ok: true });
     }
 
-    // 認証必須アクション
+    // Auth required
     if (!isAdmin(req)) return json(res, 401, { ok: false, error: "unauthorized" });
 
     await ensureBucket(supabase);
 
-    // -------------------------
-    // Upload image (multipart)
-    // -------------------------
+    // Upload image
     if (action === "upload_image") {
       if (!isMultipart) return json(res, 400, { ok: false, error: "multipart/form-data required" });
-
       const { files } = await parseMultipart(req);
       if (!files.length) return json(res, 400, { ok: false, error: "no files" });
 
@@ -204,9 +188,7 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, files: uploaded });
     }
 
-    // -------------------------
-    // Threads CRUD
-    // -------------------------
+    // Threads
     if (action === "threads_list") {
       const { data, error } = await supabase
         .from("threads")
@@ -262,12 +244,9 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, data });
     }
 
-    // 🔥 HARD DELETE (cascade via FK)
     if (action === "thread_delete") {
       if (!id) return json(res, 400, { ok: false, error: "missing id" });
       if (!isUUID(id)) return json(res, 400, { ok: false, error: "INVALID_UUID" });
-
-      // DB 側で FK による連鎖削除を実施
       const { error } = await supabase.rpc("admin_delete_thread", { p_thread_id: id });
       if (error) {
         console.error("thread_delete error", error);
@@ -276,9 +255,7 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true });
     }
 
-    // -------------------------
-    // Reports (list/update/delete) + delete_reported_content
-    // -------------------------
+    // Reports
     if (action === "reports_list") {
       const { type, status, limit = 50, offset = 0 } = payload || {};
       let query = supabase
@@ -304,7 +281,6 @@ export default async function handler(req, res) {
         return json(res, 500, { ok: false, error: error.message });
       }
 
-      // 統計は任意（関数が無い環境でも落ちないように）
       let stats = {};
       try {
         const { data: s, error: se } = await supabase.rpc("get_reports_stats");
@@ -365,14 +341,12 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true });
     }
 
-    // -------------------------
     // Comments: fetch tree / flat
-    // -------------------------
     if (action === "thread_full") {
       const threadId = (payload && payload.thread_id) || id;
       if (!threadId) return json(res, 400, { ok: false, error: "missing thread_id" });
       const includeDeleted = payload?.include_deleted ?? true;
-      const order = payload?.order || "oldest";
+      const order = payload?.order || "oldest"; // サーバ側ではこれまで通り。フロントで comment_number で整列
 
       const { data, error } = await supabase.rpc("admin_get_thread_full", {
         p_thread_id: threadId,
@@ -408,9 +382,7 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, data });
     }
 
-    // -------------------------
-    // Comments: update / soft-delete / restore / hard-delete / reparent / create
-    // -------------------------
+    // Comments: update / hard-delete / reparent / create
     if (action === "comment_update") {
       const cid = (payload && payload.id) || id;
       if (!cid) return json(res, 400, { ok: false, error: "missing id" });
@@ -427,28 +399,6 @@ export default async function handler(req, res) {
         return json(res, 500, { ok: false, error: error.message });
       }
       return json(res, 200, { ok: true, updated: data });
-    }
-
-    if (action === "comment_soft_delete") {
-      const cid = (payload && payload.id) || id;
-      if (!cid) return json(res, 400, { ok: false, error: "missing id" });
-      const { data, error } = await supabase.rpc("admin_soft_delete_comment_text", { p_id: cid });
-      if (error) {
-        console.error("comment_soft_delete error", error);
-        return json(res, 500, { ok: false, error: error.message });
-      }
-      return json(res, (data ? 200 : 404), { ok: !!data });
-    }
-
-    if (action === "comment_restore") {
-      const cid = (payload && payload.id) || id;
-      if (!cid) return json(res, 400, { ok: false, error: "missing id" });
-      const { data, error } = await supabase.rpc("admin_restore_comment", { p_id: cid });
-      if (error) {
-        console.error("comment_restore error", error);
-        return json(res, 500, { ok: false, error: error.message });
-      }
-      return json(res, (data ? 200 : 404), { ok: !!data });
     }
 
     if (action === "comment_hard_delete") {
@@ -503,20 +453,12 @@ export default async function handler(req, res) {
         return json(res, 500, { ok: false, error: error.message });
       }
 
-      // スレッド側のカウント更新（存在すれば）
-      try {
-        await supabase.rpc("increment_comment_count", { thread_id: threadId });
-      } catch (e) {
-        // 失敗してもコメント作成は成功扱い
-        console.warn("increment_comment_count warn:", e?.message || e);
-      }
+      try { await supabase.rpc("increment_comment_count", { thread_id: threadId }); }
+      catch (e) { console.warn("increment_comment_count warn:", e?.message || e); }
 
       return json(res, 200, { ok: true, data });
     }
 
-    // -------------------------
-    // Unknown
-    // -------------------------
     return json(res, 400, { ok: false, error: "unknown action" });
   } catch (e) {
     console.error("UNHANDLED ERROR /api/admin:", e);
