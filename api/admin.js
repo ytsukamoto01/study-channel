@@ -229,33 +229,33 @@ export default async function handler(req, res) {
     if (action === "thread_delete") {
       if (!id) return res.status(400).json({ ok:false, error:"missing id" });
       
-      console.log("🗑️ BULLETPROOF Thread cascade delete requested for ID:", id, "Type:", typeof id);
+      console.log("🗑️ HARD DELETE: Thread cascade delete requested for ID:", id, "Type:", typeof id);
       
-      // 🛡️ BULLETPROOF カスケード削除機能
+      // 🔥 HARD DELETE カスケード削除機能（データベース軽量化）
       try {
         // 強化されたログ記録
-        console.log("📞 Calling admin_soft_delete_thread_text with p_id:", id);
+        console.log("📞 Calling admin_soft_delete_thread_text (→ HARD DELETE) with p_id:", id);
         
         const { data: ok, error } = await sb.rpc("admin_soft_delete_thread_text", { p_id: String(id) });
         
         if (error) { 
-          console.error("🚨 thread_delete BULLETPROOF error:", error);
+          console.error("🚨 thread_delete HARD DELETE error:", error);
           console.error("🚨 Error details:", JSON.stringify(error, null, 2)); 
           return res.status(500).json({ ok:false, error: error.message }); 
         }
         
         if (ok !== true) {
-          console.log("⚠️ Thread not found or already deleted:", id);
-          return res.status(404).json({ ok:false, error:"not found or already deleted" });
+          console.log("⚠️ Thread not found:", id);
+          return res.status(404).json({ ok:false, error:"thread not found" });
         }
         
-        console.log("✅ BULLETPROOF: Thread and all related data deleted successfully:", id);
+        console.log("✅ HARD DELETE: Thread and all related data permanently deleted:", id);
         return res.status(200).json({ ok:true });
         
       } catch (rpcError) {
-        console.error("🚨 RPC call FAILED in bulletproof mode:", rpcError);
+        console.error("🚨 RPC call FAILED in hard delete mode:", rpcError);
         console.error("🚨 Stack trace:", rpcError.stack);
-        return res.status(500).json({ ok:false, error: "BULLETPROOF deletion failed: " + rpcError.message });
+        return res.status(500).json({ ok:false, error: "Hard deletion failed: " + rpcError.message });
       }
     }
 
@@ -348,7 +348,9 @@ export default async function handler(req, res) {
         return res.status(400).json({ ok:false, error:"missing target_type or target_id" });
       }
     
-      // ★ UUID型対応のTEXTラッパー関数を使用
+      // 🔥 HARD DELETE: 通報された投稿の物理削除
+      console.log("🗑️ HARD DELETE: Reported content deletion -", target_type, target_id);
+      
       let rpcCall;
       if (target_type === "thread") {
         rpcCall = sb.rpc("admin_soft_delete_thread_text", { p_id: target_id });
@@ -360,22 +362,18 @@ export default async function handler(req, res) {
     
       const { data: ok, error: rpcErr } = await rpcCall;
       if (rpcErr) {
-        console.error("delete_reported_content rpc error", rpcErr);
+        console.error("🚨 delete_reported_content HARD DELETE error", rpcErr);
         return res.status(500).json({ ok:false, error: rpcErr.message });
       }
     
-      // RPCはboolean返却。false=該当なし/既に削除済み
+      // RPCはboolean返却。false=該当なし
       if (ok !== true) {
-        return res.status(404).json({ ok:false, error:"Target not found or already deleted" });
+        return res.status(404).json({ ok:false, error:"Target not found" });
       }
     
-      // レポートを承認済みに更新（履歴を残す）
-      const { error: reportErr } = await sb
-        .from("reports")
-        .update({ status: "approved", admin_notes: "対象コンテンツを削除しました" })
-        .eq("id", id);
-    
-      if (reportErr) console.error("report status update error", reportErr);
+      // 注意: レポート自体も物理削除されているため、個別のステータス更新は不要
+      console.log("✅ HARD DELETE: Reported content and all related data permanently deleted");
+      // reportErr処理は不要（reports テーブルから物理削除済み）
     
       return res.status(200).json({ ok:true });
     }

@@ -5,22 +5,24 @@
 
 ## ⚡ 強制再作成修正手順（30秒で完了）
 
-### 🚨 現在のエラー解決法
-**継続エラー**: `BULLETPROOF ERROR in thread deletion: operator does not exist: uuid = text`
+### 🚨 現在の要件
+**要件1**: UUID vs TEXT型エラーの解決  
+**要件2**: テーブル関係性の正確な理解（comments.thread_id, favorites.thread_id, likes.target_id）  
+**要件3**: ハードデリート（物理削除）でデータベース軽量化
 
-### ステップ1: TEXT型のみ処理版実行（必須）
+### ステップ1: ハードデリート版実行（必須）
 **Supabase SQL Editor で実行:**
 ```sql
--- supabase-text-only-final.sql の内容を全てコピー&ペースト
--- UUID型を完全に排除したTEXT専用処理版！
+-- supabase-hard-delete-final.sql の内容を全てコピー&ペースト
+-- ハードデリート + テーブル関係性対応版！
 ```
 
-**この版の革新的特徴:**
-- 🔥 **EXECUTE文使用**: 全てのクエリをEXECUTE文で実行
-- 🔥 **::TEXT キャスト**: UUID列を明示的にTEXTに変換
-- 🔥 **UUID型完全排除**: 関数内でUUID変数を一切使用しない
-- ✅ TEXT同士の比較のみ（型エラー不可能）
-- ✅ EXECUTE + USING での安全なパラメータ渡し
+**この版の特徴:**
+- 🔥 **ハードデリート**: 全てのデータを物理削除（データベース軽量化）
+- 🔥 **正確なテーブル関係**: comments.thread_id, favorites.thread_id, likes.target_id対応
+- 🔥 **EXECUTE + ::TEXT**: UUID型エラー完全排除
+- ✅ API互換性維持（既存関数名でハードデリートに変更）
+- ✅ 管理画面メッセージ更新（完全削除の警告）
 
 ### ステップ3: 動作確認
 1. ✅ 管理画面でスレッド削除を試行

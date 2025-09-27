@@ -151,8 +151,8 @@ function renderThreadCard(th) {
   // 既存イベント
   wrap.querySelector("[data-act='edit']").onclick = () => openEditModal(th);
   wrap.querySelector("[data-act='del']").onclick = async () => {
-    // 🗑️ カスケード削除の確認メッセージ
-    const confirmMessage = `このスレッドを削除しますか？\n\n⚠️ 以下も同時に削除されます：\n• 全てのコメント・返信\n• いいね・お気に入り\n• 関連する通報データ\n\nこの操作は取り消せません。`;
+    // 🔥 ハードデリート（物理削除）の確認メッセージ
+    const confirmMessage = `このスレッドを完全削除しますか？\n\n🔥 以下のデータが永久に削除されます：\n• 全てのコメント・返信\n• いいね・お気に入り\n• 関連する通報データ\n\n⚠️ データベースから完全に消去されます\n⚠️ この操作は絶対に取り消せません`;
     
     if (!confirm(confirmMessage)) return;
     
