@@ -6,23 +6,21 @@
 ## ⚡ 強制再作成修正手順（30秒で完了）
 
 ### 🚨 現在のエラー解決法
-**エラー1**: `function already exists with same argument types`  
-**エラー2**: `42601: too few parameters specified for RAISE`
+**継続エラー**: `BULLETPROOF ERROR in thread deletion: operator does not exist: uuid = text`
 
-### ステップ1: 構文修正版実行（必須）
+### ステップ1: TEXT型のみ処理版実行（必須）
 **Supabase SQL Editor で実行:**
 ```sql
--- supabase-syntax-fixed.sql の内容を全てコピー&ペースト
--- RAISE文構文エラー修正 + 完全新規作成！
+-- supabase-text-only-final.sql の内容を全てコピー&ペースト
+-- UUID型を完全に排除したTEXT専用処理版！
 ```
 
-**この版の特徴:**
-- ✅ RAISE文の構文エラー完全修正
-- ✅ `DROP FUNCTION CASCADE` で強制削除
-- ✅ `pg_proc`を使用した完全クリーンアップ
-- ✅ `CREATE FUNCTION`（OR REPLACEなし）で新規作成
-- ✅ BULLETPROOF詳細ログ付き（構文修正済み）
-- ✅ TEXT専用処理で型エラー不可能
+**この版の革新的特徴:**
+- 🔥 **EXECUTE文使用**: 全てのクエリをEXECUTE文で実行
+- 🔥 **::TEXT キャスト**: UUID列を明示的にTEXTに変換
+- 🔥 **UUID型完全排除**: 関数内でUUID変数を一切使用しない
+- ✅ TEXT同士の比較のみ（型エラー不可能）
+- ✅ EXECUTE + USING での安全なパラメータ渡し
 
 ### ステップ3: 動作確認
 1. ✅ 管理画面でスレッド削除を試行
