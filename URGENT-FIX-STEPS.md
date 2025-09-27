@@ -6,20 +6,22 @@
 ## ⚡ 強制再作成修正手順（30秒で完了）
 
 ### 🚨 現在のエラー解決法
-**エラー**: `function "admin_soft_delete_thread_text" already exists with same argument types`
+**エラー1**: `function already exists with same argument types`  
+**エラー2**: `42601: too few parameters specified for RAISE`
 
-### ステップ1: 強制再作成実行（必須）
+### ステップ1: 構文修正版実行（必須）
 **Supabase SQL Editor で実行:**
 ```sql
--- supabase-force-recreate-functions.sql の内容を全てコピー&ペースト
--- 既存関数を強制削除 + 完全新規作成！
+-- supabase-syntax-fixed.sql の内容を全てコピー&ペースト
+-- RAISE文構文エラー修正 + 完全新規作成！
 ```
 
 **この版の特徴:**
+- ✅ RAISE文の構文エラー完全修正
 - ✅ `DROP FUNCTION CASCADE` で強制削除
 - ✅ `pg_proc`を使用した完全クリーンアップ
 - ✅ `CREATE FUNCTION`（OR REPLACEなし）で新規作成
-- ✅ BULLETPROOF詳細ログ付き
+- ✅ BULLETPROOF詳細ログ付き（構文修正済み）
 - ✅ TEXT専用処理で型エラー不可能
 
 ### ステップ3: 動作確認

@@ -1,8 +1,8 @@
 -- ===================================================================
--- 強制的な関数再作成（既存関数エラー解決）
+-- 構文エラー修正版：RAISE文を完全修正
 -- ===================================================================
 
--- 【ステップ1】既存関数の強制削除（CASCADE付き）
+-- 【ステップ1】既存関数の強制削除（修正版）
 DROP FUNCTION IF EXISTS admin_soft_delete_thread_text(text) CASCADE;
 DROP FUNCTION IF EXISTS admin_soft_delete_comment_text(text) CASCADE;
 DROP FUNCTION IF EXISTS admin_soft_delete_thread_bulletproof(text) CASCADE;
@@ -12,23 +12,27 @@ DROP FUNCTION IF EXISTS admin_soft_delete_comment(uuid) CASCADE;
 DROP FUNCTION IF EXISTS admin_soft_delete_comments(text[]) CASCADE;
 DROP FUNCTION IF EXISTS test_cascade_delete_functions() CASCADE;
 
--- 追加の関数名パターンも削除
+-- 追加の関数削除（修正版）
 DO $$
 DECLARE
     func_record RECORD;
+    drop_cmd TEXT;
 BEGIN
     FOR func_record IN 
-        SELECT 'DROP FUNCTION IF EXISTS ' || oid::regprocedure || ' CASCADE;' as drop_cmd
+        SELECT proname, oid::regprocedure::text as proc_signature
         FROM pg_proc 
         WHERE proname LIKE 'admin_soft_delete_%'
         AND pronamespace = 'public'::regnamespace
     LOOP
-        EXECUTE func_record.drop_cmd;
-        RAISE NOTICE 'Force dropped: %', func_record.drop_cmd;
+        drop_cmd := 'DROP FUNCTION IF EXISTS ' || func_record.proc_signature || ' CASCADE';
+        EXECUTE drop_cmd;
+        RAISE NOTICE 'Force dropped function: %', func_record.proc_signature;
     END LOOP;
+    
+    RAISE NOTICE 'Cleanup completed - all admin_soft_delete functions removed';
 END $$;
 
--- 【ステップ2】完全にクリーンな状態確認
+-- 【ステップ2】クリーン状態確認
 SELECT 
     routine_name, 
     routine_type,
@@ -36,11 +40,10 @@ SELECT
 FROM information_schema.routines 
 WHERE routine_schema = 'public' 
     AND routine_name LIKE 'admin_soft_delete_%';
--- この結果は空になるべき
 
--- 【ステップ3】Bulletproof関数を新規作成
+-- 【ステップ3】新しい関数作成（構文修正版）
 
--- スレッド削除（完全新規作成）
+-- スレッド削除関数
 CREATE FUNCTION admin_soft_delete_thread_text(p_id TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -163,14 +166,10 @@ BEGIN
     SET is_deleted = TRUE, deleted_at = NOW()
     WHERE id = thread_uuid;
     
-    RAISE NOTICE 'BULLETPROOF: ✅ CASCADE DELETE COMPLETED for thread %', p_id;
-    RAISE NOTICE 'BULLETPROOF: 📊 FINAL SUMMARY:';
-    RAISE NOTICE 'BULLETPROOF:   - Comments deleted: %', updated_comments;
-    RAISE NOTICE 'BULLETPROOF:   - Thread likes deleted: %', deleted_thread_likes;
-    RAISE NOTICE 'BULLETPROOF:   - Comment likes deleted: %', deleted_comment_likes;
-    RAISE NOTICE 'BULLETPROOF:   - Favorites deleted: %', deleted_favorites;
-    RAISE NOTICE 'BULLETPROOF:   - Thread reports updated: %', updated_thread_reports;
-    RAISE NOTICE 'BULLETPROOF:   - Comment reports updated: %', updated_comment_reports;
+    -- 11. 最終サマリー
+    RAISE NOTICE 'BULLETPROOF: CASCADE DELETE COMPLETED for thread %', p_id;
+    RAISE NOTICE 'BULLETPROOF: Comments deleted: %, Thread likes: %, Comment likes: %, Favorites: %, Thread reports: %, Comment reports: %', 
+                 updated_comments, deleted_thread_likes, deleted_comment_likes, deleted_favorites, updated_thread_reports, updated_comment_reports;
     
     RETURN TRUE;
     
@@ -181,7 +180,7 @@ EXCEPTION
 END;
 $$;
 
--- コメント削除（完全新規作成）
+-- コメント削除関数
 CREATE FUNCTION admin_soft_delete_comment_text(p_id TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -249,8 +248,9 @@ BEGIN
     SET is_deleted = TRUE, deleted_at = NOW()
     WHERE id = comment_uuid;
     
-    RAISE NOTICE 'BULLETPROOF: ✅ CASCADE DELETE COMPLETED for comment %', p_id;
-    RAISE NOTICE 'BULLETPROOF: 📊 SUMMARY: Likes: %, Reports: %', deleted_likes, updated_reports;
+    -- 7. 最終サマリー
+    RAISE NOTICE 'BULLETPROOF: CASCADE DELETE COMPLETED for comment %', p_id;
+    RAISE NOTICE 'BULLETPROOF: Likes deleted: %, Reports updated: %', deleted_likes, updated_reports;
     
     RETURN TRUE;
     
@@ -271,22 +271,12 @@ WHERE routine_schema = 'public'
     AND routine_name LIKE 'admin_soft_delete_%'
 ORDER BY routine_name;
 
--- 【ステップ5】成功メッセージ
+-- 【ステップ5】成功メッセージ（修正版）
 DO $$
 BEGIN
-    RAISE NOTICE '';
-    RAISE NOTICE '🎯🔥🎯 BULLETPROOF FUNCTIONS FORCE-RECREATED SUCCESSFULLY! 🎯🔥🎯';
-    RAISE NOTICE '';
-    RAISE NOTICE '✅ Functions available:';
-    RAISE NOTICE '   - admin_soft_delete_thread_text(p_id TEXT)';
-    RAISE NOTICE '   - admin_soft_delete_comment_text(p_id TEXT)';
-    RAISE NOTICE '';
-    RAISE NOTICE '🛡️ Features:';
-    RAISE NOTICE '   - Complete force recreation (no conflicts)';
-    RAISE NOTICE '   - TEXT-only parameters and comparisons';
-    RAISE NOTICE '   - Detailed BULLETPROOF logging';
-    RAISE NOTICE '   - 100% UUID error elimination';
-    RAISE NOTICE '';
-    RAISE NOTICE '🚀 Ready for testing - functions guaranteed to work!';
-    RAISE NOTICE '';
+    RAISE NOTICE 'BULLETPROOF FUNCTIONS SUCCESSFULLY CREATED!';
+    RAISE NOTICE 'Functions available:';
+    RAISE NOTICE '- admin_soft_delete_thread_text(p_id TEXT)';
+    RAISE NOTICE '- admin_soft_delete_comment_text(p_id TEXT)';
+    RAISE NOTICE 'Ready for production use with detailed logging!';
 END $$;
