@@ -156,10 +156,12 @@ function renderThreadCard(th) {
     
     if (!confirm(confirmMessage)) return;
     
+    // 削除ボタンの取得と状態保存
+    const deleteBtn = wrap.querySelector("[data-act='del']");
+    const originalText = deleteBtn.textContent;
+    
     try {
       // 削除実行中の表示
-      const deleteBtn = wrap.querySelector("[data-act='del']");
-      const originalText = deleteBtn.textContent;
       deleteBtn.textContent = '削除中...';
       deleteBtn.disabled = true;
       
@@ -167,20 +169,20 @@ function renderThreadCard(th) {
       
       if (!res.ok) {
         const errorText = await res.text();
+        console.error('削除失敗レスポンス:', errorText);
         alert("削除失敗: " + errorText);
         return;
       }
       
       // 成功通知
-      alert("スレッドと関連データを削除しました");
+      alert("スレッドと関連データを完全削除しました");
       await loadThreads();
       
     } catch (error) {
       console.error('削除エラー:', error);
       alert("削除中にエラーが発生しました: " + error.message);
     } finally {
-      // ボタンを復元（削除成功時は既にloadThreads()で更新されるため不要だが、エラー時のため）
-      const deleteBtn = wrap.querySelector("[data-act='del']");
+      // ボタンを復元（エラー時のため）
       if (deleteBtn) {
         deleteBtn.textContent = originalText;
         deleteBtn.disabled = false;
