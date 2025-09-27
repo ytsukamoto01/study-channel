@@ -1,4 +1,5 @@
 // /public/admin/admin.js
+
 async function callAdmin(action, extra = {}) {
   const res = await fetch("/api/admin", {
     method: "POST",
@@ -31,14 +32,12 @@ async function logout() {
 }
 
 function parseTags(s) { return s.split(",").map(t=>t.trim()).filter(Boolean); }
-function parseImages(s){ return s.split(",").map(u=>u.trim()).filter(Boolean); }
 
 async function uploadImages(files) {
   const urls = [];
   for (const file of files) {
     const fd = new FormData();
     fd.append("file", file);
-    // multipart は body だけでは action を渡しにくいのでクエリで指定
     const res = await fetch("/api/admin?action=upload_image", {
       method: "POST",
       body: fd,
@@ -49,7 +48,6 @@ async function uploadImages(files) {
       throw new Error("画像アップロード失敗: " + t);
     }
     const json = await res.json();
-    // files: [{path, url}] で複数返るが、1件ずつ送ってるので先頭を採用
     if (json?.files?.[0]?.url) urls.push(json.files[0].url);
   }
   return urls;
@@ -68,7 +66,7 @@ async function createThread() {
     category: document.getElementById("new-category").value || "未分類",
     subcategory: document.getElementById("new-subcategory").value || null,
     hashtags: parseTags(document.getElementById("new-hashtags").value),
-    images: imageUrls, // ← アップロードしたURLを保存
+    images: imageUrls,
   };
   const res = await callAdmin("thread_create", { payload });
   if (!res.ok) return alert("作成失敗: " + (await res.text()));
@@ -81,7 +79,6 @@ function clearNewForm() {
   const fi = document.getElementById("new-images-file");
   if (fi) fi.value = "";
 }
-
 
 async function loadThreads() {
   const res = await callAdmin("threads_list");
@@ -100,7 +97,7 @@ function renderThreadCard(th) {
   const wrap = document.createElement("div");
   wrap.className = "card";
   const createdAt = new Date(th.created_at).toLocaleString('ja-JP');
-  
+
   wrap.innerHTML = `
     <div class="row" style="justify-content:space-between">
       <div style="flex:1;">
@@ -128,10 +125,6 @@ function renderThreadCard(th) {
           <label class="row" style="gap:6px;">
             <input type="checkbox" id="cmt-incdel-${th.id}" checked> 削除済みも表示
           </label>
-          <select id="cmt-order-${th.id}">
-            <option value="oldest" selected>親は古い順</option>
-            <option value="newest">親は新しい順</option>
-          </select>
           <button data-act="reload-comments" class="primary">🔄 更新</button>
           <button data-act="add-root-comment" class="success">✍️ コメント投稿</button>
         </div>
@@ -148,49 +141,32 @@ function renderThreadCard(th) {
     </div>
   `;
 
-  // 既存イベント
   wrap.querySelector("[data-act='edit']").onclick = () => openEditModal(th);
   wrap.querySelector("[data-act='del']").onclick = async () => {
-    // 🔥 ハードデリート（物理削除）の確認メッセージ
-    const confirmMessage = `このスレッドを完全削除しますか？\n\n🔥 以下のデータが永久に削除されます：\n• 全てのコメント・返信\n• いいね・お気に入り\n• 関連する通報データ\n\n⚠️ データベースから完全に消去されます\n⚠️ この操作は絶対に取り消せません`;
-    
+    const confirmMessage = `このスレッドを完全削除しますか？\n\n🔥 以下のデータが永久に削除されます：\n• 全てのコメント・返信\n• いいね・お気に入り\n• 関連する通報データ\n\n⚠️ データベースから完全に消去されます\n⚠️ この操作は取り消せません`;
     if (!confirm(confirmMessage)) return;
-    
-    // 削除ボタンの取得と状態保存
+
     const deleteBtn = wrap.querySelector("[data-act='del']");
     const originalText = deleteBtn.textContent;
-    
     try {
-      // 削除実行中の表示
       deleteBtn.textContent = '削除中...';
       deleteBtn.disabled = true;
-      
       const res = await callAdmin("thread_delete", { id: th.id });
-      
       if (!res.ok) {
         const errorText = await res.text();
-        console.error('削除失敗レスポンス:', errorText);
         alert("削除失敗: " + errorText);
         return;
       }
-      
-      // 成功通知
       alert("スレッドと関連データを完全削除しました");
       await loadThreads();
-      
     } catch (error) {
-      console.error('削除エラー:', error);
       alert("削除中にエラーが発生しました: " + error.message);
     } finally {
-      // ボタンを復元（エラー時のため）
-      if (deleteBtn) {
-        deleteBtn.textContent = originalText;
-        deleteBtn.disabled = false;
-      }
+      deleteBtn.textContent = originalText;
+      deleteBtn.disabled = false;
     }
   };
 
-  // コメントトグル
   wrap.querySelector("[data-act='toggle-comments']").onclick = async () => {
     const box = document.getElementById(`cmt-${th.id}`);
     const now = box.style.display !== "none";
@@ -201,14 +177,11 @@ function renderThreadCard(th) {
     await loadCommentsForThread(th.id);
   };
 
-  // ルートコメント投稿機能
   wrap.querySelector("[data-act='add-root-comment']").onclick = () => {
     const form = document.getElementById(`root-comment-form-${th.id}`);
     const isVisible = form.style.display !== "none";
     form.style.display = isVisible ? "none" : "block";
-    if (!isVisible) {
-      document.getElementById(`root-comment-content-${th.id}`).focus();
-    }
+    if (!isVisible) document.getElementById(`root-comment-content-${th.id}`).focus();
   };
 
   const rootCancelBtn = wrap.querySelector("[data-act='root-comment-cancel']");
@@ -220,23 +193,13 @@ function renderThreadCard(th) {
   if (rootSubmitBtn) rootSubmitBtn.onclick = async () => {
     const content = document.getElementById(`root-comment-content-${th.id}`).value.trim();
     if (!content) return alert("コメント内容を入力してください。");
-
     try {
       const r = await callAdmin("comment_create", {
-        payload: {
-          thread_id: th.id,
-          parent_id: null, // ルートコメント
-          content: content,
-          images: []
-        }
+        payload: { thread_id: th.id, parent_id: null, content, images: [] }
       });
       if (!r.ok) throw new Error(await r.text());
-      
-      // フォームをリセットして非表示に
       document.getElementById(`root-comment-content-${th.id}`).value = "";
       document.getElementById(`root-comment-form-${th.id}`).style.display = "none";
-      
-      // コメント一覧を再読み込み
       await loadCommentsForThread(th.id);
     } catch (e) {
       alert("コメントの投稿に失敗しました: " + (e?.message || e));
@@ -246,13 +209,10 @@ function renderThreadCard(th) {
   return wrap;
 }
 
-
 function openEditModal(th) {
-  // 既存モーダルがあれば消す
   const old = document.getElementById("edit-modal");
   if (old) old.remove();
 
-  // モーダルDOM
   const wrap = document.createElement("div");
   wrap.id = "edit-modal";
   wrap.style.position = "fixed";
@@ -319,7 +279,6 @@ function openEditModal(th) {
   `;
   document.body.appendChild(wrap);
 
-  // イベント
   const close = () => wrap.remove();
   wrap.querySelector("#edit-close").onclick = close;
   wrap.querySelector("#edit-cancel").onclick = close;
@@ -332,27 +291,23 @@ function openEditModal(th) {
       const hashtags = document.getElementById("edit-hashtags").value;
       const content = document.getElementById("edit-content").value;
 
-      // 既存URLの扱い
       const existingStr = document.getElementById("edit-existing-images").value || "";
       const existing = existingStr.split(",").map(s => s.trim()).filter(Boolean);
 
-      // 新規アップロード
       const fileInput = document.getElementById("edit-new-images");
       let uploaded = [];
       if (fileInput?.files?.length) {
-        uploaded = await uploadImages(fileInput.files); // 既存のuploadImagesを再利用
+        uploaded = await uploadImages(fileInput.files);
       }
 
-      // 追加 or 置き換え
-      const mode = [...wrap.querySelectorAll('input[name="editImageMode"]')]
-        .find(r => r.checked)?.value || "append";
+      const mode = [...wrap.querySelectorAll('input[name="editImageMode"]')].find(r => r.checked)?.value || "append";
       const images = mode === "replace" ? uploaded : [...existing, ...uploaded];
 
       const payload = {
         title,
         category: category || "未分類",
         subcategory: subcategory || null,
-        hashtags: parseTags(hashtags || ""),
+        hashtags: (hashtags || "").split(",").map(s => s.trim()).filter(Boolean),
         content,
         images,
       };
@@ -367,7 +322,6 @@ function openEditModal(th) {
     }
   };
 }
-
 
 async function saveEdit(id, payload) {
   const res = await callAdmin("thread_update", { id, payload });
@@ -386,23 +340,24 @@ document.getElementById("logoutBtn").onclick = logout;
 document.getElementById("createBtn").onclick = createThread;
 document.getElementById("refreshReportsBtn").onclick = loadReports;
 
-// 通報・削除依頼管理機能
+// ---------------------------
+// 通報・削除依頼管理
+// ---------------------------
 async function loadReports() {
   try {
     const typeFilter = document.getElementById("reports-type-filter").value;
     const statusFilter = document.getElementById("reports-status-filter").value;
-    
+
     const payload = {};
     if (typeFilter) payload.type = typeFilter;
     if (statusFilter) payload.status = statusFilter;
-    
+
     const res = await callAdmin("reports_list", { payload });
     if (!res.ok) throw new Error(await res.text());
-    
+
     const json = await res.json();
     displayReports(json.data || []);
     displayReportsStats(json.stats || {});
-    
   } catch (e) {
     alert("通報一覧の読み込みに失敗しました: " + (e?.message || e));
   }
@@ -414,10 +369,9 @@ function displayReportsStats(stats) {
     statsEl.textContent = "統計情報なし";
     return;
   }
-  
   const { total = 0, pending = 0, approved = 0, rejected = 0, by_type = {} } = stats;
   const { reports = 0, delete_requests = 0 } = by_type;
-  
+
   statsEl.innerHTML = `
     総件数: ${total} | 
     未処理: ${pending} | 
@@ -434,21 +388,18 @@ function displayReports(reports) {
     wrap.innerHTML = '<div class="muted">通報・削除依頼はありません</div>';
     return;
   }
-  
+
   wrap.innerHTML = reports.map(r => {
     const typeText = r.type === 'report' ? '通報' : '削除依頼';
-    const statusText = r.status === 'pending' ? '未処理' : 
+    const statusText = r.status === 'pending' ? '未処理' :
                       r.status === 'approved' ? '承認済み' : '拒否済み';
     const reasonText = getReasonText(r.reason);
-    
     const targetInfo = getTargetInfo(r);
     const createdAt = new Date(r.created_at).toLocaleString('ja-JP');
-    
+
     const actions = r.status === 'pending' ? `
       <div class="actions">
-        <button class="success" data-report='${JSON.stringify(r)}' onclick="handleApproval('${r.id}')">
-          承認・削除
-        </button>
+        <button class="success" data-report='${JSON.stringify(r)}' onclick="handleApproval('${r.id}')">承認・削除</button>
         <button class="warning" onclick="updateReport('${r.id}', 'rejected')">拒否</button>
         <button class="danger" onclick="deleteReport('${r.id}')">削除</button>
       </div>
@@ -457,7 +408,7 @@ function displayReports(reports) {
         <button class="danger" onclick="deleteReport('${r.id}')">削除</button>
       </div>
     `;
-    
+
     return `
       <div class="card">
         <div class="row">
@@ -488,9 +439,9 @@ function getReasonText(reason) {
 }
 
 function getTargetInfo(report) {
-  const typeText = report.target_type === 'thread' ? 'スレッド' : 
+  const typeText = report.target_type === 'thread' ? 'スレッド' :
                    report.target_type === 'comment' ? 'コメント' : '返信';
-  
+
   if (report.target_thread) {
     const thread = report.target_thread;
     const preview = thread.content ? thread.content.substring(0, 100) + '...' : '';
@@ -506,45 +457,33 @@ function getTargetInfo(report) {
 
 async function updateReport(id, status, report = null) {
   try {
-    // 承認の場合は、コンテンツ削除も同時に行うかユーザーに確認
     let deleteContent = false;
     if (status === 'approved' && report) {
-      const typeText = report.target_type === 'thread' ? 'スレッド' : 
+      const typeText = report.target_type === 'thread' ? 'スレッド' :
                        report.target_type === 'comment' ? 'コメント' : '返信';
-      
-      // 🗑️ スレッドの場合はカスケード削除の警告を表示
+
       let confirmMessage;
       if (report.target_type === 'thread') {
         confirmMessage = `この通報・削除依頼を承認し、該当の${typeText}を削除しますか？\n\n⚠️ スレッド削除時は以下も同時に削除されます：\n• 全てのコメント・返信\n• いいね・お気に入り\n• 関連する通報データ\n\nこの操作は取り消せません。`;
       } else {
         confirmMessage = `この通報・削除依頼を承認し、該当の${typeText}を削除しますか？\n\n⚠️ ${typeText}削除時は以下も同時に削除されます：\n• いいね\n• 関連する通報データ\n\nこの操作は取り消せません。`;
       }
-      
       deleteContent = confirm(confirmMessage);
-      
       if (!deleteContent) {
-        // 承認のみの場合
-        if (!confirm('コンテンツは削除せずに承認のみを行いますか？')) {
-          return;
-        }
+        if (!confirm('コンテンツは削除せずに承認のみを行いますか？')) return;
       }
     }
-    
+
     const adminNotes = prompt("管理者メモ (任意):");
-    const payload = { 
-      status,
-      delete_content: deleteContent
-    };
+    const payload = { status, delete_content: deleteContent };
     if (adminNotes) payload.admin_notes = adminNotes;
-    
+
     const res = await callAdmin("report_update", { id, payload });
     if (!res.ok) throw new Error(await res.text());
-    
+
     const result = await res.json();
-    if (result.content_deleted) {
-      alert(`通報を承認し、コンテンツを削除しました。`);
-    }
-    
+    if (result.content_deleted) alert(`通報を承認し、コンテンツを削除しました。`);
+
     await loadReports();
   } catch (e) {
     alert("更新に失敗しました: " + (e?.message || e));
@@ -559,11 +498,9 @@ async function handleApproval(id) {
 
 async function deleteReport(id) {
   if (!confirm("この通報・削除依頼を削除しますか？")) return;
-  
   try {
     const res = await callAdmin("report_delete", { id });
     if (!res.ok) throw new Error(await res.text());
-    
     await loadReports();
   } catch (e) {
     alert("削除に失敗しました: " + (e?.message || e));
@@ -571,42 +508,37 @@ async function deleteReport(id) {
 }
 
 async function deleteReportedContent(reportId, targetType, targetId) {
-  const typeText = targetType === 'thread' ? 'スレッド' : 
+  const typeText = targetType === 'thread' ? 'スレッド' :
                    targetType === 'comment' ? 'コメント' : '返信';
-  
-  // 🗑️ カスケード削除の警告メッセージ
+
   let confirmMessage;
   if (targetType === 'thread') {
     confirmMessage = `この${typeText}を削除しますか？\n\n⚠️ スレッド削除時は以下も同時に削除されます：\n• 全てのコメント・返信\n• いいね・お気に入り\n• 関連する通報データ\n\nこの操作は取り消せません。`;
   } else {
     confirmMessage = `この${typeText}を削除しますか？\n\n⚠️ ${typeText}削除時は以下も同時に削除されます：\n• いいね\n• 関連する通報データ\n\nこの操作は取り消せません。`;
   }
-  
   if (!confirm(confirmMessage)) return;
-  
+
   try {
-    // 削除実行の通知
-    console.log(`Deleting ${typeText} with cascade: ${targetId}`);
-    
-    const res = await callAdmin("delete_reported_content", { 
-      id: reportId, 
+    const res = await callAdmin("delete_reported_content", {
+      id: reportId,
       payload: { target_type: targetType, target_id: targetId }
     });
     if (!res.ok) throw new Error(await res.text());
-    
     alert(`${typeText}と関連データを削除しました`);
     await loadReports();
   } catch (e) {
     alert("削除に失敗しました: " + (e?.message || e));
-    console.error('削除エラー:', e);
   }
 }
 
+// ---------------------------
+// コメント（番号順で安定ソート）
+// ---------------------------
 async function loadCommentsForThread(threadId) {
   const includeDeleted = document.getElementById(`cmt-incdel-${threadId}`)?.checked ?? true;
-  const order = document.getElementById(`cmt-order-${threadId}`)?.value || "oldest";
 
-  const res = await callAdmin("thread_full", { payload: { thread_id: threadId, include_deleted: includeDeleted, order } });
+  const res = await callAdmin("thread_full", { payload: { thread_id: threadId, include_deleted: includeDeleted } });
   if (!res.ok) {
     const t = await res.text();
     return alert("コメント取得失敗: " + t);
@@ -615,45 +547,50 @@ async function loadCommentsForThread(threadId) {
   const data = json?.data || {};
   const cmts = Array.isArray(data.comments) ? data.comments : [];
 
+  // ★ comment_number 昇順で安定ソート（次キー: depth → created_at）
+  const sorted = cmts.slice().sort((a, b) => {
+    const an = (a.comment_number ?? Number.MAX_SAFE_INTEGER);
+    const bn = (b.comment_number ?? Number.MAX_SAFE_INTEGER);
+    if (an !== bn) return an - bn;
+    const ad = a.depth ?? 0;
+    const bd = b.depth ?? 0;
+    if (ad !== bd) return ad - bd;
+    const at = new Date(a.created_at || 0).getTime();
+    const bt = new Date(b.created_at || 0).getTime();
+    return at - bt;
+  });
+
   const listEl = document.getElementById(`cmt-list-${threadId}`);
   if (!listEl) return;
 
-  if (!cmts.length) {
+  if (!sorted.length) {
     listEl.innerHTML = `<div class="muted">コメントはありません</div>`;
     return;
   }
   listEl.innerHTML = "";
-  for (const c of cmts) {
-    listEl.appendChild(renderCommentLine(c, threadId));
-  }
+  for (const c of sorted) listEl.appendChild(renderCommentLine(c, threadId));
 }
 
-// 1行分のコメントDOMを生成（インデントは depth で）
 function renderCommentLine(c, threadId) {
   const line = document.createElement("div");
   line.className = "cmt-line";
-  line.style.marginLeft = `${Math.min(c.depth, 10) * 16}px`; // depthに応じてインデント
+  line.style.marginLeft = `${Math.min(c.depth ?? 0, 10) * 16}px`;
 
-  const deletedCls = c.is_deleted ? "cmt-deleted" : "";
   const content = (c.content && c.content.trim().length) ? escapeHtml(c.content) : "(本文なし)";
   const imgInfo = (Array.isArray(c.images) && c.images.length) ? `<div class="muted mono">${c.images.length}枚の画像URL</div>` : "";
-  const adminBadge = c.admin_mark ? `<span class="badge">🛡️ 管理人</span>` : "";
+  const numBadge = (c.comment_number != null) ? `#${String(c.comment_number)}` : `#?`;
 
   line.innerHTML = `
-    <div class="${deletedCls}">
+    <div>
       <div class="row" style="justify-content:space-between;">
         <div>
           <strong>${escapeHtml(c.author_name || "匿名")}</strong>
-          ${adminBadge}
-          <span class="muted mono">#${c.id.slice(0,8)} depth:${c.depth} replies:${c.reply_count}</span>
+          <span class="badge">${numBadge}</span>
+          <span class="muted mono">id:${c.id.slice(0,8)} depth:${c.depth ?? 0} replies:${c.reply_count ?? 0}</span>
         </div>
         <div class="actions">
           <button class="reply-toggle" data-act="c-reply">💬 返信</button>
           <button data-act="c-edit">✏️ 編集</button>
-          ${c.is_deleted
-            ? `<button class="success" data-act="c-restore">↩️ 復元</button>`
-            : `<button class="danger" data-act="c-softdel">🗑️ ソフト削除</button>`
-          }
           <button class="danger" data-act="c-harddel">💀 ハード削除</button>
         </div>
       </div>
@@ -674,40 +611,26 @@ function renderCommentLine(c, threadId) {
     </div>
   `;
 
-  // ボタン動作
+  // 返信フォーム開閉
   line.querySelector("[data-act='c-reply']").onclick = () => {
     const form = document.getElementById(`reply-form-${c.id}`);
     const isVisible = form.style.display !== "none";
     form.style.display = isVisible ? "none" : "block";
-    if (!isVisible) {
-      document.getElementById(`reply-content-${c.id}`).focus();
-    }
+    if (!isVisible) document.getElementById(`reply-content-${c.id}`).focus();
   };
 
+  // 編集
   line.querySelector("[data-act='c-edit']").onclick = () => openCommentEditModal(c, threadId);
-  
-  const softDelBtn = line.querySelector("[data-act='c-softdel']");
-  if (softDelBtn) softDelBtn.onclick = async () => {
-    if (!confirm("このコメントをソフト削除しますか？")) return;
-    const r = await callAdmin("comment_soft_delete", { payload: { id: c.id } });
-    if (!r.ok) return alert("失敗: " + (await r.text()));
-    await loadCommentsForThread(threadId);
-  };
-  
-  const restoreBtn = line.querySelector("[data-act='c-restore']");
-  if (restoreBtn) restoreBtn.onclick = async () => {
-    const r = await callAdmin("comment_restore", { payload: { id: c.id } });
-    if (!r.ok) return alert("失敗: " + (await r.text()));
-    await loadCommentsForThread(threadId);
-  };
-  
+
+  // ハード削除のみ
   line.querySelector("[data-act='c-harddel']").onclick = async () => {
     if (!confirm("このコメントを完全削除します。よろしいですか？")) return;
     const r = await callAdmin("comment_hard_delete", { payload: { id: c.id } });
     if (!r.ok) return alert("失敗: " + (await r.text()));
     await loadCommentsForThread(threadId);
   };
-  
+
+  // 親付け替え
   line.querySelector("[data-act='c-reparent']").onclick = async () => {
     const newParent = (document.getElementById(`reparent-${c.id}`)?.value || "").trim() || null;
     if (newParent === c.id) return alert("自分自身は親にできません。");
@@ -716,33 +639,22 @@ function renderCommentLine(c, threadId) {
     await loadCommentsForThread(threadId);
   };
 
-  // 返信フォーム関連
+  // 返信送信
   const replyCancelBtn = line.querySelector("[data-act='reply-cancel']");
   if (replyCancelBtn) replyCancelBtn.onclick = () => {
     document.getElementById(`reply-form-${c.id}`).style.display = "none";
   };
-
   const replySubmitBtn = line.querySelector("[data-act='reply-submit']");
   if (replySubmitBtn) replySubmitBtn.onclick = async () => {
     const content = document.getElementById(`reply-content-${c.id}`).value.trim();
     if (!content) return alert("返信内容を入力してください。");
-
     try {
       const r = await callAdmin("comment_create", {
-        payload: {
-          thread_id: threadId,
-          parent_id: c.id,
-          content: content,
-          images: []
-        }
+        payload: { thread_id: threadId, parent_id: c.id, content, images: [] }
       });
       if (!r.ok) throw new Error(await r.text());
-      
-      // フォームをリセットして非表示に
       document.getElementById(`reply-content-${c.id}`).value = "";
       document.getElementById(`reply-form-${c.id}`).style.display = "none";
-      
-      // コメント一覧を再読み込み
       await loadCommentsForThread(threadId);
     } catch (e) {
       alert("返信の投稿に失敗しました: " + (e?.message || e));
@@ -809,8 +721,8 @@ function openCommentEditModal(c, threadId) {
   };
 }
 
-
 // フィルター変更時に自動更新
 document.getElementById("reports-type-filter").onchange = loadReports;
 document.getElementById("reports-status-filter").onchange = loadReports;
+
 
