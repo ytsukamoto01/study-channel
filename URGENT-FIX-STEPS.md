@@ -3,27 +3,24 @@
 ## 🎯 現在のエラー
 1. `Error during cascade deletion: operator does not exist: uuid = text` - 継続中
 
-## ⚡ Bulletproof修正手順（1分で完了）
+## ⚡ 強制再作成修正手順（30秒で完了）
 
-### ステップ1: テーブル構造確認（オプション）
+### 🚨 現在のエラー解決法
+**エラー**: `function "admin_soft_delete_thread_text" already exists with same argument types`
+
+### ステップ1: 強制再作成実行（必須）
 **Supabase SQL Editor で実行:**
 ```sql
--- debug-table-structure.sql の内容をコピー&ペースト
--- テーブル構造と型を確認できます
-```
-
-### ステップ2: 完全クリーンアップ + Bulletproof版実行（必須）
-**Supabase SQL Editor で実行:**
-```sql
--- supabase-complete-cleanup-bulletproof.sql の内容を全てコピー&ペースト
--- 古い関数を完全削除 + Bulletproof版のみ作成！
+-- supabase-force-recreate-functions.sql の内容を全てコピー&ペースト
+-- 既存関数を強制削除 + 完全新規作成！
 ```
 
 **この版の特徴:**
-- ✅ 既存関数の完全削除（競合を完全回避）
-- ✅ TEXT同士の比較のみ（UUID型エラー不可能）
-- ✅ ループ処理で安全な関連データ処理
-- ✅ 強化されたログ記録
+- ✅ `DROP FUNCTION CASCADE` で強制削除
+- ✅ `pg_proc`を使用した完全クリーンアップ
+- ✅ `CREATE FUNCTION`（OR REPLACEなし）で新規作成
+- ✅ BULLETPROOF詳細ログ付き
+- ✅ TEXT専用処理で型エラー不可能
 
 ### ステップ3: 動作確認
 1. ✅ 管理画面でスレッド削除を試行
