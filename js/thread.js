@@ -637,7 +637,7 @@ async function likeThisComment(commentId) {
     if (!userFingerprint) userFingerprint = generateUserFingerprint();
 
     // 既に「いいね」しているか
-    const likes = await apiCall('/api/tables/likes');
+    const likes = await apiCall(`/api/tables/likes?comment_id=${commentId}`);
     const exists = (likes.data || []).some(l =>
       l.target_type === 'comment' && l.target_id === commentId && l.user_fingerprint === userFingerprint
     );
@@ -747,7 +747,7 @@ async function likeThread() {
     if (!userFingerprint) userFingerprint = generateUserFingerprint();
 
     // 既にいいねしているかチェック
-    const likes = await apiCall('/api/tables/likes');
+    const likes = await apiCall(`/api/tables/likes?thread_id=${currentThreadId}`);
     const existingLike = (likes.data || []).find(like => 
         like.target_id === currentThreadId && 
         like.target_type === 'thread' && 
