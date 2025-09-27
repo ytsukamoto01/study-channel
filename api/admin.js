@@ -430,34 +430,29 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, moved: data });
     }
 
-    if (action === "comment_create") {
-      const threadId = payload?.thread_id;
-      const parentId = payload?.parent_id || null;
-      const content = payload?.content || "";
-      const images = payload?.images || [];
-      if (!threadId) return json(res, 400, { ok: false, error: "missing thread_id" });
-      if (!content.trim()) return json(res, 400, { ok: false, error: "content is required" });
+if (action === "comment_create") {
+  const threadId = payload?.thread_id;
+  const parentId = payload?.parent_id || null;
+  const content  = payload?.content || "";
+  const images   = payload?.images || [];
+  if (!threadId) return json(res, 400, { ok:false, error:"missing thread_id" });
+  if (!content.trim()) return json(res, 400, { ok:false, error:"content is required" });
 
-      const ins = {
-        thread_id: threadId,
-        parent_comment_id: parentId,
-        content: content.trim(),
-        images,
-        author_name: "管理人",
-        user_fingerprint: null,
-        is_deleted: false,
-      };
-      const { data, error } = await supabase.from("comments").insert(ins).select("*").single();
-      if (error) {
-        console.error("comment_create error", error);
-        return json(res, 500, { ok: false, error: error.message });
-      }
+  // ← 直接INSERTせず、番号採番込みのRPCを呼ぶ
+  const { data, error } = await supabase.rpc("admin_create_comment", {
+    p_thread_id: threadId,
+    p_parent_id: parentId,
+    p_content:   content.trim(),
+    p_images:    images,
+  });
 
-      try { await supabase.rpc("increment_comment_count", { thread_id: threadId }); }
-      catch (e) { console.warn("increment_comment_count warn:", e?.message || e); }
+  if (error) {
+    console.error("comment_create error", error);
+    return json(res, 500, { ok:false, error: error.message });
+  }
 
-      return json(res, 200, { ok: true, data });
-    }
+  return json(res, 200, { ok:true, data });
+}
 
     return json(res, 400, { ok: false, error: "unknown action" });
   } catch (e) {
