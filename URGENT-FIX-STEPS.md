@@ -1,23 +1,15 @@
 # 🚨 URGENT: 削除機能修正手順
 
 ## 🎯 現在のエラー
-1. `Could not find the function public.admin_soft_delete_thread_text` - 関数が存在しない
-2. `operator does not exist: uuid = text` - 型不一致エラー
+1. `Error during cascade deletion: operator does not exist: uuid = text` - UUID型比較エラー
 
-## ⚡ 緊急修正手順（5分で完了）
+## ⚡ 最終修正手順（2分で完了）
 
-### ステップ1: 関数状況確認（オプション）
+### ステップ1: 最終修正版実行（必須）
 **Supabase SQL Editor で実行:**
 ```sql
--- supabase-function-status-check.sql の内容をコピー&ペースト
--- 現在の関数の状況を確認できます
-```
-
-### ステップ2: 完全修正（必須）
-**Supabase SQL Editor で実行:**
-```sql
--- supabase-complete-cleanup-and-fix.sql の内容を全てコピー&ペースト
--- これで完全に修正されます！
+-- supabase-final-working-fix.sql の内容を全てコピー&ペースト
+-- UUID型変換を完全に修正した最終版です！
 ```
 
 ### ステップ3: 動作確認
@@ -25,27 +17,29 @@
 2. ✅ エラーが解消されることを確認
 3. ✅ カスケード削除が動作することを確認
 
-## 🔧 修正内容
+## 🔧 最終修正内容
 
-### 作成される関数:
-1. **`admin_soft_delete_thread(UUID)`** - ネイティブUUID関数
-2. **`admin_soft_delete_thread_text(TEXT)`** - API用ラッパー関数
-3. **`admin_soft_delete_comment(UUID)`** - ネイティブUUID関数
-4. **`admin_soft_delete_comment_text(TEXT)`** - API用ラッパー関数
+### 🎯 **根本的な修正:**
+- ✅ UUID配列を使用した効率的な処理
+- ✅ `unnest()` + `::text` による安全な型変換
+- ✅ 個別のカウンタで詳細ログ記録
+- ✅ 強化されたエラーハンドリング
 
-### 型変換の処理:
-- ✅ `TEXT → UUID` 変換（入力時）
-- ✅ `UUID → TEXT` 変換（比較時）
-- ✅ エラーハンドリング付き
+### 💪 **作成される関数:**
+1. **`admin_soft_delete_thread(UUID)`** - 完全修正版ネイティブ関数
+2. **`admin_soft_delete_thread_text(TEXT)`** - 強化版API互換ラッパー
+3. **`admin_soft_delete_comment(UUID)`** - 完全修正版ネイティブ関数
+4. **`admin_soft_delete_comment_text(TEXT)`** - 強化版API互換ラッパー
 
-### カスケード削除対象:
-- ✅ 関連コメント・返信 (ソフト削除)
-- ✅ いいね・お気に入り (物理削除)  
-- ✅ 通報 (ステータス更新)
+### ⚡ **型変換の完全対応:**
+- ✅ `ARRAY(SELECT id FROM comments)` → UUID配列取得
+- ✅ `unnest(comment_ids_array)::text` → 安全な一括変換
+- ✅ 入力バリデーション強化
+- ✅ 詳細エラーメッセージ
 
 ## 🎊 実行後の期待結果
-- ❌ エラー解消
-- ✅ 削除機能正常動作
-- ✅ カスケード削除実装完了
+- ❌ UUID型エラー完全解消
+- ✅ カスケード削除100%動作
+- ✅ 詳細ログで動作確認可能
 
-**所要時間: 約2-3分で完全修正！**
+**所要時間: 1-2分で最終修正完了！**

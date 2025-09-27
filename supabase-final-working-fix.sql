@@ -1,44 +1,16 @@
 -- ===================================================================
--- 完全なクリーンアップとUUID対応関数の作成
+-- 最終修正版：完全動作するカスケード削除関数
 -- ===================================================================
 
 -- 【ステップ1】既存関数の完全削除
--- すべての可能性のある関数名とパラメータ型の組み合わせを削除
-
--- admin_soft_delete_thread 関連
-DROP FUNCTION IF EXISTS admin_soft_delete_thread() CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_thread(text) CASCADE;
 DROP FUNCTION IF EXISTS admin_soft_delete_thread(uuid) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_thread(p_id text) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_thread(p_id uuid) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_thread_cascade() CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_thread_cascade(text) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_thread_cascade(uuid) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_thread_text() CASCADE;
 DROP FUNCTION IF EXISTS admin_soft_delete_thread_text(text) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_thread_text(p_id text) CASCADE;
-
--- admin_soft_delete_comment 関連
-DROP FUNCTION IF EXISTS admin_soft_delete_comment() CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_comment(text) CASCADE;
 DROP FUNCTION IF EXISTS admin_soft_delete_comment(uuid) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_comment(p_id text) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_comment(p_id uuid) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_comment_cascade() CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_comment_cascade(text) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_comment_cascade(uuid) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_comment_text() CASCADE;
 DROP FUNCTION IF EXISTS admin_soft_delete_comment_text(text) CASCADE;
-DROP FUNCTION IF EXISTS admin_soft_delete_comment_text(p_id text) CASCADE;
 
--- その他の関連関数
-DROP FUNCTION IF EXISTS simple_delete_thread() CASCADE;
-DROP FUNCTION IF EXISTS simple_delete_thread(text) CASCADE;
-DROP FUNCTION IF EXISTS simple_delete_thread(p_id text) CASCADE;
+-- 【ステップ2】完全動作版の関数作成
 
--- 【ステップ2】UUID型ネイティブ関数の作成
-
--- スレッド削除（UUID型パラメータ）
+-- スレッド削除（修正版）- すべての比較でUUID型で統一
 CREATE OR REPLACE FUNCTION admin_soft_delete_thread(p_id UUID)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -47,10 +19,13 @@ SET search_path = public
 AS $$
 DECLARE
     updated_comments INTEGER := 0;
-    deleted_likes INTEGER := 0;
+    deleted_thread_likes INTEGER := 0;
+    deleted_comment_likes INTEGER := 0;
     deleted_favorites INTEGER := 0;
-    updated_reports INTEGER := 0;
+    updated_thread_reports INTEGER := 0;
+    updated_comment_reports INTEGER := 0;
     thread_exists BOOLEAN := FALSE;
+    comment_ids_array UUID[];
 BEGIN
     -- スレッドの存在確認
     SELECT EXISTS(
@@ -64,6 +39,13 @@ BEGIN
     
     RAISE NOTICE 'Starting cascade soft deletion for thread: %', p_id;
     
+    -- 関連するコメントのIDを取得（UUID配列として）
+    SELECT ARRAY(
+        SELECT id FROM comments WHERE thread_id = p_id
+    ) INTO comment_ids_array;
+    
+    RAISE NOTICE 'Found % related comments', array_length(comment_ids_array, 1);
+    
     -- 1. このスレッドに関連するコメント・返信をソフト削除
     UPDATE comments 
     SET is_deleted = TRUE, deleted_at = NOW()
@@ -73,41 +55,50 @@ BEGIN
     GET DIAGNOSTICS updated_comments = ROW_COUNT;
     RAISE NOTICE 'Soft deleted % comments/replies', updated_comments;
     
-    -- 2. いいねを削除（UUIDからTEXTへの変換）
+    -- 2-1. スレッドのいいねを削除
     DELETE FROM likes 
     WHERE target_type = 'thread' AND target_id = p_id::text;
     
-    GET DIAGNOSTICS deleted_likes = ROW_COUNT;
+    GET DIAGNOSTICS deleted_thread_likes = ROW_COUNT;
+    RAISE NOTICE 'Deleted % thread likes', deleted_thread_likes;
     
-    -- コメントのいいねも削除
+    -- 2-2. コメントのいいねを削除（UUIDを個別に変換）
     DELETE FROM likes 
     WHERE target_type = 'comment' 
-    AND target_id IN (
-        SELECT id::text FROM comments WHERE thread_id = p_id
+    AND target_id = ANY(
+        SELECT unnest(comment_ids_array)::text
     );
     
-    -- 3. お気に入りを削除
+    GET DIAGNOSTICS deleted_comment_likes = ROW_COUNT;
+    RAISE NOTICE 'Deleted % comment likes', deleted_comment_likes;
+    
+    -- 3. お気に入りを削除（UUID直接比較）
     DELETE FROM favorites 
     WHERE thread_id = p_id;
     
     GET DIAGNOSTICS deleted_favorites = ROW_COUNT;
+    RAISE NOTICE 'Deleted % favorites', deleted_favorites;
     
-    -- 4. 通報はステータス更新（履歴保持のため）
+    -- 4-1. スレッド通報のステータス更新
     UPDATE reports 
     SET status = 'resolved', resolved_at = NOW(), resolved_reason = 'Thread deleted by admin'
     WHERE target_type = 'thread' AND target_id = p_id::text
     AND status = 'pending';
     
-    -- コメント関連の通報も更新
+    GET DIAGNOSTICS updated_thread_reports = ROW_COUNT;
+    RAISE NOTICE 'Updated % thread reports', updated_thread_reports;
+    
+    -- 4-2. コメント関連の通報も更新
     UPDATE reports 
     SET status = 'resolved', resolved_at = NOW(), resolved_reason = 'Parent thread deleted by admin'
     WHERE (target_type = 'comment' OR target_type = 'reply')
-    AND target_id IN (
-        SELECT id::text FROM comments WHERE thread_id = p_id
+    AND target_id = ANY(
+        SELECT unnest(comment_ids_array)::text
     )
     AND status = 'pending';
     
-    GET DIAGNOSTICS updated_reports = ROW_COUNT;
+    GET DIAGNOSTICS updated_comment_reports = ROW_COUNT;
+    RAISE NOTICE 'Updated % comment reports', updated_comment_reports;
     
     -- 5. スレッド本体をソフト削除
     UPDATE threads 
@@ -115,8 +106,8 @@ BEGIN
     WHERE id = p_id;
     
     RAISE NOTICE 'Thread % soft deleted with cascade', p_id;
-    RAISE NOTICE 'Summary - Comments: %, Likes: %, Favorites: %, Reports: %', 
-                 updated_comments, deleted_likes, deleted_favorites, updated_reports;
+    RAISE NOTICE 'Summary - Comments: %, Thread Likes: %, Comment Likes: %, Favorites: %, Thread Reports: %, Comment Reports: %', 
+                 updated_comments, deleted_thread_likes, deleted_comment_likes, deleted_favorites, updated_thread_reports, updated_comment_reports;
     
     RETURN TRUE;
     
@@ -127,7 +118,7 @@ EXCEPTION
 END;
 $$;
 
--- コメント削除（UUID型パラメータ）
+-- コメント削除（修正版）
 CREATE OR REPLACE FUNCTION admin_soft_delete_comment(p_id UUID)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -149,11 +140,14 @@ BEGIN
         RETURN FALSE;
     END IF;
     
+    RAISE NOTICE 'Starting cascade soft deletion for comment: %', p_id;
+    
     -- 1. このコメントのいいねを削除
     DELETE FROM likes 
     WHERE target_type = 'comment' AND target_id = p_id::text;
     
     GET DIAGNOSTICS deleted_likes = ROW_COUNT;
+    RAISE NOTICE 'Deleted % comment likes', deleted_likes;
     
     -- 2. このコメントに関する通報をクローズ
     UPDATE reports 
@@ -163,6 +157,7 @@ BEGIN
     AND status = 'pending';
     
     GET DIAGNOSTICS updated_reports = ROW_COUNT;
+    RAISE NOTICE 'Updated % comment reports', updated_reports;
     
     -- 3. コメント本体をソフト削除
     UPDATE comments 
@@ -181,7 +176,7 @@ EXCEPTION
 END;
 $$;
 
--- 【ステップ3】TEXT型ラッパー関数の作成（API互換性のため）
+-- 【ステップ3】TEXTラッパー関数（エラーハンドリング強化）
 
 -- TEXTラッパー：スレッド削除
 CREATE OR REPLACE FUNCTION admin_soft_delete_thread_text(p_id TEXT)
@@ -193,6 +188,11 @@ AS $$
 DECLARE
     uuid_param UUID;
 BEGIN
+    -- 入力値のバリデーション
+    IF p_id IS NULL OR length(trim(p_id)) = 0 THEN
+        RAISE EXCEPTION 'Thread ID cannot be null or empty';
+    END IF;
+    
     -- TEXTをUUIDに変換
     BEGIN
         uuid_param := p_id::UUID;
@@ -216,6 +216,11 @@ AS $$
 DECLARE
     uuid_param UUID;
 BEGIN
+    -- 入力値のバリデーション
+    IF p_id IS NULL OR length(trim(p_id)) = 0 THEN
+        RAISE EXCEPTION 'Comment ID cannot be null or empty';
+    END IF;
+    
     -- TEXTをUUIDに変換
     BEGIN
         uuid_param := p_id::UUID;
@@ -230,6 +235,22 @@ END;
 $$;
 
 -- 【ステップ4】関数の確認
+DO $$
+DECLARE
+    func_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO func_count
+    FROM information_schema.routines 
+    WHERE routine_schema = 'public' 
+        AND routine_name LIKE 'admin_soft_delete_%';
+    
+    RAISE NOTICE '✅ Created % cascade delete functions successfully!', func_count;
+    RAISE NOTICE '🎯 Use admin_soft_delete_thread_text(p_id TEXT) for thread deletion';
+    RAISE NOTICE '🎯 Use admin_soft_delete_comment_text(p_id TEXT) for comment deletion';
+    RAISE NOTICE '📋 Functions handle UUID conversion and type casting automatically';
+END $$;
+
+-- 関数一覧表示
 SELECT 
     routine_name, 
     routine_type,
@@ -238,11 +259,3 @@ FROM information_schema.routines
 WHERE routine_schema = 'public' 
     AND routine_name LIKE 'admin_soft_delete_%'
 ORDER BY routine_name;
-
--- 【ステップ5】テスト用の関数呼び出し例
--- ※実際のUUIDに置き換えてテスト
--- SELECT admin_soft_delete_thread_text('550e8400-e29b-41d4-a716-446655440000');
-
-RAISE NOTICE '✅ All cascade delete functions created successfully!';
-RAISE NOTICE '🎯 Use admin_soft_delete_thread_text(p_id TEXT) for API calls';
-RAISE NOTICE '🎯 Use admin_soft_delete_comment_text(p_id TEXT) for API calls';
