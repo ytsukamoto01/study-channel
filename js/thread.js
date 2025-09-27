@@ -639,7 +639,7 @@ async function likeThisComment(commentId) {
     // 既に「いいね」しているか
     const likes = await apiCall(`/api/tables/likes?comment_id=${commentId}`);
     const exists = (likes.data || []).some(l =>
-      l.target_type === 'comment' && l.target_id === commentId && l.user_fingerprint === userFingerprint
+      l.comment_id === commentId && l.user_fingerprint === userFingerprint
     );
     if (exists) {
       showErrorMessage('このコメントには既に「いいね」しています');
@@ -749,8 +749,7 @@ async function likeThread() {
     // 既にいいねしているかチェック
     const likes = await apiCall(`/api/tables/likes?thread_id=${currentThreadId}`);
     const existingLike = (likes.data || []).find(like => 
-        like.target_id === currentThreadId && 
-        like.target_type === 'thread' && 
+        like.thread_id === currentThreadId &&
         like.user_fingerprint === userFingerprint
     );
     
