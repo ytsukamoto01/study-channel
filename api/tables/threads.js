@@ -57,8 +57,7 @@ async function calculateThreadCounts(db, thread) {
       const { data: likes, error: fallbackError } = await db
         .from('likes')
         .select('id')
-        .eq('target_type', 'thread')
-        .eq('target_id', thread.id);
+        .eq('thread_id', thread.id);
       
       if (!fallbackError && Array.isArray(likes)) {
         const fallbackLikeCount = likes.length;
