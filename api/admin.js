@@ -289,25 +289,80 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, data: data || [], stats });
     }
 
-    if (action === "report_update") {
-      if (!id) return json(res, 400, { ok: false, error: "missing id" });
-      const p = payload || {};
-      const { status: newStatus, admin_notes } = p;
-      if (!newStatus || !["pending", "approved", "rejected"].includes(newStatus)) {
-        return json(res, 400, { ok: false, error: "invalid status" });
-      }
-      const { data, error } = await supabase
-        .from("reports")
-        .update({ status: newStatus, admin_notes: admin_notes || null })
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) {
-        console.error("report_update error", error);
-        return json(res, 500, { ok: false, error: error.message });
-      }
-      return json(res, 200, { ok: true, data });
+// /api/admin.js 内： report_update を置き換え
+if (action === "report_update") {
+  if (!id) return json(res, 400, { ok: false, error: "missing id" });
+  const p = payload || {};
+  const { status: newStatus, admin_notes, delete_content = false } = p;
+  if (!newStatus || !["pending", "approved", "rejected"].includes(newStatus)) {
+    return json(res, 400, { ok: false, error: "invalid status" });
+  }
+
+  let contentDeleted = false;
+  let reportDeleted = false;
+
+  // 承認＋コンテンツ削除フラグなら、先に対象を物理削除（FKでreportsごと消える可能性あり）
+  if (newStatus === "approved" && delete_content) {
+    // レポートから対象情報を取得
+    const { data: rep, error: repErr } = await supabase
+      .from("reports")
+      .select("target_type, target_id")
+      .eq("id", id)
+      .single();
+
+    if (repErr || !rep?.target_id) {
+      return json(res, 404, { ok: false, error: "Report not found" });
     }
+
+    const normalized = String(rep.target_type || "").toLowerCase();
+    const isThread = ["thread", "threads"].includes(normalized);
+    const isComment = ["comment", "comments", "reply", "replies"].includes(normalized);
+
+    if (!isThread && !isComment) {
+      return json(res, 400, { ok: false, error: "unsupported target_type" });
+    }
+    if (!isUUID(rep.target_id)) {
+      return json(res, 400, { ok: false, error: "INVALID_UUID" });
+    }
+
+    const { error: delErr } = await supabase.rpc("admin_delete_content", {
+      p_target_type: isThread ? "thread" : "comment",
+      p_target_id: rep.target_id,
+    });
+    if (delErr) {
+      console.error("admin_delete_content error", delErr);
+      return json(res, 500, { ok: false, error: delErr.message });
+    }
+    contentDeleted = true;
+  }
+
+  // レポート行の更新（↑でFK CASCADE により消えていたら成功扱いにする）
+  const { data, error } = await supabase
+    .from("reports")
+    .update({ status: newStatus, admin_notes: admin_notes || null })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    // 行が既に消えているケースを成功扱い
+    reportDeleted = newStatus === "approved" && delete_content;
+  }
+
+  return json(res, 200, {
+    ok: true,
+    data: reportDeleted ? null : (data || null),
+    message:
+      newStatus === "approved"
+        ? (delete_content ? "承認し、対象を削除しました" : "承認しました")
+        : newStatus === "rejected"
+          ? "拒否しました"
+          : "保留に戻しました",
+    content_deleted: contentDeleted,
+    report_deleted: reportDeleted,
+  });
+}
+
 
     if (action === "report_delete") {
       if (!id) return json(res, 400, { ok: false, error: "missing id" });
